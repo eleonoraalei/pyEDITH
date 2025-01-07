@@ -275,6 +275,7 @@ def calculate_exposure_time(edith,coronagraph,istar, ilambd):
     # Measure coronagraph performance at each IWA
     pixscale_rad = coronagraph.pixscale * (edith.lambd[ilambd] * 1e-6 / edith.D)
     oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
+
     # Measure coronagraph performance at each IWA
     det_sep_pix,det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod = measure_coronagraph_performance(
         edith.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
@@ -357,7 +358,7 @@ def calculate_exposure_time(edith,coronagraph,istar, ilambd):
                         
                         # ## WHEN CALCULATING THE COUNT RATES, WE NEED TO MULTIPLY BY OMEGA_LOD i.e. 
                         # # THE SOLID ANGLE OF THE PHOTOMETRIC APERTURE
-                                            # # Calculate CRbs
+                        # Calculate CRbs
                         CRbs= calculate_CRbs(edith.F0[ilambd],Fstar,Istar_interp[int(np.floor(iy)), int(np.floor(ix))], area_cm2, 
                                                     coronagraph.pixscale, edith.throughput[ilambd], deltalambda_nm)
 
@@ -380,8 +381,12 @@ def calculate_exposure_time(edith,coronagraph,istar, ilambd):
                                                     area_cm2,  edith.throughput[ilambd], deltalambda_nm)
 
                         # Calculate CRbd
-                        t_photon_count=calculate_t_photon_count(lod_arcsec,edith.det_pixscale_mas,edith.det_npix_multiplier[ilambd],det_omega_lod,det_CR)
-                        CRbd=calculate_CRbd(edith.det_npix_multiplier[ilambd],edith.det_DC[ilambd],edith.det_RN[ilambd],edith.det_tread[ilambd],edith.det_CIC[ilambd],t_photon_count,det_omega_lod,detpixscale_lod)
+                        t_photon_count=calculate_t_photon_count(lod_arcsec,edith.det_pixscale_mas,
+                                                                edith.det_npix_multiplier[ilambd],det_omega_lod,det_CR)
+
+                        CRbd=calculate_CRbd(edith.det_npix_multiplier[ilambd],edith.det_DC[ilambd],edith.det_RN[ilambd],
+                                            edith.det_tread[ilambd],edith.det_CIC[ilambd],t_photon_count,det_omega_lod,detpixscale_lod)
+                        
                         # TOTAL BACKGROUND NOISE
                         CRb = (CRbs+CRbz+CRbez+CRbbin)* coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
                         #Add detector noise
@@ -398,7 +403,7 @@ def calculate_exposure_time(edith,coronagraph,istar, ilambd):
                             temptf=np.inf 
                         if temptp > edith.td_limit:
                             #treat as unobservable if beyond exposure time limit
-                                                        temptf=np.inf 
+                            temptf=np.inf 
 
                         if (edith.nrolls != 1):
                             # multiply by number of required rolls to achieve 360 deg coverage (after tlimit enforcement)
