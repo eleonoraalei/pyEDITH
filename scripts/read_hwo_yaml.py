@@ -324,7 +324,6 @@ def load_detector(lam):
 
     return detector
 
-    
 
 
 
