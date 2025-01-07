@@ -1,47 +1,7 @@
+import numpy as np
+import pyEDITH.parse_input as io
 from typing import Union
-import numpy as np 
 from scipy.interpolate import interp1d,interpn
-
-# def calcBnu(temp:float, lambd: Union[float,np.array]) -> Union[float,np.array]:
-#     # TODO UNUSED????
-#     # Calculates the Planck Law in CGS units
-#     #
-#     # Input:
-#     # temp = temperature in Kelvin
-#     # lambd = wavelength in microns
-#     #
-#     # Output:
-#     # result = Bnu in erg cm^-2 steradian^-1
-#     #
-#     # Created by Chris Stark
-#     # University of Maryland Physics Dept/Goddard Space Flight Center
-#     # starkc@umd.edu
-#     # Last updated 08/09/07 by Chris Stark
-
-#     const1 = 3.972895E-4 #const1 = 2 * h * c * (1E6)^3 (in CGS w/ correction for microns)
-#     const2 = 1.438769E4 #const2 = h * c * 1E6 / k (in CGS w/ correction for microns)
-#     return const1 / (lambd^3.0 * (np.exp(const2 / (lambd * temp)) - 1))
-  
-# def calcblambd(temp:float, lambd: Union[float,np.array]) -> Union[float,np.array]:
-#     # TODO UNUSED????
-#     # Calculates the Planck Law (per unit wavelength) in CGS units
-#     #
-#     # Input:
-#     # temp = temperature in Kelvin
-#     # lambd = wavelength in microns
-#     #
-#     # Output:
-#     # result = Bnu in erg cm^-3 s^-1 steradian^-1
-#     #
-#     # Created by Chris Stark
-#     # Goddard Space Flight Center
-#     # christopher.c.stark@nasa.gov
-#     # Last updated 01/28/15 by Chris Stark
-
-#     const1 = 1.1910439E15 #const1 = 2 * h * c^2 * (1E4)^5 (in CGS w/ correction for microns)
-#     const2 = 1.438769E4 #const2 = h * c * 1E4 / k (in CGS w/ correction for microns)
-#     return const1 / (lambd^5.0 * (np.exp(const2 / (lambd * temp)) - 1))
-
 
 
 def calc_flux_zero_point(lambd: np.array, unit: str = '',
@@ -113,51 +73,7 @@ def calc_flux_zero_point(lambd: np.array, unit: str = '',
         #Johnson magnitude system
         known_lambd = np.array([0.36,0.44,0.55,0.71,0.97,1.25,1.60,2.22,3.54,4.80,10.6,21.0])
         known_zeropoint_jy = np.array([1823,4130,3781,2941,2635,1603,1075,667,288,170,36,9.4])
-        '''
-        # CREATED FINER GRID TO IMPROVE PYTHON INTERPOLATION
-
-        known_lambd=np.array([0.360000,0.375094,0.390821,0.407207,0.424280, 0.44,
-                              0.442069,0.460604,0.479916,0.500038,0.521003,
-                              0.542848,0.55, 0.565608,0.589323,0.614031,0.639776,
-                              0.666601,0.694550,0.71, 0.723670,0.754012,0.785626,
-                              0.818565,0.852886,0.888645,0.925904,0.964725, 0.97,
-                              1.00517, 1.04732, 1.09123, 1.13698, 1.18465, 
-                              1.23432, 1.25, 1.28608, 1.34000, 1.39618, 1.45472, 
-                              1.51571, 1.57926,1.60, 1.64548, 1.71447, 1.78635,
-                              1.86125, 1.93929, 2.02060, 2.10531, 2.19358, 2.22,
-                              2.28556, 2.38138, 2.48123, 2.58526, 2.69366, 
-                              2.80659, 2.92427, 3.04688, 3.17462, 3.30773,
-                              3.44641, 3.54, 3.59091, 3.74147, 3.89834, 4.06179,
-                              4.23209, 4.40953, 4.59442, 4.78705,4.8, 4.98776, 
-                              5.19688, 5.41477, 5.64180, 5.87835, 6.12481, 
-                              6.38161, 6.64918, 6.92796, 7.21844, 7.52109, 
-                              7.83643, 8.16499, 8.50733, 8.86402, 9.23567, 
-                              9.62290, 10.0264, 10.4467, 10.6, 10.8848, 11.3411, 
-                              11.8166, 12.3121, 12.8283, 13.3661, 13.9266,
-                              14.5105, 15.1189, 15.7528, 16.4132, 17.1014, 
-                              17.8184, 18.5655, 19.3439, 20.1549, 21.0000])
-
-        known_zeropoint_jy=np.array([1823.00,2309.47,2823.45,3331.13,3792.66,4130.,
-                                     4167.16,4418.53,4521.24,4464.58,4254.47,
-                                     3912.49,3781., 3707.21,3588.95,3460.09,3322.04,
-                                     3176.30,3024.39,2941.,2903.20,2831.21,2771.39,
-                                     2723.06,2685.63,2658.69,2641.93,2635.16,2635.,
-                                     2512.17,2356.43,2189.25,2014.52,1836.04,
-                                     1657.41,1603.,1524.38,1420.41,1326.57,1241.78,
-                                     1165.10,1095.66,1075.,1029.55,967.160,909.412,
-                                     855.923,806.341,760.353,717.667,678.019, 667.,
-                                     636.448,594.955,555.360,517.645,481.789,
-                                     447.766,415.540,385.073,356.321,329.236,
-                                     303.768,288.,280.864,261.361,243.286,226.529,
-                                     210.989,196.574,183.199,170.785,170., 158.639,
-                                     147.218,136.524,126.518,117.162,108.423,
-                                     100.265,92.6557,85.5639,78.9595,72.8138,
-                                     67.0993,61.7899,56.8608,52.2882,48.0495,
-                                     44.1235,40.4899,37.1294,36., 34.1755,31.5292,
-                                     29.0876,26.8347,24.7561,22.8382,21.0686,
-                                     19.4360,17.9297,16.5399,15.2577,14.0748,
-                                     12.9834,11.9765,11.0476,10.1906,9.39999])
-        '''
+        
         #Now we interpolate to lambd
         #Note that the interpolation is best done in log-log space
         interp=interp1d(np.log10(known_lambd),np.log10(known_zeropoint_jy), kind='cubic',fill_value='extrapolate') # TODO this interpolation is not exactly the same, is that okay?
@@ -324,19 +240,6 @@ def calc_zodi_flux(dec:np.array, ra:np.array, lambd:np.array, F0:np.array, stars
     interp =interp1d(np.sin(beta_vector*np.pi/180.),table17[j]/table17[k,0],kind='cubic',fill_value='extrapolate') 
     f =interp(sinbeta)
 
-    '''
-    # REPLACED WITH A SIMPLIFIED VERSION THAT YIELDS THE SAME RESULT (I just copy the single row/column instead)
-
-    # #### np.sin(beta_vector*np.pi/180)
-    # x= [0.,0.08715574,0.17364818, 0.25881905, 0.34202014, 0.42261826,0.5,0.70710678,0.8660254,0.96592583]
-    
-    # #### table17[j]/table17[k,0] where j and k correspond to the indices of the row at 135. and the column at 90 (see above)
-    # y=[0.69111969,0.68725869,0.64092664,0.56756757,0.51737452,0.47104247,0.42471042,0.34749035,0.2972973, 0.28185328]
-   
-    # interp =interp1d(x,y,fill_value='extrapolate') 
-    # f =interp(sinbeta)
-    '''
-
     #### STARSHADE functionality not enabled ####
     #For a starshade, we assume a mean solar elongation of 59 degrees
     # if starshade==True: 
@@ -366,47 +269,7 @@ def calc_zodi_flux(dec:np.array, ra:np.array, lambd:np.array, F0:np.array, stars
     # TODO: Change to cubic interpolation 
     
 
-    ''' zodi_lambd=np.array([  0.2     ,   0.213682,   0.2283  ,   0.243919,   0.260605,
-         0.278434,   0.297482,   0.317833,   0.339576,   0.362807,
-         0.387627,   0.414145,   0.442477,   0.472747,   0.505088,
-         0.539642,   0.576559,   0.616002,   0.658143,   0.703168,
-         0.751272,   0.802667,   0.857579,   0.916247,   0.978928,
-         1.0459  ,   1.11745 ,   1.19389 ,   1.27557 ,   1.36283 ,
-         1.45607 ,   1.55568 ,   1.6621  ,   1.77581 ,   1.89729 ,
-         2.02709 ,   2.16576 ,   2.31393 ,   2.47222 ,   2.64135 ,
-         2.82205 ,   3.01511 ,   3.22138 ,   3.44175 ,   3.67721 ,
-         3.92877 ,   4.19754 ,   4.4847  ,   4.7915  ,   5.11929 ,
-         5.46951 ,   5.84368 ,   6.24345 ,   6.67057 ,   7.12692 ,
-         7.61448 ,   8.13539 ,   8.69194 ,   9.28656 ,   9.92187 ,
-        10.6006  ,  11.3258  ,  12.1006  ,  12.9285  ,  13.8129  ,
-        14.7579  ,  15.7675  ,  16.8461  ,  17.9986  ,  19.2299  ,
-        20.5454  ,  21.951   ,  23.4527  ,  25.0571  ,  26.7713  ,
-        28.6027  ,  30.5595  ,  32.65    ,  34.8837  ,  37.2701  ,
-        39.8198  ,  42.5439  ,  45.4544  ,  48.564   ,  51.8863  ,
-        55.4359  ,  59.2283  ,  63.2802  ,  67.6092  ,  72.2345  ,
-        77.176   ,  82.4558  ,  88.0966  ,  94.1234  , 100.563   ,
-       107.442   , 114.792   , 122.645   , 131.036   , 140.      ])
-    zodi_blambd=np.array([5.88232e-19, 1.05285e-18, 1.82390e-18, 3.05813e-18, 4.96284e-18,
-       7.79505e-18, 1.18503e-17, 1.74365e-17, 2.48317e-17, 3.42271e-17,
-       4.56621e-17, 5.60664e-17, 6.17846e-17, 6.33569e-17, 6.12456e-17,
-       6.08544e-17, 5.90367e-17, 5.59199e-17, 5.17153e-17, 4.67789e-17,
-       4.25436e-17, 3.81568e-17, 3.37492e-17, 3.00493e-17, 2.85588e-17,
-       2.64107e-17, 2.30944e-17, 1.93543e-17, 1.65760e-17, 1.41858e-17,
-       1.20838e-17, 1.02453e-17, 8.64611e-18, 7.26259e-18, 6.07207e-18,
-       5.05308e-18, 4.18551e-18, 3.51491e-18, 2.96757e-18, 2.50595e-18,
-       2.11657e-18, 1.78805e-18, 1.51082e-18, 1.27683e-18, 1.27737e-18,
-       1.42399e-18, 1.68283e-18, 2.10823e-18, 2.79991e-18, 3.30562e-18,
-       3.86924e-18, 4.50812e-18, 5.22842e-18, 6.03593e-18, 6.93617e-18,
-       7.93407e-18, 9.03390e-18, 1.02389e-17, 1.15514e-17, 1.29722e-17,
-       1.45009e-17, 1.61354e-17, 1.76808e-17, 1.77822e-17, 1.75868e-17,
-       1.71043e-17, 1.63582e-17, 1.53846e-17, 1.42282e-17, 1.29399e-17,
-       1.15725e-17, 1.01775e-17, 8.80174e-18, 7.49285e-18, 6.46752e-18,
-       5.51824e-18, 4.65414e-18, 3.88015e-18, 3.19767e-18, 2.60492e-18,
-       2.09762e-18, 1.66968e-18, 1.31376e-18, 1.02181e-18, 7.85588e-19,
-       5.97034e-19, 4.48511e-19, 3.54356e-19, 2.83744e-19, 2.27068e-19,
-       1.81605e-19, 1.45158e-19, 1.15957e-19, 9.25754e-20, 7.35820e-20,
-       5.57304e-20, 4.16982e-20, 3.08216e-20, 2.25062e-20, 1.62353e-20])
-    '''
+  
     # wavelength dependence
     # The following comes from fits to Table 19 in Leinert et al 1998
     ## COMMENTED TO INCREASE RESOLUTION OF THE GRID (the larger grid already does all conversions)
@@ -443,5 +306,73 @@ def calc_zodi_flux(dec:np.array, ra:np.array, lambd:np.array, F0:np.array, stars
 
 
     return flux_zodi
+
+
+
+
+class AstrophysicalScene():
+    """
+    
+    Methods:
+    --------
+    
+    """
+    def __init__(self) -> None:
+        """
+        Initialize the object with default values for output arrays.
+        """
+        pass #there are no default values, TODO it should fail if not provided
+
+    def load_configuration(self,parameters:dict) -> None:
+        """
+        Load configuration parameters for the simulation from a dictionary of parameters that was read from the input file.
+
+        Parameters:
+        -----------
+        parameters : dict
+            A dictionary containing various simulation parameters including:
+            - Target star parameters (ntargs, Lstar, dist, vmag, mag, angdiam_arcsec, nzodis, ra, dec)
+            - Planet parameters (sp, deltamag, min_deltamag)
+            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
+            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
+            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth, core_throughput, Lyot_transmission)
+            - Detector parameters (npix_multiplier, dark_current, read_noise, read_time, cic)
+            - Coronagraph parameters (coro_type, nrolls)
+        """
+
+        #-------- INPUTS ---------
+        # Target star parameters
+        self.ntargs=parameters['ntargs']
+        self.Lstar = np.array(parameters['Lstar'],dtype=np.float64) # luminosity of star (solar luminosities) # ntargs array
+        self.dist = np.array(parameters['distance'],dtype=np.float64)  # distance to star (pc) # ntargs array
+        self.vmag = np.array(parameters['magV'],dtype=np.float64) # stellar mag at V band # ntargs array
+        self.mag = np.array(parameters['mag'],dtype=np.float64)                     # stellar mag at desired lambd # nlambd x ntargs array
+        self.angdiam_arcsec = np.array(parameters['angdiam'],dtype=np.float64)          # angular diameter of star (arcsec) # ntargs array
+        self.nzodis = np.array(parameters['nzodis'],dtype=np.float64) # amount of exozodi around target star ("zodis") # ntargs array
+        self.ra = np.array(parameters['ra'],dtype=np.float64) # right ascension of target star used to estimate zodi (deg) # ntargs array
+        self.dec = np.array(parameters['dec'],dtype=np.float64) # declination of target star used to estimate zodi (deg) # ntargs array
+
+        # Planet parameters
+        self.sp = np.array(parameters['sp'],dtype=np.float64) # separation of planet (arcseconds) # nmeananom x norbits x ntargs array
+        self.xp = self.sp.copy()
+        self.yp = self.sp.copy()*0.0  ## FOR NOW IT IS ASSUMED TO BE ON THE X AXIS SO THAT XP = SP (input) and YP = 0
+        self.deltamag = np.array(parameters['delta_mag'],dtype=np.float64) # difference in mag between planet and host star # nmeananom x norbits x ntargs array
+        self.min_deltamag = np.array(parameters['delta_mag_min'],dtype=np.float64) # brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts # ntargs array
+
+        
+    def calculate_zodi_exozodi(self,observation):
+        # calculate zodi and exozodi
+
+        #calculate flux at zero point for the V band and the prescribed lambda
+        self.F0V= (calc_flux_zero_point(lambd=0.55, unit='pcgs',perlambd=True))/1e7 #convert to photons cm^-2 nm^-1 s^-1
+        self.F0= (calc_flux_zero_point(lambd=observation.lambd, unit='pcgs',perlambd=True))/1e7 #convert to photons cm^-2 nm^-1 s^-1
+        
+        self.M_V = self.vmag - 5.0 * np.log10(self.dist) + 5.0 #calculate absolute V band mag of target 
+        self.Fzodi_list = calc_zodi_flux(self.dec, self.ra, observation.lambd, self.F0)
+        
+        self.Fexozodi_list = calc_exozodi_flux(self.M_V, self.vmag, self.F0V, self.nzodis, observation.lambd, self.mag, self.F0)
+        self.Fbinary_list = np.full((observation.nlambd,self.ntargs),0.0) #this code ignores stray light from binaries
+        self.Fp0 = 10.**(-0.4*self.deltamag)       #flux of planet
+
 
 

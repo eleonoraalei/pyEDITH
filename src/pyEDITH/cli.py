@@ -1,11 +1,11 @@
-from .edith import Edith
-# from edith.etc import *
-from .coronagraph import ToyModel, Coronagraph
-import ctypes
-from ctypes import POINTER,c_int, c_double
+from .coronagraph import ToyModel
+from .astrophysical_scene import AstrophysicalScene
+from .observation import Observation
+from .telescope import Telescope
+from .detector import Detector
 from .exposure_time_calculator import calculate_exposure_time
+from .edith import Edith
 from argparse import ArgumentParser
-from pathlib import Path
 from . import parse_input
 import numpy as np
 import sys
@@ -142,26 +142,46 @@ def calculate_texp(parameters: dict) -> np.array:
     For now, only the "toy" coronagraph is implemented.
     """
 
-  
-    # define Edith object
-    edith=Edith()
-    edith.load_configuration(parameters)
-    edith.load_default_parameters()
-    edith.calculate_zodi_exozodi()    
+    # Define Observation and load relevant parameters
+    observation = Observation()
+    observation.load_configuration(parameters)
 
-    # define coronagraph
-    if edith.coro_type=='toymodel':
-        coronagraph=ToyModel(edith.bandwidth,edith.photap_rad,edith.TLyot,edith.Tcore,
-                               edith.contrast,edith.noisefloor,edith.IWA,edith.OWA, 
-                               edith.nrolls)
+
+    # Define Astrophysical Scene and load relevant parameters, then calculate zodi/exozodi
+    scene = AstrophysicalScene()
+    scene.load_configuration(parameters)
+    scene.calculate_zodi_exozodi(observation)  
+
+
+    # Define Telescope and load relevant parameters
+    telescope = Telescope()
+    telescope.load_configuration(parameters)
+
+    # Define Coronagraph and load relevant parameters
+    if parameters['coro_type']=='toymodel':
+        coronagraph=ToyModel() # a subclass of Coronagraph, will automatically initialize variables
+
+        # Load the configuration as specified in the general Coronagraph class. (But the method can be overwritten in the future)
+        coronagraph.load_configuration(parameters) 
+
+        # Generate secondary parameters specific to the ToyModel subclass
+        coronagraph.generate_secondary_parameters(observation)
     else:
         raise KeyError('The coro_type keyword is not valid.')
 
+    # Define Detector and load relevant parameters
+    detector = Detector()
+    detector.load_configuration(parameters)
 
-    edith.exptime =np.full((edith.ntargs,edith.nlambd),0.)
-    for istar in range(edith.ntargs): #set to 1
-        for ilambd in range(edith.nlambd): #set to 1
-            edith.exptime[istar,ilambd] = calculate_exposure_time(edith,coronagraph,istar, ilambd)
+    # Define Edith object and load default parameters
+    edith=Edith()
+    edith.load_default_parameters()
+
+    ### EXPOSURE TIME CALCULATION    
+
+    for istar in range(scene.ntargs): #set to 1
+        for ilambd in range(observation.nlambd): #set to 1
+            edith.exptime[istar,ilambd] = calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith,istar, ilambd)
 
             #print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
 
