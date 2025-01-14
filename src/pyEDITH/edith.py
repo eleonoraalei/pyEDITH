@@ -1,5 +1,4 @@
 import numpy as np
-import pyEDITH.flux_zodis_calculation as fluxzodi
 import pyEDITH.parse_input as io
 
 class Edith():
@@ -13,7 +12,6 @@ class Edith():
     __init__()
     load_configuration(parameters)
     load_default_parameters()
-    calculate_zodi_exozodi()
     """
     def __init__(self, scene, observation) -> None:
         """
@@ -31,6 +29,10 @@ class Edith():
         # self.maxpsftruncratio = np.array([0.0])
         self.tp = np.array([[[0.0]]],dtype=np.float64) #exposure time of every planet (nmeananom x norbits x ntargs array), used in c function [NOTE: nmeananom = nphases in C code]
         self.exptime =np.full((scene.ntargs,observation.nlambd),0.)
+
+        #only used for snr calculation
+        self.fullsnr =np.full((scene.ntargs,observation.nlambd),0.)
+
 
 
    

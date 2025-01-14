@@ -1,5 +1,4 @@
 import numpy as np
-import pyEDITH.flux_zodis_calculation as fluxzodi
 import pyEDITH.parse_input as io
 
 class Observation():

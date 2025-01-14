@@ -8,6 +8,7 @@ class Detector():
     def __init__(self) -> None:
         """
         """
+        pass
 
     def load_configuration(self,parameters:dict) -> None:
         """

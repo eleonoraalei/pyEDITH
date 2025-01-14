@@ -3,7 +3,7 @@ from .astrophysical_scene import AstrophysicalScene
 from .observation import Observation
 from .telescope import Telescope
 from .detector import Detector
-from .exposure_time_calculator import calculate_exposure_time
+from .exposure_time_calculator import calculate_exposure_time,calculate_signal_to_noise
 from .edith import Edith
 from argparse import ArgumentParser
 from . import parse_input
@@ -54,41 +54,41 @@ def main():
         texp = calculate_texp(parameters)
         print(texp)
 
-    # elif args.subfunction == "snr":
-    #     if not args.edith or args.time is None:
-    #         print("Error: Both --edith and --time arguments are required for snr subfunction.")
-    #         parser_b.print_help(sys.stderr)
-    #         sys.exit(1)
-    #     parameters, _ = parse_input.read_configuration(args.edith)
-    #     texp = args.time
-    #     snr=calculate_snr(parameters, texp)
-    #     print(snr)
+    elif args.subfunction == "snr":
+        if not args.edith or args.time is None:
+            print("Error: Both --edith and --time arguments are required for snr subfunction.")
+            parser_b.print_help(sys.stderr)
+            sys.exit(1)
+        parameters, _ = parse_input.read_configuration(args.edith)
+        texp = args.time
+        snr=calculate_snr(parameters, texp)
+        print(snr)
 
-    # elif args.subfunction == "etc2snr":
-    #     if not args.edith:
-    #         print("Error: --edith argument is required for etc2snr subfunction.")
-    #         parser_c.print_help(sys.stderr)
-    #         sys.exit(1)
-    #     parameters, secondary_parameters = parse_input.read_configuration(args.edith, secondary_flag=True)
-    #     if not secondary_parameters:
-    #         raise ValueError('The secondary parameters are not specified.')
+    elif args.subfunction == "etc2snr":
+        if not args.edith:
+            print("Error: --edith argument is required for etc2snr subfunction.")
+            parser_c.print_help(sys.stderr)
+            sys.exit(1)
+        parameters, secondary_parameters = parse_input.read_configuration(args.edith, secondary_flag=True)
+        if not secondary_parameters:
+            raise ValueError('The secondary parameters are not specified.')
         
-    #     if len(parameters['lambd'])>1:
-    #         raise TypeError('Cannot accept multiple lambdas as primary lambda')
-    #     else:
-    #         for key in parameters:
-    #            if key not in secondary_parameters: 
-    #              secondary_parameters[key] = parameters[key]
+        if len(parameters['lambd'])>1:
+            raise TypeError('Cannot accept multiple lambdas as primary lambda')
+        else:
+            for key in parameters:
+               if key not in secondary_parameters: 
+                 secondary_parameters[key] = parameters[key]
         
-    #     print('Calculating texp from primary lambda')
-    #     texp=calculate_texp(parameters)
-    #     print('Reference exposure time: ',texp)
-    #     if np.isfinite(texp).all():
-    #         pass
-    #         print('Calculating snr on secondary lambda')
-    #         snr=calculate_snr(secondary_parameters,texp)
-    #         print('SNR at the secondary lambda: ', snr)
-    #     else: raise ValueError('Returned exposure time is infinity.')
+        print('Calculating texp from primary lambda')
+        texp=calculate_texp(parameters)
+        print('Reference exposure time: ',texp)
+        if np.isfinite(texp).all():
+            pass
+            print('Calculating snr on secondary lambda')
+            snr=calculate_snr(secondary_parameters,texp)
+            print('SNR at the secondary lambda: ', snr)
+        else: raise ValueError('Returned exposure time is infinity.')
     else:
         parser.print_help()
 
@@ -174,94 +174,81 @@ def calculate_texp(parameters: dict) -> np.array:
     detector.load_configuration(parameters)
 
     # Define Edith object and load default parameters
-    edith=Edith()
+    edith=Edith(scene, observation)
     edith.load_default_parameters()
 
     ### EXPOSURE TIME CALCULATION    
-
-    for istar in range(scene.ntargs): #set to 1
-        for ilambd in range(observation.nlambd): #set to 1
-            edith.exptime[istar,ilambd] = calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith,istar, ilambd)
-
-            #print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
+    calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith)
 
     return  edith.exptime
 
-# def calculate_snr(parameters,reference_texp, tolerance=0.1):
-#     """
-#     Calculates the signal-to-noise ratio (SNR) for a given exposure time.
+def calculate_snr(parameters,reference_texp):
+    """
+    Calculates the signal-to-noise ratio (SNR) for a given exposure time.
 
-#     Parameters:
-#     -----------
-#     parameters : dict
-#         A dictionary containing the input parameters for the calculation.
-#     reference_texp : float
-#         The reference exposure time in hours.
-#     tolerance : float, optional
-#         The tolerance for convergence (default is 0.01).
+    Parameters:
+    -----------
+    parameters : dict
+        A dictionary containing the input parameters for the calculation.
+    reference_texp : float
+        The reference exposure time in hours.
 
-#     Returns:
-#     --------
-#     None
-#         Prints the calculated SNR.
+    Returns:
+    --------
+    None
+        Prints the calculated SNR.
 
-#     Raises:
-#     -------
-#     KeyError
-#         If the coronagraph type specified in the parameters is not valid.
-#     ValueError
-#         If the calculation fails to converge within the maximum number of iterations
-#         or if the calculated exposure time is infinity.
+    Raises:
+    -------
+    KeyError
+        If the coronagraph type specified in the parameters is not valid.
+    ValueError
+        If the calculation fails to converge within the maximum number of iterations
+        or if the calculated exposure time is infinity.
 
-#     Notes:
-#     ------
-#     The function uses a maximum of 50 iterations for the binary search.
-#     """
-#     # define Edith object
-#     edith=Edith()
-#     edith.load_configuration(parameters)
-#     edith.load_default_parameters()
-#     edith.calculate_zodi_exozodi()    
+    Notes:
+    ------
+    The function uses a maximum of 50 iterations for the binary search.
+    """
 
-#     # define coronagraph
-#     if edith.coro_type=='toymodel':
-#         coronagraph=ToyModel(edith.bandwidth,edith.photap_rad,edith.TLyot,edith.Tcore,
-#                                edith.contrast,edith.noisefloor,edith.IWA,edith.OWA, 
-#                                edith.nrolls)
-#     else:
-#         raise KeyError('The coro_type keyword is not valid.')
+    # Define Observation and load relevant parameters
+    observation = Observation()
+    observation.load_configuration(parameters)
 
-#     edith.exptime =np.full((edith.ntargs,edith.nlambd),0.)
-#     edith.fullsnr =np.full((edith.ntargs,edith.nlambd),0.)
-    
-#     for istar in range(edith.ntargs): #set to 1
-#         edith.SNR=np.full((edith.nlambd),-1)
-#         for ilambd in range(edith.nlambd): 
-#             max_iterations=500
-#             low_snr = 0  # Set a reasonable lower bound for SNR
-#             high_snr = 100  # Set a reasonable upper bound for SNR
-            
-#             for iter in range(max_iterations):
-#                 mid_snr = (low_snr + high_snr) / 2.
-                
-#                 edith.SNR[ilambd]=mid_snr #update snr
-#                 edith.exptime[istar,ilambd] = calculate_exposure_time(edith,coronagraph,istar, ilambd)
-                
-#                 current_tp = edith.tp[0][0][0]
-#                 if current_tp ==current_tp:
-#                     if abs(current_tp - reference_texp) < tolerance*reference_texp:
-#                         print('istar=',istar,' ilambd=',ilambd,'. The current tp is= ',current_tp,'. The desired SNR is =', mid_snr)
-#                         edith.exptime[istar,ilambd] =edith.tp[0][0][istar]
-#                         edith.fullsnr[istar,ilambd]= mid_snr
-#                         break
-#                     elif current_tp < reference_texp:
-#                         low_snr = mid_snr  # Increase SNR
-#                     else:
-#                         high_snr = mid_snr  # Decrease SNR
-#                 else: 
-#                     raise ValueError('Calculated exposure time is infinity.')
-#                 if iter==max_iterations-1:
-#                     edith.fullsnr[istar,ilambd]= mid_snr
-#                     print(f"Failed to converge within {max_iterations} iterations. Last mid_snr = ",mid_snr)
-#                     break
-#     return edith.fullsnr
+
+    # Define Astrophysical Scene and load relevant parameters, then calculate zodi/exozodi
+    scene = AstrophysicalScene()
+    scene.load_configuration(parameters)
+    scene.calculate_zodi_exozodi(observation)  
+
+
+    # Define Telescope and load relevant parameters
+    telescope = Telescope()
+    telescope.load_configuration(parameters)
+
+    # Define Coronagraph and load relevant parameters
+    if parameters['coro_type']=='toymodel':
+        coronagraph=ToyModel() # a subclass of Coronagraph, will automatically initialize variables
+
+        # Load the configuration as specified in the general Coronagraph class. (But the method can be overwritten in the future)
+        coronagraph.load_configuration(parameters) 
+
+        # Generate secondary parameters specific to the ToyModel subclass
+        coronagraph.generate_secondary_parameters(observation)
+    else:
+        raise KeyError('The coro_type keyword is not valid.')
+
+    # Define Detector and load relevant parameters
+    detector = Detector()
+    detector.load_configuration(parameters)
+
+    # Define Edith object and load default parameters
+    edith=Edith(scene, observation)
+    edith.load_default_parameters()
+
+    ### SNR CALCULATION 
+    edith.obstime=reference_texp
+    calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,edith)
+    #print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
+   
+    return edith.fullsnr

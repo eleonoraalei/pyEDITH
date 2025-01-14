@@ -249,173 +249,347 @@ def measure_coronagraph_performance(psf_trunc_ratio, photap_frac, Istar_interp, 
 
 
 
-def calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith,istar, ilambd):
-    ''' This function is executed for each target (controlled by istar) and each wavelength range (controlled by ilambd)'''
+def calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith):
+    ''''''
 
-    # Calculate useful quantities
-    Fstar = 10**(-0.4 * scene.mag[istar,ilambd])
-    deltalambda_nm = np.min([(observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd], coronagraph.bandwidth * (observation.lambd[ilambd] * 1000.0)]) # take the lesser of the desired bandwidth and what coronagraph allows
-    lod_arcsec = (observation.lambd[ilambd] * 1e-6 / telescope.D) * 206264.806
-    area_cm2=telescope.Area*100*100
-    stellar_diam_lod = scene.angdiam_arcsec[istar] /lod_arcsec
-    detpixscale_lod = detector.det_pixscale_mas / (lod_arcsec * 1000.)
-
-    # temp_tp = np.zeros(edith.ntot)
-    # psfomegas = np.zeros(edith.ntot)
-    # psftruncratios = np.zeros(edith.ntot)
+    for istar in range(scene.ntargs): #set to 1
+        for ilambd in range(observation.nlambd): #set to 1
+            # Calculate useful quantities
+            Fstar = 10**(-0.4 * scene.mag[istar,ilambd])
+            deltalambda_nm = np.min([(observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd], coronagraph.bandwidth * (observation.lambd[ilambd] * 1000.0)]) # take the lesser of the desired bandwidth and what coronagraph allows
+            lod_arcsec = (observation.lambd[ilambd] * 1e-6 / telescope.D) * 206264.806
+            area_cm2=telescope.Area*100*100
+            stellar_diam_lod = scene.angdiam_arcsec[istar] /lod_arcsec
+            detpixscale_lod = detector.det_pixscale_mas / (lod_arcsec * 1000.)
 
 
-    # Interpolate Istar, noisefloor based on angular diameter of the star (depends on the target) 
-    # (reduces dimensionality from 3D arrays [npix,npix,angdiam] to 2D arrays [npix,npix].)
-    # The interpolation is done based on the value of stellar_diam_lod (dependence on istar)
-    Istar_interp,noisefloor_interp=interpolate_arrays(
-        coronagraph.Istar, coronagraph.noisefloor, coronagraph.npix, 
-        coronagraph.ndiams, stellar_diam_lod, coronagraph.angdiams)
+            # Interpolate Istar, noisefloor based on angular diameter of the star (depends on the target) 
+            # (reduces dimensionality from 3D arrays [npix,npix,angdiam] to 2D arrays [npix,npix].)
+            # The interpolation is done based on the value of stellar_diam_lod (dependence on istar)
+            Istar_interp,noisefloor_interp=interpolate_arrays(
+                coronagraph.Istar, coronagraph.noisefloor, coronagraph.npix, 
+                coronagraph.ndiams, stellar_diam_lod, coronagraph.angdiams)
 
-    # Measure coronagraph performance at each IWA
-    pixscale_rad = coronagraph.pixscale * (observation.lambd[ilambd] * 1e-6 / telescope.D)
-    oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
+            # Measure coronagraph performance at each IWA
+            pixscale_rad = coronagraph.pixscale * (observation.lambd[ilambd] * 1e-6 / telescope.D)
+            oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
 
-    # Measure coronagraph performance at each IWA
-    det_sep_pix,det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod = measure_coronagraph_performance(
-        coronagraph.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
-        coronagraph.npix, coronagraph.xcenter, coronagraph.ycenter,oneopixscale_arcsec
-    )
-
-
-    # Here we calculate detector noise, as it may depend on count rates
-    # We don't know the count rates yet, so we make estimates based on
-    # values near the IWA
-
-    # Detector noise from signal itself (we budget for 10x the planet count rate for the minimum detectable planet)
-    det_CRp = calculate_CRp(scene.F0[ilambd], Fstar, 10 * 10**(-0.4 * scene.min_deltamag[istar]), area_cm2, 
-                            det_photap_frac, telescope.throughput[ilambd], deltalambda_nm)
-
-    det_CRbs = calculate_CRbs(scene.F0[ilambd], Fstar, det_Istar, area_cm2, 
-                            coronagraph.pixscale, 
-                                telescope.throughput[ilambd], deltalambda_nm)
-
-    det_CRbz = calculate_CRbz(scene.F0[ilambd], scene.Fzodi_list[istar,ilambd], 
-                              lod_arcsec, det_skytrans, area_cm2,
-                                telescope.throughput[ilambd], deltalambda_nm)
-    
-    det_CRbez = calculate_CRbez(scene.F0[ilambd], scene.Fexozodi_list[istar,ilambd], 
-                                lod_arcsec, det_skytrans, area_cm2, 
-                                telescope.throughput[ilambd], deltalambda_nm, 
-                                scene.dist[istar], det_sep)
-    det_CRbbin = calculate_CRbbin(scene.F0[ilambd], scene.Fbinary_list[istar,ilambd], 
-                                  det_skytrans, area_cm2,
-                                    telescope.throughput[ilambd], deltalambda_nm)
-
-    det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
-
-    #TODO move these loops outside like we did with istar and ilambda
-    for iorbit in np.arange(edith.norbits):
-
-        # #To calculate best bandpass (only for yields?)
-        # mint_v_phase = float('inf')
-        # best_psfomega_v_phase = 0.0
-        # best_psftruncratio_v_phase = 0.0
-
-        for iphase in np.arange(edith.nmeananom):  
-            #calculate position of the planet in the image (from l/D to pixel)          
-            ix = scene.xp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.xcenter
-            iy = scene.yp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.ycenter
-            #calculate separation in arcsec
-            sp_lod = scene.sp[iphase,iorbit,istar] /lod_arcsec
-
-            # if planet is within the boundaries of the coronagraph simulation and hard IWA/OWA cutoffs...
-            if (ix >= 0) and (ix < coronagraph.npix) and (iy >= 0) and (iy < coronagraph.npix) and (sp_lod > coronagraph.IWA) and (sp_lod < coronagraph.OWA):
-
-                # besttp_v_ratio = float('inf')
-                # bestpsfomega = 0.0
-                # bestpsftruncratio = 0.0
-
-                for iratio in np.arange(coronagraph.npsfratios):
-                    # First we just calculate CRp and CRnoisefloor to see if CRp > CRnoisefloor
-
-                    # PLANET COUNT RATE CRP
-                    CRp=calculate_CRp(scene.F0[ilambd], Fstar, scene.Fp0[iphase,iorbit,istar], area_cm2,
-                                        coronagraph.photap_frac[int(np.floor(iy)), int(np.floor(ix)),iratio], telescope.throughput[ilambd],deltalambda_nm)
-
-   
-                    # NOISE FLOOR CRNF
-                    CRnf = calculate_CRnf(scene.F0[ilambd], Fstar, area_cm2, 
-                        coronagraph.pixscale, 
-                            telescope.throughput[ilambd], deltalambda_nm,observation.SNR[ilambd],
-                            noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))])                      
-                
-                    #multiply by omega at that point
-                    CRnf *=coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
-                    # NOTE: noisefloor_interp: technically the Y axis is rows and the X axis is columns, 
-                    # that is why they are inverted
-                    # NOTE: Evaluate if int(round(iy) is better than np.floor. Kept np.floor for consistency
+            # Measure coronagraph performance at each IWA
+            det_sep_pix,det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod = measure_coronagraph_performance(
+                coronagraph.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
+                coronagraph.npix, coronagraph.xcenter, coronagraph.ycenter,oneopixscale_arcsec
+            )
 
 
-                    # Check if it's above the noise floor and calculate exposure time if conditions are met
-                    if CRp > CRnf and coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio] > detpixscale_lod**2:
-                        # CALCULATE THE REST OF THE BACKGROUND NOISE
+            # Here we calculate detector noise, as it may depend on count rates
+            # We don't know the count rates yet, so we make estimates based on
+            # values near the IWA
+
+            # Detector noise from signal itself (we budget for 10x the planet count rate for the minimum detectable planet)
+            det_CRp = calculate_CRp(scene.F0[ilambd], Fstar, 10 * 10**(-0.4 * scene.min_deltamag[istar]), area_cm2, 
+                                    det_photap_frac, telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CRbs = calculate_CRbs(scene.F0[ilambd], Fstar, det_Istar, area_cm2, 
+                                    coronagraph.pixscale, 
+                                        telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CRbz = calculate_CRbz(scene.F0[ilambd], scene.Fzodi_list[istar,ilambd], 
+                                    lod_arcsec, det_skytrans, area_cm2,
+                                        telescope.throughput[ilambd], deltalambda_nm)
+            
+            det_CRbez = calculate_CRbez(scene.F0[ilambd], scene.Fexozodi_list[istar,ilambd], 
+                                        lod_arcsec, det_skytrans, area_cm2, 
+                                        telescope.throughput[ilambd], deltalambda_nm, 
+                                        scene.dist[istar], det_sep)
+            det_CRbbin = calculate_CRbbin(scene.F0[ilambd], scene.Fbinary_list[istar,ilambd], 
+                                        det_skytrans, area_cm2,
+                                            telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
+
+            #TODO move these loops outside like we did with istar and ilambda
+            for iorbit in np.arange(edith.norbits):
+
+                # #To calculate best bandpass (only for yields?)
+                # mint_v_phase = float('inf')
+                # best_psfomega_v_phase = 0.0
+                # best_psftruncratio_v_phase = 0.0
+
+                for iphase in np.arange(edith.nmeananom):  
+                    #calculate position of the planet in the image (from l/D to pixel)          
+                    ix = scene.xp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.xcenter
+                    iy = scene.yp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.ycenter
+                    #calculate separation in arcsec
+                    sp_lod = scene.sp[iphase,iorbit,istar] /lod_arcsec
+
+                    # if planet is within the boundaries of the coronagraph simulation and hard IWA/OWA cutoffs...
+                    if (ix >= 0) and (ix < coronagraph.npix) and (iy >= 0) and (iy < coronagraph.npix) and (sp_lod > coronagraph.IWA) and (sp_lod < coronagraph.OWA):
+
+                        # besttp_v_ratio = float('inf')
+                        # bestpsfomega = 0.0
+                        # bestpsftruncratio = 0.0
+
+                        for iratio in np.arange(coronagraph.npsfratios):
+                            # First we just calculate CRp and CRnoisefloor to see if CRp > CRnoisefloor
+
+                            # PLANET COUNT RATE CRP
+                            CRp=calculate_CRp(scene.F0[ilambd], Fstar, scene.Fp0[iphase,iorbit,istar], area_cm2,
+                                                coronagraph.photap_frac[int(np.floor(iy)), int(np.floor(ix)),iratio], telescope.throughput[ilambd],deltalambda_nm)
+
+        
+                            # NOISE FLOOR CRNF
+                            CRnf = calculate_CRnf(scene.F0[ilambd], Fstar, area_cm2, 
+                                coronagraph.pixscale, 
+                                    telescope.throughput[ilambd], deltalambda_nm,observation.SNR[ilambd],
+                                    noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))])                      
                         
-                        # ## WHEN CALCULATING THE COUNT RATES, WE NEED TO MULTIPLY BY OMEGA_LOD i.e. 
-                        # # THE SOLID ANGLE OF THE PHOTOMETRIC APERTURE
-                        # Calculate CRbs
-                        CRbs= calculate_CRbs(scene.F0[ilambd],Fstar,Istar_interp[int(np.floor(iy)), int(np.floor(ix))], area_cm2, 
-                                                    coronagraph.pixscale, telescope.throughput[ilambd], deltalambda_nm)
-
-                        # Calculate CRbz
-                        CRbz=calculate_CRbz(scene.F0[ilambd],scene.Fzodi_list[istar,ilambd],lod_arcsec, 
-                                            coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
-                                            area_cm2,  telescope.throughput[ilambd], deltalambda_nm)
+                            #multiply by omega at that point
+                            CRnf *=coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
+                            # NOTE: noisefloor_interp: technically the Y axis is rows and the X axis is columns, 
+                            # that is why they are inverted
+                            # NOTE: Evaluate if int(round(iy) is better than np.floor. Kept np.floor for consistency
 
 
-                        # Calculate CRbez
-                        CRbez= calculate_CRbez(scene.F0[ilambd],scene.Fexozodi_list[istar,ilambd],lod_arcsec, 
-                                               coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
-                                                area_cm2,  telescope.throughput[ilambd], deltalambda_nm,
-                                                scene.dist[istar],scene.sp[iphase,iorbit,istar])
+                            # Check if it's above the noise floor and calculate exposure time if conditions are met
+                            if CRp > CRnf and coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio] > detpixscale_lod**2:
+                                # CALCULATE THE REST OF THE BACKGROUND NOISE
+                                
+                                # ## WHEN CALCULATING THE COUNT RATES, WE NEED TO MULTIPLY BY OMEGA_LOD i.e. 
+                                # # THE SOLID ANGLE OF THE PHOTOMETRIC APERTURE
+                                # Calculate CRbs
+                                CRbs= calculate_CRbs(scene.F0[ilambd],Fstar,Istar_interp[int(np.floor(iy)), int(np.floor(ix))], area_cm2, 
+                                                            coronagraph.pixscale, telescope.throughput[ilambd], deltalambda_nm)
 
-
-                        # Calculate CRbbin
-                        CRbbin= calculate_CRbbin(scene.F0[ilambd],scene.Fbinary_list[istar,ilambd], 
-                                                 coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))],
+                                # Calculate CRbz
+                                CRbz=calculate_CRbz(scene.F0[ilambd],scene.Fzodi_list[istar,ilambd],lod_arcsec, 
+                                                    coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
                                                     area_cm2,  telescope.throughput[ilambd], deltalambda_nm)
 
-                        # Calculate CRbd
-                        t_photon_count=calculate_t_photon_count(lod_arcsec,detector.det_pixscale_mas,
-                                                                detector.det_npix_multiplier[ilambd],det_omega_lod,det_CR)
 
-                        CRbd=calculate_CRbd(detector.det_npix_multiplier[ilambd],detector.det_DC[ilambd],detector.det_RN[ilambd],
-                                            detector.det_tread[ilambd],detector.det_CIC[ilambd],t_photon_count,det_omega_lod,detpixscale_lod)
-                        
-                        # TOTAL BACKGROUND NOISE
-                        CRb = (CRbs+CRbz+CRbez+CRbbin)* coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
-                        #Add detector noise
-                        CRb += CRbd        
+                                # Calculate CRbez
+                                CRbez= calculate_CRbez(scene.F0[ilambd],scene.Fexozodi_list[istar,ilambd],lod_arcsec, 
+                                                    coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
+                                                        area_cm2,  telescope.throughput[ilambd], deltalambda_nm,
+                                                        scene.dist[istar],scene.sp[iphase,iorbit,istar])
 
-                        # EXPOSURE TIME
-                        # count rate term
-                        cp = ((CRp + 2*CRb) / (CRp * CRp - CRnf * CRnf)) # this includes the systematic noise floor term a la Bijan Nemati
-                        #Exposure time
-                        temptp = observation.SNR[ilambd] * observation.SNR[ilambd] * cp * telescope.toverhead_multi + telescope.toverhead_fixed          # record exposure time with overheads
-                        
-                        if temptp < 0:
-                            # time is past the systematic noise floor limit
-                            temptf=np.inf 
-                        if temptp > edith.td_limit:
-                            #treat as unobservable if beyond exposure time limit
-                            temptf=np.inf 
 
-                        if (coronagraph.nrolls != 1):
-                            # multiply by number of required rolls to achieve 360 deg coverage (after tlimit enforcement)
-                            temptp *= coronagraph.nrolls
+                                # Calculate CRbbin
+                                CRbbin= calculate_CRbbin(scene.F0[ilambd],scene.Fbinary_list[istar,ilambd], 
+                                                        coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))],
+                                                            area_cm2,  telescope.throughput[ilambd], deltalambda_nm)
+
+                                # Calculate CRbd
+                                t_photon_count=calculate_t_photon_count(lod_arcsec,detector.det_pixscale_mas,
+                                                                        detector.det_npix_multiplier[ilambd],det_omega_lod,det_CR)
+
+                                CRbd=calculate_CRbd(detector.det_npix_multiplier[ilambd],detector.det_DC[ilambd],detector.det_RN[ilambd],
+                                                    detector.det_tread[ilambd],detector.det_CIC[ilambd],t_photon_count,det_omega_lod,detpixscale_lod)
+                                
+                                # TOTAL BACKGROUND NOISE
+                                CRb = (CRbs+CRbz+CRbez+CRbbin)* coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
+                                #Add detector noise
+                                CRb += CRbd        
+
+                                # EXPOSURE TIME
+                                # count rate term
+                                cp = ((CRp + 2*CRb) / (CRp * CRp - CRnf * CRnf)) # this includes the systematic noise floor term a la Bijan Nemati
+                                #Exposure time
+                                edith.exptime[istar,ilambd] = observation.SNR[ilambd] * observation.SNR[ilambd] * cp * telescope.toverhead_multi + telescope.toverhead_fixed          # record exposure time with overheads
+                                
+                                if edith.exptime[istar,ilambd] < 0:
+                                    # time is past the systematic noise floor limit
+                                    edith.exptime[istar,ilambd]=np.inf 
+                                if edith.exptime[istar,ilambd] > edith.td_limit:
+                                    #treat as unobservable if beyond exposure time limit
+                                    edith.exptime[istar,ilambd]=np.inf 
+
+                                if (coronagraph.nrolls != 1):
+                                    # multiply by number of required rolls to achieve 360 deg coverage (after tlimit enforcement)
+                                    edith.exptime[istar,ilambd] *= coronagraph.nrolls
+                            else:
+                                #It's below the systematic noise floor...
+                                edith.exptime[istar,ilambd]= np.inf 
                     else:
-                        #It's below the systematic noise floor...
-                        temptp = np.inf 
-            else:
-                 #outside of the input contrast map or hard IWA/OWA cutoffs
-                 temptp=np.inf
-    
-        return temptp
+                        #outside of the input contrast map or hard IWA/OWA cutoffs
+                        edith.exptime[istar,ilambd]=np.inf
+            
+        # NOTE FOR FUTURE DEVELOPMENT
+        # The nmeananom, norbits, npsfratios loops are not stored in the exptimematrix. 
+        # This is not a problem right now since these are "fake" loops as of now (nmeananom, norbits, npsfratios all are 1).
+        # But this might change in the future.
+        return
+
+
+
+
+
+def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,edith):
+    ''' '''
+
+    for istar in range(scene.ntargs): #set to 1
+        for ilambd in range(observation.nlambd): #set to 1
+            
+            # Calculate useful quantities
+            Fstar = 10**(-0.4 * scene.mag[istar,ilambd])
+            deltalambda_nm = np.min([(observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd], coronagraph.bandwidth * (observation.lambd[ilambd] * 1000.0)]) # take the lesser of the desired bandwidth and what coronagraph allows
+            lod_arcsec = (observation.lambd[ilambd] * 1e-6 / telescope.D) * 206264.806
+            area_cm2=telescope.Area*100*100
+            stellar_diam_lod = scene.angdiam_arcsec[istar] /lod_arcsec
+            detpixscale_lod = detector.det_pixscale_mas / (lod_arcsec * 1000.)
+
+            # Interpolate Istar, noisefloor based on angular diameter of the star (depends on the target) 
+            # (reduces dimensionality from 3D arrays [npix,npix,angdiam] to 2D arrays [npix,npix].)
+            # The interpolation is done based on the value of stellar_diam_lod (dependence on istar)
+            Istar_interp,noisefloor_interp=interpolate_arrays(
+                coronagraph.Istar, coronagraph.noisefloor, coronagraph.npix, 
+                coronagraph.ndiams, stellar_diam_lod, coronagraph.angdiams)
+
+            # Measure coronagraph performance at each IWA
+            pixscale_rad = coronagraph.pixscale * (observation.lambd[ilambd] * 1e-6 / telescope.D)
+            oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
+
+            # Measure coronagraph performance at each IWA
+            det_sep_pix,det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod = measure_coronagraph_performance(
+                coronagraph.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
+                coronagraph.npix, coronagraph.xcenter, coronagraph.ycenter,oneopixscale_arcsec
+            )
+
+
+            # Here we calculate detector noise, as it may depend on count rates
+            # We don't know the count rates yet, so we make estimates based on
+            # values near the IWA
+
+            # Detector noise from signal itself (we budget for 10x the planet count rate for the minimum detectable planet)
+            det_CRp = calculate_CRp(scene.F0[ilambd], Fstar, 10 * 10**(-0.4 * scene.min_deltamag[istar]), area_cm2, 
+                                    det_photap_frac, telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CRbs = calculate_CRbs(scene.F0[ilambd], Fstar, det_Istar, area_cm2, 
+                                    coronagraph.pixscale, 
+                                        telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CRbz = calculate_CRbz(scene.F0[ilambd], scene.Fzodi_list[istar,ilambd], 
+                                    lod_arcsec, det_skytrans, area_cm2,
+                                        telescope.throughput[ilambd], deltalambda_nm)
+            
+            det_CRbez = calculate_CRbez(scene.F0[ilambd], scene.Fexozodi_list[istar,ilambd], 
+                                        lod_arcsec, det_skytrans, area_cm2, 
+                                        telescope.throughput[ilambd], deltalambda_nm, 
+                                        scene.dist[istar], det_sep)
+            det_CRbbin = calculate_CRbbin(scene.F0[ilambd], scene.Fbinary_list[istar,ilambd], 
+                                        det_skytrans, area_cm2,
+                                            telescope.throughput[ilambd], deltalambda_nm)
+
+            det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
+
+            #TODO move these loops outside like we did with istar and ilambda
+            for iorbit in np.arange(edith.norbits):
+
+                # #To calculate best bandpass (only for yields?)
+                # mint_v_phase = float('inf')
+                # best_psfomega_v_phase = 0.0
+                # best_psftruncratio_v_phase = 0.0
+
+                for iphase in np.arange(edith.nmeananom):  
+                    #calculate position of the planet in the image (from l/D to pixel)          
+                    ix = scene.xp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.xcenter
+                    iy = scene.yp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.ycenter
+                    #calculate separation in arcsec
+                    sp_lod = scene.sp[iphase,iorbit,istar] /lod_arcsec
+
+                    # if planet is within the boundaries of the coronagraph simulation and hard IWA/OWA cutoffs...
+                    if (ix >= 0) and (ix < coronagraph.npix) and (iy >= 0) and (iy < coronagraph.npix) and (sp_lod > coronagraph.IWA) and (sp_lod < coronagraph.OWA):
+
+                        # besttp_v_ratio = float('inf')
+                        # bestpsfomega = 0.0
+                        # bestpsftruncratio = 0.0
+
+                        for iratio in np.arange(coronagraph.npsfratios):
+                            # First we just calculate CRp and CRnoisefloor to see if CRp > CRnoisefloor
+
+                            # PLANET COUNT RATE CRP
+                            CRp=calculate_CRp(scene.F0[ilambd], Fstar, scene.Fp0[iphase,iorbit,istar], area_cm2,
+                                                coronagraph.photap_frac[int(np.floor(iy)), int(np.floor(ix)),iratio], telescope.throughput[ilambd],deltalambda_nm)
+
+        
+                            # NOISE FLOOR CRNF NOTE THIS TIME THIS IS JUST THE NOISE FACTOR RATIO (i.e. we assume SNR =1 so that we can use it for the snr calculation later)
+                            CRnf_factor = calculate_CRnf(scene.F0[ilambd], Fstar, area_cm2, 
+                                coronagraph.pixscale, 
+                                    telescope.throughput[ilambd], deltalambda_nm,1,
+                                    noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))])                      
+                        
+                            #multiply by omega at that point
+                            CRnf_factor *=coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
+                            # NOTE: noisefloor_interp: technically the Y axis is rows and the X axis is columns, 
+                            # that is why they are inverted
+                            # NOTE: Evaluate if int(round(iy) is better than np.floor. Kept np.floor for consistency
+
+
+                            # Check and calculate exposure time if conditions are met
+                            if coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio] > detpixscale_lod**2:
+                                # CALCULATE THE REST OF THE BACKGROUND NOISE
+                                
+                                # ## WHEN CALCULATING THE COUNT RATES, WE NEED TO MULTIPLY BY OMEGA_LOD i.e. 
+                                # # THE SOLID ANGLE OF THE PHOTOMETRIC APERTURE
+                                # Calculate CRbs
+                                CRbs= calculate_CRbs(scene.F0[ilambd],Fstar,Istar_interp[int(np.floor(iy)), int(np.floor(ix))], area_cm2, 
+                                                            coronagraph.pixscale, telescope.throughput[ilambd], deltalambda_nm)
+
+                                # Calculate CRbz
+                                CRbz=calculate_CRbz(scene.F0[ilambd],scene.Fzodi_list[istar,ilambd],lod_arcsec, 
+                                                    coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
+                                                    area_cm2,  telescope.throughput[ilambd], deltalambda_nm)
+
+
+                                # Calculate CRbez
+                                CRbez= calculate_CRbez(scene.F0[ilambd],scene.Fexozodi_list[istar,ilambd],lod_arcsec, 
+                                                    coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))], 
+                                                        area_cm2,  telescope.throughput[ilambd], deltalambda_nm,
+                                                        scene.dist[istar],scene.sp[iphase,iorbit,istar])
+
+
+                                # Calculate CRbbin
+                                CRbbin= calculate_CRbbin(scene.F0[ilambd],scene.Fbinary_list[istar,ilambd], 
+                                                        coronagraph.skytrans[int(np.floor(iy)), int(np.floor(ix))],
+                                                            area_cm2,  telescope.throughput[ilambd], deltalambda_nm)
+
+                                # Calculate CRbd
+                                t_photon_count=calculate_t_photon_count(lod_arcsec,detector.det_pixscale_mas,
+                                                                        detector.det_npix_multiplier[ilambd],det_omega_lod,det_CR)
+
+                                CRbd=calculate_CRbd(detector.det_npix_multiplier[ilambd],detector.det_DC[ilambd],detector.det_RN[ilambd],
+                                                    detector.det_tread[ilambd],detector.det_CIC[ilambd],t_photon_count,det_omega_lod,detpixscale_lod)
+                                
+                                # TOTAL BACKGROUND NOISE
+                                CRb = (CRbs+CRbz+CRbez+CRbbin)* coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]
+                                #Add detector noise
+                                CRb += CRbd        
+
+                                # SIGNAL-TO-NOISE
+                                # time term
+                                time_factors= (edith.obstime* coronagraph.nrolls - telescope.toverhead_fixed)/(telescope.toverhead_multi*((CRp + 2*CRb)))
+
+                                # Signal-to-noise
+                                edith.fullsnr[istar,ilambd]=np.sqrt(time_factors*CRp*CRp)/(1-time_factors*CRnf_factor*CRnf_factor)
+
+                                if edith.fullsnr[istar,ilambd] < 0:
+                                    # time is past the systematic noise floor limit
+                                    edith.fullsnr[istar,ilambd]=0
+                                if edith.fullsnr[istar,ilambd] > 100:
+                                    #treat as unobservable if beyond exposure time limit
+                                    edith.fullsnr[istar,ilambd]=100
+
+                            else:
+                                #It's below the systematic noise floor...
+                                edith.fullsnr[istar,ilambd] = np.inf 
+                    else:
+                        #outside of the input contrast map or hard IWA/OWA cutoffs
+                        edith.fullsnr[istar,ilambd]=np.inf
+            
+        # NOTE FOR FUTURE DEVELOPMENT
+        # The nmeananom, norbits, npsfratios loops are not stored in the fullsnr matrix. 
+        # This is not a problem right now since these are "fake" loops as of now (nmeananom, norbits, npsfratios all are 1).
+        # But this might change in the future.
+        return
 
 
 
