@@ -3,15 +3,37 @@ import numpy as np
 
 class Observation:
     """
+    A class representing an astronomical observation.
+
+    This class encapsulates various parameters and methods related to
+    astronomical observations, including target star properties, planet
+    characteristics, observational settings, telescope specifications,
+    instrument details, and detector parameters.
+
+    Attributes:
+    -----------
+    lambd : np.ndarray
+        Wavelength array (in microns).
+    nlambd : int
+        Number of wavelength points.
+    SR : np.ndarray
+        Spectral resolution array.
+    SNR : np.ndarray
+        Signal-to-noise ratio array.
+    photap_rad : float
+        Photometric aperture radius (in units of lambda/D).
 
     Methods:
     --------
-
+    __init__() -> None
+        Initialize the Observation object.
+    load_configuration(parameters: dict) -> None
+        Load configuration parameters for the simulation.
     """
 
     def __init__(self) -> None:
         """
-        Initialize the Edith object with default values for output arrays.
+        Initialize the Observation object with default values for output arrays.
         """
         pass  # there are no default values, TODO it should fail if not provided
 
@@ -20,20 +42,14 @@ class Observation:
         Load configuration parameters for the simulation from a dictionary of
         parameters that was read from the input file.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         parameters : dict
-            A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag,
-                                        angdiam_arcsec, nzodis, ra, dec)
-            - Planet parameters (sp, deltamag, min_deltamag)
-            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
-            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth,
-                                        core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current, read_noise,
-                                        read_time, cic)
-            - Coronagraph parameters (coro_type, nrolls)
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        Returns
+        -------
+        None
         """
 
         # -------- INPUTS ---------

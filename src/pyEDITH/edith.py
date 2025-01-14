@@ -1,4 +1,6 @@
 import numpy as np
+from pyEDITH.astrophysical_scene import AstrophysicalScene
+from pyEDITH.observation import Observation
 
 
 class Edith:
@@ -9,27 +11,63 @@ class Edith:
     This class handles the configuration, initialization, and calculations for
     exoplanet detection simulations.
 
-    Methods:
-    --------
-    __init__()
-    load_configuration(parameters)
+    Parameters
+    ----------
+    scene : object
+        An object representing the scene configuration.
+    observation : object
+        An object representing the observation parameters.
+
+    Attributes
+    ----------
+    tp : ndarray
+        Exposure time of every planet (nmeananom x norbits x ntargs array).
+    exptime : ndarray
+        Exposure time for each target and wavelength.
+    fullsnr : ndarray
+        Signal-to-noise ratio for each target and wavelength.
+    td_limit : float
+        Limit placed on exposure times.
+    nooptimize : int
+        Flag to disable exposure time optimization.
+    optimize_phase : int
+        Flag to optimize the phase of the planet (not functional in this code).
+    ntot : int
+        Total number of something (purpose not specified).
+    nmeananom : int
+        Number of mean anomalies.
+    norbits : int
+        Number of orbits.
+
+    Methods
+    -------
     load_default_parameters()
+        Load default parameters for the simulation.
     """
 
-    def __init__(self, scene, observation) -> None:
+    def __init__(self, scene: AstrophysicalScene, observation: Observation) -> None:
         """
-        Initialize the Edith object with default values for output arrays.
+        Initialize the Edith object. The following attributes are initialized:
+        - tp : ndarray
+            Exposure time of every planet (nmeananom x norbits x ntargs array).
+        - exptime : ndarray
+            Exposure time for each target and wavelength.
+        - fullsnr : ndarray
+            Signal-to-noise ratio for each target and wavelength.
+
+        Parameters
+        ----------
+        scene : AstrophysicalScene
+            An object representing the astrophysical scene configuration.
+        observation : Observation
+            An object representing the observation parameters.
+
+        Returns
+        -------
+        None
         """
 
         # Initialize some arrays needed for outputs...
-        # self.besticoro = np.array([0])
-        # self.bestilambd = np.array([0])
-        # self.avgpsfomega = np.array([0.0])
-        # self.minpsfomega = np.array([0.0])
-        # self.maxpsfomega = np.array([0.0])
-        # self.avgpsftruncratio = np.array([0.0])
-        # self.minpsftruncratio = np.array([0.0])
-        # self.maxpsftruncratio = np.array([0.0])
         self.tp = np.array([[[0.0]]], dtype=np.float64)  # exposure time of every planet
         # (nmeananom x norbits x ntargs array), used in c function
         # [NOTE: nmeananom = nphases in C code]
@@ -43,8 +81,15 @@ class Edith:
         Load default parameters for the simulation.
 
         This method sets default values for various simulation parameters that
-        typically don't need to be changed,
-        including psf_trunc_ratio, td_limit, nooptimize, and optimize_phase.
+        typically don't need to be changed.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
         """
 
         # Misc parameters that probably don't need to be changed

@@ -234,10 +234,6 @@ def calculate_snr(parameters, reference_texp):
     ValueError
         If the calculation fails to converge within the maximum number of iterations
         or if the calculated exposure time is infinity.
-
-    Notes:
-    ------
-    The function uses a maximum of 50 iterations for the binary search.
     """
 
     # Define Observation and load relevant parameters

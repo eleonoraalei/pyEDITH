@@ -3,9 +3,28 @@ import numpy as np
 
 class Telescope:
     """
+    A class representing a telescope for astronomical observations.
 
-    Methods:
-    --------
+    This class provides methods to initialize and configure a telescope
+    for simulating observations of exoplanets and their host stars.
+
+    Attributes
+    ----------
+    D : float
+        Circumscribed diameter of the telescope aperture in meters.
+    Area : float
+        Effective collecting area of the telescope in square meters.
+    toverhead_fixed : float
+        Fixed overhead time in seconds.
+    toverhead_multi : float
+        Multiplicative overhead time.
+    throughput : numpy.ndarray
+        Array of throughput values (excluding coronagraph core throughput).
+
+    Methods
+    -------
+    load_configuration(parameters)
+        Load configuration parameters for the simulation from a dictionary.
     """
 
     def __init__(self) -> None:
@@ -19,20 +38,14 @@ class Telescope:
         Load configuration parameters for the simulation from a dictionary of
         parameters that was read from the input file.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         parameters : dict
-            A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag,
-                                      angdiam_arcsec, nzodis, ra, dec)
-            - Planet parameters (sp, deltamag, min_deltamag)
-            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
-            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth,
-                                     core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current, read_noise,
-                                     read_time, cic)
-            - Coronagraph parameters (coro_type, nrolls)
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        Returns
+        -------
+        None
         """
 
         # -------- INPUTS ---------

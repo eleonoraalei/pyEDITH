@@ -3,33 +3,61 @@ import numpy as np
 
 class Detector:
     """
-    Methods:
-    --------
+    A class representing a detector for astronomical observations.
+
+    This class manages detector-specific parameters and configurations
+    used in astronomical simulations and observations.
+
+    Attributes
+    ----------
+    det_pixscale_mas : float
+        Detector pixel scale in milliarcseconds.
+    det_npix_multiplier : ndarray
+        Number of detector pixels per image plane "pixel".
+    det_DC : ndarray
+        Dark current in counts per pixel per second.
+    det_RN : ndarray
+        Read noise in counts per pixel per read.
+    det_tread : ndarray
+        Read time in seconds.
+    det_CIC : ndarray
+        Clock-induced charge in counts per pixel per photon count.
+
+    Methods
+    -------
+    load_configuration(parameters)
+        Load configuration parameters for the simulation from a dictionary.
     """
 
     def __init__(self) -> None:
-        """ """
+        """
+        Initialize a Detector object.
+
+        This constructor initializes an empty Detector object. The detector's
+        attributes are set using the `load_configuration` method.
+
+        Returns
+        -------
+        None
+        """
         pass
 
     def load_configuration(self, parameters: dict) -> None:
         """
-        Load configuration parameters for the simulation from a
-        dictionary of parameters that was read from the input file.
+        Load configuration parameters for the simulation from a dictionary.
 
-        Parameters:
-        -----------
+        This method initializes various attributes of the Detector object
+        using the provided parameters dictionary.
+
+        Parameters
+        ----------
         parameters : dict
-            A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag,
-                                        angdiam_arcsec, nzodis, ra, dec)
-            - Planet parameters (sp, deltamag, min_deltamag)
-            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
-            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor,
-                                    bandwidth, core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current,
-                                    read_noise, read_time, cic)
-            - Coronagraph parameters (coro_type, nrolls)
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        Returns
+        -------
+        None
+
         """
 
         # -------- INPUTS ---------

@@ -1,19 +1,36 @@
 import numpy as np
 
+from pyEDITH.observation import Observation
 
-def generate_radii(numx: int, numy: int = 0) -> np.array:
-    """
-    #### FORMER rgen.pro ####
-    Generates a 2D distribution of radii.  The origin is assumed
-    to be in the center of the matrix.  Radii are calculated
-    assuming 1 pixel = 1 unit.  The number of pixels can be odd
-    or even.
 
-    numx = # of pixels in x direction
-    numy = # of pixels in y direction
-    x: the x coordinates
-    y: the y coordinates
+def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
     """
+    Generate a 2D distribution of radii from the center of a matrix.
+
+    This function creates a 2D numpy array representing the radial distance
+    from the center for each element. The origin is assumed to be in the
+    center of the matrix. Radii are calculated assuming 1 pixel = 1 unit.
+    The number of pixels can be odd or even.
+
+    Parameters:
+    -----------
+    numx : int
+        Number of pixels in the x direction.
+    numy : int, optional
+        Number of pixels in the y direction. If 0 (default), it is set equal to numx.
+
+    Returns:
+    --------
+    np.ndarray
+        A 2D numpy array of shape (numy, numx) containing the radial distances
+        from the center for each pixel.
+
+    Notes:
+    ------
+    - The function handles both odd and even dimensions.
+    - Formerly  in rgen.pro
+    """
+
     xo2 = int(numx / 2)  # if it is odd, gets the int (lower value)
 
     if numy == 0:
@@ -73,7 +90,54 @@ def generate_radii(numx: int, numy: int = 0) -> np.array:
 
 
 class Coronagraph:
-    def __init__(self):
+    """
+    A base class representing a generic coronagraph.
+
+    This class defines the basic structure and methods common to all coronagraphs.
+    Specific coronagraph models should inherit from this class and implement
+    their own `generate_secondary_parameters` method.
+
+    Attributes:
+    -----------
+    enable_coro : int
+        Flag to enable or disable the coronagraph (0: disabled, 1: enabled).
+    Istar : np.ndarray
+        Star intensity distribution.
+    noisefloor : np.ndarray
+        Noise floor of the coronagraph.
+    photap_frac : np.ndarray
+        Photometric aperture fraction.
+    omega_lod : np.ndarray
+        Solid angle of the photometric aperture in λ/D units.
+    skytrans : np.ndarray
+        Sky transmission.
+    pixscale : float
+        Pixel scale in λ/D units.
+    npix : int
+        Number of pixels in the image.
+    xcenter : float
+        X-coordinate of the image center.
+    ycenter : float
+        Y-coordinate of the image center.
+    bw : float
+        Bandwidth of the coronagraph.
+    angdiams : np.ndarray
+        Angular diameters of the target objects.
+    ndiams : int
+        Number of angular diameters.
+    npsfratios : int
+        Number of PSF ratios.
+    nrolls : int
+        Number of roll angles.
+    psf_trunc_ratio : np.ndarray
+        PSF truncation ratio.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initialize the Coronagraph object with default parameter values.
+        """
+
         # DEFAULT PARAMETERS FOR ANY CORONAGRAPH
         self.enable_coro = 0
         self.Istar = np.array([0.0, 0.0])
@@ -94,19 +158,16 @@ class Coronagraph:
 
     def load_configuration(self, parameters: dict) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of parameters that was read from the input file.
+        Load configuration parameters for the simulation from a dictionary.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         parameters : dict
-            A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag, angdiam_arcsec, nzodis, ra, dec)
-            - Planet parameters (sp, deltamag, min_deltamag)
-            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
-            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth, core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current, read_noise, read_time, cic)
-            - Coronagraph parameters (coro_type, nrolls)
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        Returns
+        -------
+        None
         """
 
         # -------- INPUTS ---------
@@ -133,16 +194,55 @@ class Coronagraph:
         self.coro_type = parameters["coro_type"]
         self.nrolls = parameters["nrolls"]
 
-    def generate_secondary_parameters(self):
+    def generate_secondary_parameters(self) -> None:
         """
-        This function generates an error in the super-class, since it is specific of every subclass .
-        It must be defined in each subclass. If not, it will fail here trying to read the non-implemented general one.
+        Generate secondary parameters for the coronagraph.
+
+        This method should be implemented by subclasses to generate
+        coronagraph-specific secondary parameters.
+
+        Raises:
+        -------
+        NotImplementedError
+            If the method is not implemented in a subclass.
         """
         raise NotImplementedError
 
 
 class ToyModel(Coronagraph):
-    def generate_secondary_parameters(self, observation):
+    """
+    A toy model implementation of a coronagraph.
+
+    This class inherits from the Coronagraph base class and implements
+    a simplified model of a coronagraph for demonstration purposes.
+
+    Attributes:
+    -----------
+    Inherited from Coronagraph class.
+
+    Methods:
+    --------
+    generate_secondary_parameters(observation: Observation) -> None:
+        Generates secondary parameters for the toy model coronagraph.
+    """
+
+    def generate_secondary_parameters(self, observation: Observation) -> None:
+        """
+        Generate secondary parameters for the toy model coronagraph.
+
+        This method initializes various coronagraph parameters based on
+        a simplified model. It sets up the coronagraph's field of view,
+        pixel scale, and performance characteristics.
+
+        Parameters:
+        -----------
+        observation : Observation
+            An object containing observational parameters.
+
+        Returns:
+        --------
+        None
+        """
 
         self.type = "Toy Model"
 
@@ -169,13 +269,15 @@ class ToyModel(Coronagraph):
             (self.npix, self.npix, 1), self.Tcore
         )  # core throughput at all separations (npix,npix,len(psftruncratio))
         # TODO check change)
-        # j = np.where(r lt self.IWA or r gt self.OWA)                        # find separations interior to IWA or exterior to OWA
+        # j = np.where(r lt self.IWA or r gt self.OWA)
+        # find separations interior to IWA or exterior to OWA
         # if j[0] ne -1 then photap_frac1[j] = 0.0
 
         self.photap_frac[self.r < self.IWA] = 0.0  # index 0 is the
         self.photap_frac[self.r > self.OWA] = 0.0
 
-        # put in the right dimensions (3d arrays), but third dimension is 1 (number of psf_trunc_ratio)
+        # put in the right dimensions (3d arrays), but third dimension
+        # is 1 (number of psf_trunc_ratio)
         # self.omega_lod = np.array([self.omega_lod])
         # self.photap_frac = np.array([self.photap_frac])
 

@@ -3,20 +3,54 @@ from scipy.interpolate import interp1d
 
 
 def calc_flux_zero_point(
-    lambd: np.array,
+    lambd: np.ndarray,
     unit: str = "",
     perlambd: bool = False,
     AB: bool = False,
     verbose: bool = False,
-) -> np.array:
+) -> np.ndarray:
     """
-    This code calculates the flux zero point for a given wavelength
+    Calculate the flux zero point for given wavelengths.
 
-    By default, it returns Johnson zero points
-    By setting the /ab keyword, it will return AB flux zero point
+    This function calculates the flux zero point for a given set of wavelengths.
+    By default, it returns Johnson zero points. If the 'AB' flag is set, it will
+    return AB flux zero points.
 
-    The Johnson zero points come from Table A.2 from the Spitzer Telescope Handbook at
-    http://irsa.ipac.caltech.edu/data/SPITZER/docs/spitzermission/missionoverview/spitzertelescopehandbook/19/
+    Parameters:
+    -----------
+    lambd : np.ndarray
+        Wavelengths in microns.
+    unit : str, optional
+        Output unit. Possible values are:
+        - "jy" for output in Jy
+        - "cgs" for output in erg s^-1 cm^-2 Hz^-1
+        - "pcgs" for output in photons s^-1 cm^-2 Hz^-1
+        Default is an empty string.
+    perlambd : bool, optional
+        If True, convert all output values to cm^-1 instead of Hz^-1.
+        Default is False.
+    AB : bool, optional
+        If True, use AB magnitude system instead of Johnson.
+        Default is False.
+    verbose : bool, optional
+        If True, print additional information.
+        Default is False.
+
+    Returns:
+    --------
+    np.ndarray
+        Flux zero points for the given wavelengths in the specified units.
+
+    Raises:
+    -------
+    ValueError
+        If unit is not specified or is invalid, or if incompatible options are selected.
+
+    Notes:
+    ------
+    The Johnson zero points come from Table A.2 from the Spitzer Telescope Handbook
+    (http://irsa.ipac.caltech.edu/data/SPITZER/docs/spitzermission/missionoverview/spitzertelescopehandbook/19/).
+
     That table is as follows:
     Passband	Effective wavelength (microns)	Johnson Zero point (Jy)
     U	0.36	1823
@@ -33,27 +67,8 @@ def calc_flux_zero_point(
     O	21.0	9.4
 
     The AB zero points are simply calculated as 5.5099e6 / lambd
-    3.6308e-20
-
-    INPUT
-    lambd (microns)
-    jy: flag to make the output value in Jy
-    cgs: flag to make the output value in erg s^-1 cm^-2 Hz^-1
-    pcgs: flag to make the output value in photons s^-1 cm^-2 Hz^-1
-    perlambd: flag to convert all output values to cm^-1 instead of Hz^-1
-
-
-    #OUTPUT
-    #f0_jy (flux zero point in Jy)
-    #f0_photons_cgs (flux zero point in photons s^-1 cm^-2 Hz^-1)
-
     """
-    # TODO Check change, it should be now unnecessary because now False by default
-    # if n_elements(jy) eq 0 then jy = 0
-    # if n_elements(cgs) eq 0 then cgs = 0
-    # if n_elements(pcgs) eq 0 then pcgs = 0
-    # if n_elements(perlambd) eq 0 then perlambd = 0
-    # if n_elements(verbose) eq 0 then verbose = 0
+
     if unit == "":
         raise ValueError(
             'Must specificy output units: unit="jy" for output in Jy, '
@@ -66,8 +81,7 @@ def calc_flux_zero_point(
             + 'unit="cgs" for output in erg s^-1 cm^-2 Hz^-1, '
             + 'unit="pcgs" for output in photons s^-1 cm^-2 Hz^-1. '
         )
-    # TODO: Check: should no longer be necessary.
-    # if (jy + cgs + pcgs) gt 1 then stop,'Must specificy only one unit flag.'
+
     if unit == "jy" and perlambd:
         raise ValueError("Cannot set Jy and perlambd")
 
@@ -130,22 +144,59 @@ def calc_flux_zero_point(
     return np.array(f0)
 
 
-def calc_exozodi_flux(M_V, vmag, F0V, nexozodis, lambd: np.array, lambdmag, F0lambd):
+def calc_exozodi_flux(
+    M_V: np.ndarray,
+    vmag: np.ndarray,
+    F0V: float,
+    nexozodis: np.ndarray,
+    lambd: np.ndarray,
+    lambdmag: np.ndarray,
+    F0lambd: np.ndarray,
+) -> np.ndarray:
+    """
+    Calculate the exozodiacal light flux for given stellar and observational parameters.
 
-    # Inputs
-    # M_V  = V band absolute magnitude of stars
-    # vmag = V band apparent magnitude of stars
-    # F0V  = V band flux zero point of stars
-    # Lstar = bolometric luminosity of stars
-    # lambd = wavelength in microns (vector of length nlambd)
-    # lambdmag = apparent magnitude of stars at each lambd (array nstars x nlambd)
-    # F0lambd = flux zero point at wavelength lambd (vector of length nlambd)
+    This function computes the exozodiacal light flux for a set of stars, taking into
+    account their absolute and apparent magnitudes, the number of exozodis, and the
+    observational wavelengths.
 
-    # Output
-    # exozodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
-    # i.e., it returns 10^(-0.4*magOmega_EZ)
-    # - multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
-    # - multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
+    Parameters:
+    -----------
+    M_V : np.ndarray
+        V band absolute magnitude of stars.
+    vmag : np.ndarray
+        V band apparent magnitude of stars.
+    F0V : float
+        V band flux zero point of stars.
+    nexozodis : np.ndarray
+        Number of exozodis for each star.
+    lambd : np.ndarray
+        Wavelength in microns (vector of length nlambd).
+    lambdmag : np.ndarray
+        Apparent magnitude of stars at each lambd (array nstars x nlambd).
+    F0lambd : np.ndarray
+        Flux zero point at wavelength lambd (vector of length nlambd).
+
+    Returns:
+    --------
+    np.ndarray
+        Exozodi surface brightness in units of photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0.
+        This is equivalent to 10^(-0.4*magOmega_EZ).
+        - Multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
+        - Multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
+        The output array has dimensions (nlambd, nstars).
+
+    Notes:
+    ------
+    - The function assumes a V band surface brightness of 22.0 mag arcsec^-2 for 1 zodi.
+    - The calculation maintains a constant optical depth regardless of stellar type.
+    - The function uses the Sun's V band absolute magnitude (4.83) as a reference.
+
+    Raises:
+    -------
+    ValueError
+        If the input arrays have incompatible dimensions.
+    """
 
     if len(lambd) != len(F0lambd):
         raise ValueError(
@@ -207,27 +258,60 @@ def calc_exozodi_flux(M_V, vmag, F0V, nexozodis, lambd: np.array, lambdmag, F0la
 
 
 def calc_zodi_flux(
-    dec: np.array,
-    ra: np.array,
-    lambd: np.array,
-    F0: np.array,
+    dec: np.ndarray,
+    ra: np.ndarray,
+    lambd: np.ndarray,
+    F0: np.ndarray,
     starshade: bool = False,
-    ss_elongation: np.array = np.array([]),
-):
+    ss_elongation: np.ndarray = np.array([]),
+) -> np.ndarray:
+    """
+    Calculate the zodiacal light flux for given celestial coordinates and wavelengths.
 
-    # Inputs
-    # Dec = declination of target in degrees (J2000 equatorial coordinate)
-    # RA = right ascension of target in degrees (J2000 equatorial coordinate)
-    # lambd = wavelength in microns (vector of length nlambd)
-    # starshade = setting this flag turns on starshade mode
-    # ss_elongation = mean solar elongation for the starshade's observations (degrees)
+    This function computes the zodiacal light flux based on the target's position in the sky,
+    observation wavelengths, and whether a starshade is used. It uses the model from
+    Leinert et al. (1998) to calculate the zodiacal light intensity.
 
-    # Output
-    # zodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
-    # i.e., it returns 10^(-0.4*magOmega_ZL)
-    # - multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
-    # - multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
-    # output has dimensions nstars x nlambd
+    Parameters:
+    -----------
+    dec : np.ndarray
+        Declination of targets in degrees (J2000 equatorial coordinate).
+    ra : np.ndarray
+        Right ascension of targets in degrees (J2000 equatorial coordinate).
+    lambd : np.ndarray
+        Wavelengths in microns (vector of length nlambd).
+    F0 : np.ndarray
+        Flux zero points at wavelengths lambd (vector of length nlambd).
+    starshade : bool, optional
+        Flag to enable starshade mode (default is False).
+    ss_elongation : np.ndarray, optional
+        Mean solar elongation for the starshade's observations in degrees (required if starshade=True).
+
+    Returns:
+    --------
+    np.ndarray
+        Zodi surface brightness in units of photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0.
+        This is equivalent to 10^(-0.4*magOmega_ZL).
+        - Multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
+        - Multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
+        The output array has dimensions (nlambd, nstars).
+
+    Raises:
+    -------
+    ValueError
+        If F0 and lambd have different lengths, or if starshade mode is inconsistent with ss_elongation.
+
+    Notes:
+    ------
+    - The function uses the zodiacal light model from Leinert et al. (1998).
+    - For coronagraph mode, it assumes observations near solar longitude of 135 degrees.
+    - Starshade functionality is currently not fully implemented.
+
+    References:
+    -----------
+    Leinert, C., et al. (1998). The 1997 reference of diffuse night sky brightness.
+    Astronomy and Astrophysics Supplement Series, 127(1), 1-99.
+    """
 
     if len(lambd) != len(F0):
         raise ValueError("ERROR. F0 and lambd must be vectors of identical length.")
@@ -434,37 +518,91 @@ def calc_zodi_flux(
 
 class AstrophysicalScene:
     """
+    A class representing an astrophysical scene for exoplanet observation simulations.
 
-    Methods:
-    --------
+    This class encapsulates various astrophysical parameters and methods to calculate
+    zodi and exozodi fluxes for a set of target stars and their potential exoplanets.
 
+    Attributes
+    ----------
+    ntargs : int
+        Number of target stars
+    Lstar : ndarray
+        Luminosity of stars in solar luminosities
+    dist : ndarray
+        Distance to stars in parsecs
+    vmag : ndarray
+        Stellar magnitudes at V band
+    mag : ndarray
+        Stellar magnitudes at desired wavelengths
+    angdiam_arcsec : ndarray
+        Angular diameter of stars in arcseconds
+    nzodis : ndarray
+        Amount of exozodi around target stars in "zodis"
+    ra : ndarray
+        Right ascension of target stars in degrees
+    dec : ndarray
+        Declination of target stars in degrees
+    sp : ndarray
+        Separation of planets in arcseconds
+    xp : ndarray
+        X-coordinate of planets in arcseconds
+    yp : ndarray
+        Y-coordinate of planets in arcseconds
+    deltamag : ndarray
+        Magnitude difference between planets and host stars
+    min_deltamag : ndarray
+        Brightest planet to resolve at the IWA
+    F0V : float
+        Flux zero point for V band
+    F0 : ndarray
+        Flux zero points for prescribed wavelengths
+    M_V : ndarray
+        Absolute V band magnitudes of target stars
+    Fzodi_list : ndarray
+        Zodiacal light fluxes
+    Fexozodi_list : ndarray
+        Exozodiacal light fluxes
+    Fbinary_list : ndarray
+        Binary star fluxes (currently ignored)
+    Fp0 : ndarray
+        Flux of planets
+
+    Methods
+    -------
+    load_configuration(parameters)
+        Load configuration parameters for the simulation from a dictionary.
+    calculate_zodi_exozodi(observation)
+        Calculate zodiacal and exozodiacal light fluxes for the given observation.
     """
 
     def __init__(self) -> None:
         """
-        Initialize the object with default values for output arrays.
+        Initialize the AstrophysicalScene object with default values for output arrays.
         """
-        pass  # there are no default values, TODO it should fail if not provided
+        pass
+        # there are no default values, TODO it should fail if not provided
 
     def load_configuration(self, parameters: dict) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of
-        parameters that was read from the input file.
+        Load configuration parameters for the simulation from a dictionary.
 
-        Parameters:
-        -----------
+        This method initializes various attributes of the AstrophysicalScene object
+        using the provided parameters dictionary.
+
+        Parameters
+        ----------
         parameters : dict
-            A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag, angdiam_arcsec,
-                                        nzodis, ra, dec)
-            - Planet parameters (sp, deltamag, min_deltamag)
-            - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
-            - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth,
-                                        core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current, read_noise,
-                                    read_time, cic)
-            - Coronagraph parameters (coro_type, nrolls)
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        KeyError
+            If a required parameter is missing from the input dictionary.
         """
 
         # -------- INPUTS ---------
@@ -510,7 +648,29 @@ class AstrophysicalScene:
         # the IWA, sets the time between counts (ntargs array)
         self.min_deltamag = np.array(parameters["delta_mag_min"], dtype=np.float64)
 
-    def calculate_zodi_exozodi(self, observation):
+    def calculate_zodi_exozodi(self, observation: object) -> None:
+        """
+        Calculate zodiacal and exozodiacal light fluxes for the given observation.
+
+        This method computes the flux zero points, zodiacal light fluxes, and
+        exozodiacal light fluxes for the target stars based on the provided
+        observation parameters.
+
+        Parameters
+        ----------
+        observation : object
+            An object containing observation parameters.
+            Must have attributes:
+                lambd : array_like
+                    Wavelengths for the observation.
+                nlambd : int
+                    Number of wavelengths.
+
+        Returns
+        -------
+        None
+
+        """
 
         # calculate flux at zero point for the V band and the prescribed lambda
         self.F0V = (
