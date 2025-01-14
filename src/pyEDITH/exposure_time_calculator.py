@@ -254,6 +254,7 @@ def calculate_exposure_time(observation,scene,telescope, coronagraph,detector,ed
 
     for istar in range(scene.ntargs): #set to 1
         for ilambd in range(observation.nlambd): #set to 1
+
             # Calculate useful quantities
             Fstar = 10**(-0.4 * scene.mag[istar,ilambd])
             deltalambda_nm = np.min([(observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd], coronagraph.bandwidth * (observation.lambd[ilambd] * 1000.0)]) # take the lesser of the desired bandwidth and what coronagraph allows
@@ -279,7 +280,6 @@ def calculate_exposure_time(observation,scene,telescope, coronagraph,detector,ed
                 coronagraph.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
                 coronagraph.npix, coronagraph.xcenter, coronagraph.ycenter,oneopixscale_arcsec
             )
-
 
             # Here we calculate detector noise, as it may depend on count rates
             # We don't know the count rates yet, so we make estimates based on
@@ -307,13 +307,7 @@ def calculate_exposure_time(observation,scene,telescope, coronagraph,detector,ed
 
             det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
 
-            #TODO move these loops outside like we did with istar and ilambda
             for iorbit in np.arange(edith.norbits):
-
-                # #To calculate best bandpass (only for yields?)
-                # mint_v_phase = float('inf')
-                # best_psfomega_v_phase = 0.0
-                # best_psftruncratio_v_phase = 0.0
 
                 for iphase in np.arange(edith.nmeananom):  
                     #calculate position of the planet in the image (from l/D to pixel)          
@@ -428,7 +422,7 @@ def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,
 
     for istar in range(scene.ntargs): #set to 1
         for ilambd in range(observation.nlambd): #set to 1
-            
+
             # Calculate useful quantities
             Fstar = 10**(-0.4 * scene.mag[istar,ilambd])
             deltalambda_nm = np.min([(observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd], coronagraph.bandwidth * (observation.lambd[ilambd] * 1000.0)]) # take the lesser of the desired bandwidth and what coronagraph allows
@@ -453,7 +447,6 @@ def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,
                 coronagraph.psf_trunc_ratio, coronagraph.photap_frac, Istar_interp, coronagraph.skytrans, coronagraph.omega_lod,
                 coronagraph.npix, coronagraph.xcenter, coronagraph.ycenter,oneopixscale_arcsec
             )
-
 
             # Here we calculate detector noise, as it may depend on count rates
             # We don't know the count rates yet, so we make estimates based on
@@ -481,15 +474,10 @@ def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,
 
             det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
 
-            #TODO move these loops outside like we did with istar and ilambda
+
             for iorbit in np.arange(edith.norbits):
-
-                # #To calculate best bandpass (only for yields?)
-                # mint_v_phase = float('inf')
-                # best_psfomega_v_phase = 0.0
-                # best_psftruncratio_v_phase = 0.0
-
                 for iphase in np.arange(edith.nmeananom):  
+                    
                     #calculate position of the planet in the image (from l/D to pixel)          
                     ix = scene.xp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.xcenter
                     iy = scene.yp[iphase,iorbit,istar] * oneopixscale_arcsec + coronagraph.ycenter
@@ -498,10 +486,6 @@ def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,
 
                     # if planet is within the boundaries of the coronagraph simulation and hard IWA/OWA cutoffs...
                     if (ix >= 0) and (ix < coronagraph.npix) and (iy >= 0) and (iy < coronagraph.npix) and (sp_lod > coronagraph.IWA) and (sp_lod < coronagraph.OWA):
-
-                        # besttp_v_ratio = float('inf')
-                        # bestpsfomega = 0.0
-                        # bestpsftruncratio = 0.0
 
                         for iratio in np.arange(coronagraph.npsfratios):
                             # First we just calculate CRp and CRnoisefloor to see if CRp > CRnoisefloor
@@ -569,7 +553,7 @@ def calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,
                                 time_factors= (edith.obstime* coronagraph.nrolls - telescope.toverhead_fixed)/(telescope.toverhead_multi*((CRp + 2*CRb)))
 
                                 # Signal-to-noise
-                                edith.fullsnr[istar,ilambd]=np.sqrt(time_factors*CRp*CRp)/(1-time_factors*CRnf_factor*CRnf_factor)
+                                edith.fullsnr[istar,ilambd]=np.sqrt((time_factors * CRp**2)/(1 + time_factors * CRnf_factor**2))
 
                                 if edith.fullsnr[istar,ilambd] < 0:
                                     # time is past the systematic noise floor limit
