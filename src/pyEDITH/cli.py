@@ -3,20 +3,21 @@ from .astrophysical_scene import AstrophysicalScene
 from .observation import Observation
 from .telescope import Telescope
 from .detector import Detector
-from .exposure_time_calculator import calculate_exposure_time,calculate_signal_to_noise
+from .exposure_time_calculator import calculate_exposure_time, calculate_signal_to_noise
 from .edith import Edith
 from argparse import ArgumentParser
 from . import parse_input
 import numpy as np
 import sys
 
+
 def main():
     """
     Main entry point for the E.D.I.T.H. command-line interface.
 
     This function sets up the argument parser and handles the execution
-    of different subcommands: etc (Exposure Time Calculator), snr (Signal-to-Noise Ratio),
-    and etc2snr (Exposure Time to Signal-to-Noise Ratio).
+    of different subcommands: etc (Exposure Time Calculator), snr (Signal-to-Noise
+    Ratio), and etc2snr (Exposure Time to Signal-to-Noise Ratio).
 
     The function reads configuration from .edith files and calls the appropriate
     calculation functions based on the subcommand.
@@ -29,19 +30,34 @@ def main():
         If the returned exposure time is infinity in etc2snr mode.
     """
 
-    parser = ArgumentParser(description="Available command line arguments for E.D.I.T.H.")
-    subparsers = parser.add_subparsers(dest="subfunction", help="Subfunction to execute")
+    parser = ArgumentParser(
+        description="Available command line arguments for E.D.I.T.H."
+    )
+    subparsers = parser.add_subparsers(
+        dest="subfunction", help="Subfunction to execute"
+    )
 
-    parser_a = subparsers.add_parser("etc", help="Exposure Time Calculator for a specific lambda (in .edith file)")
+    parser_a = subparsers.add_parser(
+        "etc", help="Exposure Time Calculator for a specific lambda (in .edith file)"
+    )
     parser_a.add_argument("--edith", type=str, help="an .edith file")
 
-    parser_b = subparsers.add_parser("snr", help="SNR calculator for a specific lambda (in .edith file) and for a given exposure time (argument, in hours)")
+    parser_b = subparsers.add_parser(
+        "snr",
+        help="SNR calculator for a specific lambda (in .edith file) and for a given \
+            exposure time (argument, in hours)",
+    )
     parser_b.add_argument("--edith", type=str, help="an .edith file")
-    parser_b.add_argument("--time", type=float, help="the desired observing time in minutes")
+    parser_b.add_argument(
+        "--time", type=float, help="the desired observing time in minutes"
+    )
 
-    parser_c = subparsers.add_parser("etc2snr", help="SNR calculator for a secondary lambda based on an exposure file calculated on a primary lambda (in .edith file)")
+    parser_c = subparsers.add_parser(
+        "etc2snr",
+        help="SNR calculator for a secondary lambda based on an exposure file \
+            calculated on a primary lambda (in .edith file)",
+    )
     parser_c.add_argument("--edith", type=str, help="an .edith file")
-
 
     args = parser.parse_args()
 
@@ -56,12 +72,15 @@ def main():
 
     elif args.subfunction == "snr":
         if not args.edith or args.time is None:
-            print("Error: Both --edith and --time arguments are required for snr subfunction.")
+            print(
+                "Error: Both --edith and --time arguments are required for snr \
+                    subfunction."
+            )
             parser_b.print_help(sys.stderr)
             sys.exit(1)
         parameters, _ = parse_input.read_configuration(args.edith)
         texp = args.time
-        snr=calculate_snr(parameters, texp)
+        snr = calculate_snr(parameters, texp)
         print(snr)
 
     elif args.subfunction == "etc2snr":
@@ -69,26 +88,29 @@ def main():
             print("Error: --edith argument is required for etc2snr subfunction.")
             parser_c.print_help(sys.stderr)
             sys.exit(1)
-        parameters, secondary_parameters = parse_input.read_configuration(args.edith, secondary_flag=True)
+        parameters, secondary_parameters = parse_input.read_configuration(
+            args.edith, secondary_flag=True
+        )
         if not secondary_parameters:
-            raise ValueError('The secondary parameters are not specified.')
-        
-        if len(parameters['lambd'])>1:
-            raise TypeError('Cannot accept multiple lambdas as primary lambda')
+            raise ValueError("The secondary parameters are not specified.")
+
+        if len(parameters["lambd"]) > 1:
+            raise TypeError("Cannot accept multiple lambdas as primary lambda")
         else:
             for key in parameters:
-               if key not in secondary_parameters: 
-                 secondary_parameters[key] = parameters[key]
-        
-        print('Calculating texp from primary lambda')
-        texp=calculate_texp(parameters)
-        print('Reference exposure time: ',texp)
+                if key not in secondary_parameters:
+                    secondary_parameters[key] = parameters[key]
+
+        print("Calculating texp from primary lambda")
+        texp = calculate_texp(parameters)
+        print("Reference exposure time: ", texp)
         if np.isfinite(texp).all():
             pass
-            print('Calculating snr on secondary lambda')
-            snr=calculate_snr(secondary_parameters,texp)
-            print('SNR at the secondary lambda: ', snr)
-        else: raise ValueError('Returned exposure time is infinity.')
+            print("Calculating snr on secondary lambda")
+            snr = calculate_snr(secondary_parameters, texp)
+            print("SNR at the secondary lambda: ", snr)
+        else:
+            raise ValueError("Returned exposure time is infinity.")
     else:
         parser.print_help()
 
@@ -98,16 +120,19 @@ def main():
 
 #     ### CHECK COMMAND LINE INPUTS
 #     # check input file was provided
-    
+
 #     if not Path(args.ayo).exists():
-#         raise ValueError('Cannot find this .ayo file. Please check that the path/name is correct.')
-  
+#         raise ValueError('Cannot find this .ayo file. Please check that the \
+#                           path/name is correct.')
+
 #     if not Path(args.coro).exists():
-#         raise ValueError('Cannot find this .coro file. Please check that the path/name is correct.')
-  
+#         raise ValueError('Cannot find this .coro file. Please check that the \
+#                            path/name is correct.')
+
 #     if not Path(args.targets).exists():
-#         raise ValueError('Cannot find this .csv file. Please check that the path/name is correct.')
-  
+#         raise ValueError('Cannot find this .csv file. Please check that the \
+#                            path/name is correct.')
+
 #     ### CONVERT COMMAND LINE INPUTS INTO SINGLE DICT
 #     #----- FILE READING -----
 #     # with open(self.input_file,'r') as f:
@@ -115,11 +140,12 @@ def main():
 #     parameters=parse_input.parse_input_file(args.input_file)
 #     return parameters
 
+
 def calculate_texp(parameters: dict) -> np.array:
     """
     Calculates the exposure time for a planet observed with a given coronagraph.
 
-    This function uses the exposure_time_calculator.c routine, which has been 
+    This function uses the exposure_time_calculator.c routine, which has been
     benchmarked using the ESYWG/CDS/CTR Exposure Time Comparison spreadsheet.
 
     Parameters:
@@ -146,43 +172,46 @@ def calculate_texp(parameters: dict) -> np.array:
     observation = Observation()
     observation.load_configuration(parameters)
 
-
-    # Define Astrophysical Scene and load relevant parameters, then calculate zodi/exozodi
+    # Define Astrophysical Scene and load relevant parameters,
+    # then calculate zodi/exozodi
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(observation)  
-
+    scene.calculate_zodi_exozodi(observation)
 
     # Define Telescope and load relevant parameters
     telescope = Telescope()
     telescope.load_configuration(parameters)
 
     # Define Coronagraph and load relevant parameters
-    if parameters['coro_type']=='toymodel':
-        coronagraph=ToyModel() # a subclass of Coronagraph, will automatically initialize variables
+    if parameters["coro_type"] == "toymodel":
+        coronagraph = (
+            ToyModel()
+        )  # a subclass of Coronagraph, will automatically initialize variables
 
-        # Load the configuration as specified in the general Coronagraph class. (But the method can be overwritten in the future)
-        coronagraph.load_configuration(parameters) 
+        # Load the configuration as specified in the general Coronagraph class.
+        # (But the method can be overwritten in the future)
+        coronagraph.load_configuration(parameters)
 
         # Generate secondary parameters specific to the ToyModel subclass
         coronagraph.generate_secondary_parameters(observation)
     else:
-        raise KeyError('The coro_type keyword is not valid.')
+        raise KeyError("The coro_type keyword is not valid.")
 
     # Define Detector and load relevant parameters
     detector = Detector()
     detector.load_configuration(parameters)
 
     # Define Edith object and load default parameters
-    edith=Edith(scene, observation)
+    edith = Edith(scene, observation)
     edith.load_default_parameters()
 
-    ### EXPOSURE TIME CALCULATION    
-    calculate_exposure_time(observation,scene,telescope, coronagraph,detector,edith)
+    # EXPOSURE TIME CALCULATION
+    calculate_exposure_time(observation, scene, telescope, coronagraph, detector, edith)
 
-    return  edith.exptime
+    return edith.exptime
 
-def calculate_snr(parameters,reference_texp):
+
+def calculate_snr(parameters, reference_texp):
     """
     Calculates the signal-to-noise ratio (SNR) for a given exposure time.
 
@@ -215,40 +244,44 @@ def calculate_snr(parameters,reference_texp):
     observation = Observation()
     observation.load_configuration(parameters)
 
-
-    # Define Astrophysical Scene and load relevant parameters, then calculate zodi/exozodi
+    # Define Astrophysical Scene and load relevant parameters,
+    # then calculate zodi/exozodi
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(observation)  
-
+    scene.calculate_zodi_exozodi(observation)
 
     # Define Telescope and load relevant parameters
     telescope = Telescope()
     telescope.load_configuration(parameters)
 
     # Define Coronagraph and load relevant parameters
-    if parameters['coro_type']=='toymodel':
-        coronagraph=ToyModel() # a subclass of Coronagraph, will automatically initialize variables
+    if parameters["coro_type"] == "toymodel":
+        coronagraph = (
+            ToyModel()
+        )  # a subclass of Coronagraph, will automatically initialize variables
 
-        # Load the configuration as specified in the general Coronagraph class. (But the method can be overwritten in the future)
-        coronagraph.load_configuration(parameters) 
+        # Load the configuration as specified in the general Coronagraph class.
+        # (But the method can be overwritten in the future)
+        coronagraph.load_configuration(parameters)
 
         # Generate secondary parameters specific to the ToyModel subclass
         coronagraph.generate_secondary_parameters(observation)
     else:
-        raise KeyError('The coro_type keyword is not valid.')
+        raise KeyError("The coro_type keyword is not valid.")
 
     # Define Detector and load relevant parameters
     detector = Detector()
     detector.load_configuration(parameters)
 
     # Define Edith object and load default parameters
-    edith=Edith(scene, observation)
+    edith = Edith(scene, observation)
     edith.load_default_parameters()
 
-    ### SNR CALCULATION 
-    edith.obstime=reference_texp
-    calculate_signal_to_noise(observation,scene,telescope, coronagraph,detector,edith)
-    #print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
-   
+    # SNR CALCULATION
+    edith.obstime = reference_texp
+    calculate_signal_to_noise(
+        observation, scene, telescope, coronagraph, detector, edith
+    )
+    # print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
+
     return edith.fullsnr

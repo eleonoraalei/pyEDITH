@@ -1,12 +1,15 @@
 import numpy as np
-import pyEDITH.parse_input as io
-from typing import Union
-from scipy.interpolate import interp1d,interpn
+from scipy.interpolate import interp1d
 
 
-def calc_flux_zero_point(lambd: np.array, unit: str = '',
-                         perlambd:bool=False,AB:bool=False,verbose:bool=False) -> np.array:
-    '''
+def calc_flux_zero_point(
+    lambd: np.array,
+    unit: str = "",
+    perlambd: bool = False,
+    AB: bool = False,
+    verbose: bool = False,
+) -> np.array:
+    """
     This code calculates the flux zero point for a given wavelength
 
     By default, it returns Johnson zero points
@@ -44,215 +47,322 @@ def calc_flux_zero_point(lambd: np.array, unit: str = '',
     #f0_jy (flux zero point in Jy)
     #f0_photons_cgs (flux zero point in photons s^-1 cm^-2 Hz^-1)
 
-    '''
+    """
     # TODO Check change, it should be now unnecessary because now False by default
     # if n_elements(jy) eq 0 then jy = 0
     # if n_elements(cgs) eq 0 then cgs = 0
     # if n_elements(pcgs) eq 0 then pcgs = 0
     # if n_elements(perlambd) eq 0 then perlambd = 0
     # if n_elements(verbose) eq 0 then verbose = 0
-    if unit =='':
-        raise ValueError('Must specificy output units: unit="jy" for output in Jy, '+
-                         'unit="cgs" for output in erg s^-1 cm^-2 Hz^-1, '+
-                         'unit="pcgs" for output in photons s^-1 cm^-2 Hz^-1. ')
-    if unit not in ['jy','cgs','pcgs']:
-        raise ValueError('Invalid unit value. Possible values are: unit="jy" for output in Jy, '+
-                         'unit="cgs" for output in erg s^-1 cm^-2 Hz^-1, '+
-                         'unit="pcgs" for output in photons s^-1 cm^-2 Hz^-1. ')
+    if unit == "":
+        raise ValueError(
+            'Must specificy output units: unit="jy" for output in Jy, '
+            + 'unit="cgs" for output in erg s^-1 cm^-2 Hz^-1, '
+            + 'unit="pcgs" for output in photons s^-1 cm^-2 Hz^-1. '
+        )
+    if unit not in ["jy", "cgs", "pcgs"]:
+        raise ValueError(
+            'Invalid unit value. Possible values are: unit="jy" for output in Jy, '
+            + 'unit="cgs" for output in erg s^-1 cm^-2 Hz^-1, '
+            + 'unit="pcgs" for output in photons s^-1 cm^-2 Hz^-1. '
+        )
     # TODO: Check: should no longer be necessary.
     # if (jy + cgs + pcgs) gt 1 then stop,'Must specificy only one unit flag.'
-    if unit=='jy' and perlambd==True:
-        raise ValueError('Cannot set Jy and perlambd') 
+    if unit == "jy" and perlambd:
+        raise ValueError("Cannot set Jy and perlambd")
 
-
-    #Calculate the zero point
+    # Calculate the zero point
     if AB:
-        #AB magnitude system
-        f0 = 3.6308e3 #This is the zero point Jy
+        # AB magnitude system
+        f0 = 3.6308e3  # This is the zero point Jy
     else:
-        #Johnson magnitude system
-        known_lambd = np.array([0.36,0.44,0.55,0.71,0.97,1.25,1.60,2.22,3.54,4.80,10.6,21.0])
-        known_zeropoint_jy = np.array([1823,4130,3781,2941,2635,1603,1075,667,288,170,36,9.4])
-        
-        #Now we interpolate to lambd
-        #Note that the interpolation is best done in log-log space
-        interp=interp1d(np.log10(known_lambd),np.log10(known_zeropoint_jy), kind='cubic',fill_value='extrapolate') # TODO this interpolation is not exactly the same, is that okay?
-        logf0=interp(np.log10(lambd))
-        f0 = 10.**logf0 #undo the logarithm
+        # Johnson magnitude system
+        known_lambd = np.array(
+            [0.36, 0.44, 0.55, 0.71, 0.97, 1.25, 1.60, 2.22, 3.54, 4.80, 10.6, 21.0]
+        )
+        known_zeropoint_jy = np.array(
+            [1823, 4130, 3781, 2941, 2635, 1603, 1075, 667, 288, 170, 36, 9.4]
+        )
 
+        # Now we interpolate to lambd
+        # Note that the interpolation is best done in log-log space
+        interp = interp1d(
+            np.log10(known_lambd),
+            np.log10(known_zeropoint_jy),
+            kind="cubic",
+            fill_value="extrapolate",
+        )  # TODO this interpolation is not exactly the same, is that okay?
+        logf0 = interp(np.log10(lambd))
+        f0 = 10.0**logf0  # undo the logarithm
 
-
-    #Now change the units from Jy if necessary
-    c = 2.998e10                  #cm s^-1
-    h = 6.62608e-27               #planck constant in cgs
+    # Now change the units from Jy if necessary
+    c = 2.998e10  # cm s^-1
+    h = 6.62608e-27  # planck constant in cgs
     lambd_cm = lambd / 1e4
-    ephoton_cgs = h * c/ lambd_cm
-    if unit=='cgs': f0 = np.double(f0)*1e-23 #convert to CGS
-    if unit=='pcgs': f0 = np.double(f0)*1e-23 / ephoton_cgs #convert to # photons in CGS
-    if perlambd: f0 *= (c / lambd_cm**2.)
+    ephoton_cgs = h * c / lambd_cm
+    if unit == "cgs":
+        f0 = np.double(f0) * 1e-23  # convert to CGS
+    if unit == "pcgs":
+        f0 = np.double(f0) * 1e-23 / ephoton_cgs  # convert to # photons in CGS
+    if perlambd:
+        f0 *= c / lambd_cm**2.0
 
+    if unit == "jy":
+        unittext = "Jy"
+    if unit == "cgs":
+        if not perlambd:
+            unittext = "erg s^-1 cm^-2 Hz^-1 (CGS per unit frequency)"
+        else:
+            unittext = "erg s^-1 cm^-3 (CGS per unit wavelength)"
+    if unit == "pcgs":
+        if not perlambd:
+            unittext = "photons s^-1 cm^-2 Hz^-1 (CGS per unit frequency)"
+        else:
+            unittext = "photons s^-1 cm^-3 (CGS per unit wavelength)"
 
-    if unit=='jy': unittext = 'Jy'
-    if unit=='cgs':
-        if not perlambd: unittext = 'erg s^-1 cm^-2 Hz^-1 (CGS per unit frequency)'
-        else: unittext = 'erg s^-1 cm^-3 (CGS per unit wavelength)'
-    if unit=='pcgs':
-        if not perlambd: unittext = 'photons s^-1 cm^-2 Hz^-1 (CGS per unit frequency)'
-        else: unittext = 'photons s^-1 cm^-3 (CGS per unit wavelength)'
-
-    if verbose: print('Johnson flux zero point calculated at %.2f' % lambd
-                      +' microns in units of '+unittext)
+    if verbose:
+        print(
+            "Johnson flux zero point calculated at %.2f" % lambd
+            + " microns in units of "
+            + unittext
+        )
 
     return np.array(f0)
 
+
 def calc_exozodi_flux(M_V, vmag, F0V, nexozodis, lambd: np.array, lambdmag, F0lambd):
 
-    #Inputs
-    #M_V  = V band absolute magnitude of stars
-    #vmag = V band apparent magnitude of stars
-    #F0V  = V band flux zero point of stars
-    #Lstar = bolometric luminosity of stars
-    #lambd = wavelength in microns (vector of length nlambd)
-    #lambdmag = apparent magnitude of stars at each lambd (array nstars x nlambd)
-    #F0lambd = flux zero point at wavelength lambd (vector of length nlambd)
+    # Inputs
+    # M_V  = V band absolute magnitude of stars
+    # vmag = V band apparent magnitude of stars
+    # F0V  = V band flux zero point of stars
+    # Lstar = bolometric luminosity of stars
+    # lambd = wavelength in microns (vector of length nlambd)
+    # lambdmag = apparent magnitude of stars at each lambd (array nstars x nlambd)
+    # F0lambd = flux zero point at wavelength lambd (vector of length nlambd)
 
-    #Output
-    #exozodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
-    #i.e., it returns 10^(-0.4*magOmega_EZ)
+    # Output
+    # exozodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
+    # i.e., it returns 10^(-0.4*magOmega_EZ)
     # - multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
     # - multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
 
-    if len(lambd) != len(F0lambd): raise ValueError('ERROR. F0lambd and lambd must be vectors of identical length.')
-    if len(lambd)>1:
-        if len(lambd)!=lambdmag.shape[0]: raise ValueError('ERROR. lambdmag must have dimensions nstars x nlambd, where nlambd is the length of lambd.') #TODO check because IDL and PYTHON are flipped
+    if len(lambd) != len(F0lambd):
+        raise ValueError(
+            "ERROR. F0lambd and lambd must be vectors of identical length."
+        )
+    if len(lambd) > 1:
+        if len(lambd) != lambdmag.shape[0]:
+            raise ValueError(
+                "ERROR. lambdmag must have dimensions nstars x nlambd, \
+                      where nlambd is the length of lambd."
+            )  # TODO check because IDL and PYTHON are flipped
 
-    vmag_1zodi = 22. #V band surface brightness of 1 zodi in mag arcsec^-2
-    vflux_1zodi = 10.**(-0.4*vmag_1zodi) #V band flux (modulo the F0 factor out front)
+    vmag_1zodi = 22.0  # V band surface brightness of 1 zodi in mag arcsec^-2
+    vflux_1zodi = 10.0 ** (
+        -0.4 * vmag_1zodi
+    )  # V band flux (modulo the F0 factor out front)
 
-    M_V_sun = 4.83 #V band absolute magnitude of Sun
+    M_V_sun = 4.83  # V band absolute magnitude of Sun
 
-    #Calculate counts s^-1 cm^-2 arcsec^-2 nm^-1 @ V band
-    #The following formula maintains a constant optical depth regardless
-    #of stellar type
-    #NOTE: the older version of the code used the following expression
-    #flux_exozodi_Vband = F0V * (double(10.)^(-0.4*(M_V - M_V_sun)) / Lstar) * (nexozodis * vflux_1zodi)
-    #The above expression has a 1/Lstar in it, which corrects for the
-    #1/r^2 factor based on the EEID.  In the new version of exposure_time_calculator.c,
-    #we explicitly divide by 1/r^2, so the new version of the
-    #eflux_exozodi_Vband expression does not divide by Lstar.
-    flux_exozodi_Vband = F0V * np.double(10.)**(-0.4*(M_V - M_V_sun)) * (nexozodis * vflux_1zodi) #vector of length nstars
+    # Calculate counts s^-1 cm^-2 arcsec^-2 nm^-1 @ V band
+    # The following formula maintains a constant optical depth regardless
+    # of stellar type
+    # NOTE: the older version of the code used the following expression
+    # flux_exozodi_Vband = F0V * (double(10.)^(-0.4*(M_V - M_V_sun))
+    #                                       / Lstar) * (nexozodis * vflux_1zodi)
+    # The above expression has a 1/Lstar in it, which corrects for the
+    # 1/r^2 factor based on the EEID.  In the new version of exposure_time_calculator.c,
+    # we explicitly divide by 1/r^2, so the new version of the
+    # eflux_exozodi_Vband expression does not divide by Lstar.
+    flux_exozodi_Vband = (
+        F0V * np.double(10.0) ** (-0.4 * (M_V - M_V_sun)) * (nexozodis * vflux_1zodi)
+    )  # vector of length nstars
 
-    #Now, multiply by the ratio of the star's counts received at lambd to those received at V band
+    # Now, multiply by the ratio of the star's counts received at lambd to those
+    # received at V band
     nstars = len(vmag)
     nlambd = len(lambd)
-    flux_exozodi_lambd = np.full((nlambd,nstars), flux_exozodi_Vband) #congrid([[flux_exozodi_Vband],[flux_exozodi_Vband]],nstars,nlambd)
-    
-    # TODO in python it needs to be treated differently if it is 1D or 2D array. Check better solution?
+    flux_exozodi_lambd = np.full(
+        (nlambd, nstars), flux_exozodi_Vband
+    )  # congrid([[flux_exozodi_Vband],[flux_exozodi_Vband]],nstars,nlambd)
+
+    # TODO in python it needs to be treated differently if it is 1D or 2D array.
+    # Check better solution?
     # if nstars>1:
     for ilambd in np.arange(nlambd):
-        flux_exozodi_lambd[ilambd,:] *= (F0lambd[ilambd] * np.double(10.)**(-0.4*lambdmag[ilambd,:])) / (F0V * np.double(10.)**(-0.4*vmag))
+        flux_exozodi_lambd[ilambd, :] *= (
+            F0lambd[ilambd] * np.double(10.0) ** (-0.4 * lambdmag[ilambd, :])
+        ) / (F0V * np.double(10.0) ** (-0.4 * vmag))
     # else:
     #   for ilambd in np.arange(nlambd):
-    #     flux_exozodi_lambd[ilambd] *= (F0lambd[ilambd] * np.double(10.)**(-0.4*lambdmag[ilambd])) / (F0V * np.double(10.)**(-0.4*vmag))
-  
-    #Now, because we return just the quantity 10.^(-0.4*magOmega_EZ), we remove the F0...
+    #     flux_exozodi_lambd[ilambd] *= (F0lambd[ilambd] * np.double(10.)**(-0.4*
+    #                   lambdmag[ilambd])) / (F0V * np.double(10.)**(-0.4*vmag))
+
+    # Now, because we return just the quantity 10.^(-0.4*magOmega_EZ), we remove the F0
     for ilambd in np.arange(nlambd):
-        flux_exozodi_lambd[ilambd,:] /= F0lambd[ilambd]
-    
-    return flux_exozodi_lambd #TODO. Unclear what shape is this supposed to have
+        flux_exozodi_lambd[ilambd, :] /= F0lambd[ilambd]
 
-def calc_zodi_flux(dec:np.array, ra:np.array, lambd:np.array, F0:np.array, starshade:bool = False, ss_elongation:np.array = np.array([])):
-    
-    #Inputs
-    #Dec = declination of target in degrees (J2000 equatorial coordinate)
-    #RA = right ascension of target in degrees (J2000 equatorial coordinate)
-    #lambd = wavelength in microns (vector of length nlambd)
-    #starshade = setting this flag turns on starshade mode
-    #ss_elongation = mean solar elongation for the starshade's observations (degrees)
+    return flux_exozodi_lambd  # TODO. Unclear what shape is this supposed to have
 
-    #Output
-    #zodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
-    #i.e., it returns 10^(-0.4*magOmega_ZL)
+
+def calc_zodi_flux(
+    dec: np.array,
+    ra: np.array,
+    lambd: np.array,
+    F0: np.array,
+    starshade: bool = False,
+    ss_elongation: np.array = np.array([]),
+):
+
+    # Inputs
+    # Dec = declination of target in degrees (J2000 equatorial coordinate)
+    # RA = right ascension of target in degrees (J2000 equatorial coordinate)
+    # lambd = wavelength in microns (vector of length nlambd)
+    # starshade = setting this flag turns on starshade mode
+    # ss_elongation = mean solar elongation for the starshade's observations (degrees)
+
+    # Output
+    # zodi surface brightness photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0
+    # i.e., it returns 10^(-0.4*magOmega_ZL)
     # - multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
     # - multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
-    #output has dimensions nstars x nlambd
+    # output has dimensions nstars x nlambd
 
+    if len(lambd) != len(F0):
+        raise ValueError("ERROR. F0 and lambd must be vectors of identical length.")
+    if starshade and (len(ss_elongation) == 0):
+        raise ValueError(
+            "ERROR. You have set the STARSHADE flag.  Must specify SS_ELONGATION \
+                  in degrees."
+        )
+    if not starshade and (len(ss_elongation) > 0):
+        raise ValueError(
+            "ERROR. You must enable STARSHADE mode if you are setting SS_ELONGATION \
+                in degrees."
+        )
 
-    if len(lambd) != len(F0): raise ValueError('ERROR. F0 and lambd must be vectors of identical length.')
-    if (starshade == True) and (len(ss_elongation) == 0): raise ValueError('ERROR. You have set the STARSHADE flag.  Must specify SS_ELONGATION in degrees.')
-    if (starshade == False) and (len(ss_elongation) > 0): raise ValueError('ERROR. You must enable STARSHADE mode if you are setting SS_ELONGATION in degrees.')
+    # Convert to radians internally
+    dec_rad = dec * (np.double(np.pi) / 180.0)
+    ra_rad = ra * (np.double(np.pi) / 180.0)
 
-    #Convert to radians internally
-    dec_rad = dec*(np.double(np.pi)/180.)
-    ra_rad = ra*(np.double(np.pi)/180.)
+    # First, convert equatorial coordinates to ecliptic coordinates
+    # This is nicely summarized in Leinert et al. (1998)
+    eps = 23.439  # J2000 obliquity of the ecliptic in degrees
+    eps_rad = eps * (np.double(np.pi) / 180.0)  # convert to radians
+    sinbeta = np.sin(dec_rad) * np.cos(eps_rad) - np.cos(dec_rad) * np.sin(
+        eps_rad
+    ) * np.sin(
+        ra_rad
+    )  # all we need is the sine of the latitude
 
-    #First, convert equatorial coordinates to ecliptic coordinates
-    #This is nicely summarized in Leinert et al. (1998)
-    eps = 23.439 #J2000 obliquity of the ecliptic in degrees
-    eps_rad = eps*(np.double(np.pi)/180.) #convert to radians
-    sinbeta = np.sin(dec_rad) * np.cos(eps_rad) - np.cos(dec_rad) * np.sin(eps_rad) * np.sin(ra_rad) #all we need is the sine of the latitude
-    sinbeta0 = sinbeta              #contains the +/- values of beta
-    sinbeta = abs(sinbeta)          #f135 below is symmetric about beta=0
-    sinbeta2 = sinbeta*sinbeta
-    sinbeta3 = sinbeta2*sinbeta
+    # First, convert equatorial coordinates to ecliptic coordinates
+    # This is nicely summarized in Leinert et al. (1998)
+    eps = 23.439  # J2000 obliquity of the ecliptic in degrees
+    eps_rad = eps * (np.double(np.pi) / 180.0)  # convert to radians
+    sinbeta = np.sin(dec_rad) * np.cos(eps_rad) - np.cos(dec_rad) * np.sin(
+        eps_rad
+    ) * np.sin(
+        ra_rad
+    )  # all we need is the sine of the latitude
+    # sinbeta0 = sinbeta  # contains the +/- values of beta
+    sinbeta = abs(sinbeta)  # f135 below is symmetric about beta=0
+    # sinbeta2 = sinbeta * sinbeta
+    # sinbeta3 = sinbeta2 * sinbeta
 
-    #print,'beta = ',asin(sinbeta)*180./pi
+    # print,'beta = ',asin(sinbeta)*180./pi
 
-    # COMMENTED OUT SINCE THIS IS NOT REALLY USED (EXCEPT FROM ONE SPECIFIC ROW/COLUMN) NOTE: assumes the same degree of observation so far
-    #Here are the solar longitude and beta values for Table 17 from
-    #Leinert et al. (1998)
-    beta_vector = np.array([0.,5,10,15,20,25,30,45,60,75])
-    beta_array = np.full((20,10),beta_vector)
-    beta_array = beta_array[0:18,:] # TODO Why though?
-    sollong_vector = np.array([0,5,10,15,20,25,30,35,40,45,60,75,90,105,120,135,150,165,180.])
-    sollong_array = np.full((10,19),sollong_vector).T # rotates so that we get 19 rows x 10 columns, and the rows have increasing values according to sollong_vector
+    # COMMENTED OUT SINCE THIS IS NOT REALLY USED (EXCEPT FROM ONE SPECIFIC ROW/COLUMN)
+    # NOTE: assumes the same degree of observation so far
+    # Here are the solar longitude and beta values for Table 17 from
+    # Leinert et al. (1998)
+    beta_vector = np.array([0.0, 5, 10, 15, 20, 25, 30, 45, 60, 75])
+    beta_array = np.full((20, 10), beta_vector)
+    beta_array = beta_array[0:18, :]  # TODO Why though?
+    sollong_vector = np.array(
+        [
+            0,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30,
+            35,
+            40,
+            45,
+            60,
+            75,
+            90,
+            105,
+            120,
+            135,
+            150,
+            165,
+            180.0,
+        ]
+    )
+    # sollong_array = np.full(
+    #    (10, 19), sollong_vector
+    # ).T  # rotates so that we get 19 rows x 10 columns, and the rows
+    # have increasing values according to sollong_vector
 
-    #Here are the values in Table 17
-    table17=np.array([
-    [-1,  	-1, 	-1,	    3140,	1610,	985,	640,	275,	150,	100],
-    [-1,	-1,	    -1,	    2940,	1540,	945,	625,	271,	150,	100],
-    [-1,	-1,	    4740,	2470,	1370,	865,	590,	264,	148,	100],
-    [11500,	6780,	3440,	1860,	1110,	755,	525,	251,	146,	100],
-    [6400,	4480,	2410,	1410,	910,	635,	454,	237,	141,	99],
-    [3840,	2830,	1730,	1100,	749,	545,	410,	223,	136,	97],
-    [2480,	1870,	1220,	845,	615,	467,	365,	207,	131,	95],
-    [1650,	1270,	910,	680,	510,	397,	320,	193,	125,	93],
-    [1180,	940,	700,	530,	416,	338,	282,	179,	120,	92],
-    [910,	730,	555,	442,	356,	292,	250,	166,	116,	90],
-    [505,	442,	352,	292,	243,	209,	183,	134,	104,	86],
-    [338,	317,	269,	227,	196,	172,	151,	116,	93,	    82],
-    [259,	251,	225,	193,	166,	147,	132,	104,	86,	79],
-    [212,	210,	197,	170,	150,	133,	119,	96,	82,	77],
-    [188,	186,	177,	154,	138,	125,	113,	90,	77,	74],
-    [179,	178,	166,	147,	134,	122,	110,	90,	77,	73],
-    [179,	178,	165,	148,	137,	127,	116,	96,	79,	72],
-    [196,	192,	179,	165,	151,	141,	131,	104,	82,	72],
-    [230,	212,	195,	178,	163,	148,	134,	105,	83,	72]])
+    # Here are the values in Table 17
+    table17 = np.array(
+        [
+            [-1, -1, -1, 3140, 1610, 985, 640, 275, 150, 100],
+            [-1, -1, -1, 2940, 1540, 945, 625, 271, 150, 100],
+            [-1, -1, 4740, 2470, 1370, 865, 590, 264, 148, 100],
+            [11500, 6780, 3440, 1860, 1110, 755, 525, 251, 146, 100],
+            [6400, 4480, 2410, 1410, 910, 635, 454, 237, 141, 99],
+            [3840, 2830, 1730, 1100, 749, 545, 410, 223, 136, 97],
+            [2480, 1870, 1220, 845, 615, 467, 365, 207, 131, 95],
+            [1650, 1270, 910, 680, 510, 397, 320, 193, 125, 93],
+            [1180, 940, 700, 530, 416, 338, 282, 179, 120, 92],
+            [910, 730, 555, 442, 356, 292, 250, 166, 116, 90],
+            [505, 442, 352, 292, 243, 209, 183, 134, 104, 86],
+            [338, 317, 269, 227, 196, 172, 151, 116, 93, 82],
+            [259, 251, 225, 193, 166, 147, 132, 104, 86, 79],
+            [212, 210, 197, 170, 150, 133, 119, 96, 82, 77],
+            [188, 186, 177, 154, 138, 125, 113, 90, 77, 74],
+            [179, 178, 166, 147, 134, 122, 110, 90, 77, 73],
+            [179, 178, 165, 148, 137, 127, 116, 96, 79, 72],
+            [196, 192, 179, 165, 151, 141, 131, 104, 82, 72],
+            [230, 212, 195, 178, 163, 148, 134, 105, 83, 72],
+        ]
+    )
 
+    # For a coronagraph, we assume star can be observed near sollong ~ 135 degrees
+    # The old f135 calculation.  Now we interpolate the above table.
+    # I135_o_I90 = 0.69
+    # f135 = 1.02331 - 0.565652*sinbeta - 0.883996*sinbeta2 + 0.852900*sinbeta3
+    # f = I135_o_I90 * f135
+    j = np.argmin(abs(sollong_vector - 135.0))
+    k = np.argmin(abs(sollong_vector - 90.0))
+    interp = interp1d(
+        np.sin(beta_vector * np.pi / 180.0),
+        table17[j] / table17[k, 0],
+        kind="cubic",
+        fill_value="extrapolate",
+    )
+    f = interp(sinbeta)
 
-    #For a coronagraph, we assume star can be observed near sollong ~ 135 degrees
-    #The old f135 calculation.  Now we interpolate the above table.
-    #I135_o_I90 = 0.69
-    #f135 = 1.02331 - 0.565652*sinbeta - 0.883996*sinbeta2 + 0.852900*sinbeta3
-    #f = I135_o_I90 * f135
-    j = np.argmin(abs(sollong_vector-135.))
-    k = np.argmin(abs(sollong_vector-90.))
-    interp =interp1d(np.sin(beta_vector*np.pi/180.),table17[j]/table17[k,0],kind='cubic',fill_value='extrapolate') 
-    f =interp(sinbeta)
-
-    #### STARSHADE functionality not enabled ####
-    #For a starshade, we assume a mean solar elongation of 59 degrees
-    # if starshade==True: 
+    # STARSHADE functionality not enabled #
+    # For a starshade, we assume a mean solar elongation of 59 degrees
+    # if starshade==True:
     #     # TODO: not sure this works, but it is not used
 
     #     #First, calculate inclination to point at beta of all targets
-    #     inclination = np.arcsin(sinbeta0.copy() / np.sin(ss_elongation*np.pi/180.))*180./np.pi
-    #     cossollong = np.cos(ss_elongation*np.pi/180.)/np.cos(np.arcsin(sinbeta.copy())) #solar longitude of targets at elongation of ss_elongation
-    #     sinsollong = np.cos(inclination*np.pi/180.) * np.sin(ss_elongation*np.pi/180.) / np.cos(np.arcsin(sinbeta0.copy()))
+    #     inclination = np.arcsin(sinbeta0.copy() / np.sin(ss_elongation*
+    #                                           np.pi/180.))*180./np.pi
+    #     cossollong = np.cos(ss_elongation*np.pi/180.)/np.cos(
+    #                           np.arcsin(sinbeta.copy())) #solar longitude of
+    #                                           targets at elongation of ss_elongation
+    #     sinsollong = np.cos(inclination*np.pi/180.) * np.sin(ss_elongation*np.pi/180.)
+    #                                            / np.cos(np.arcsin(sinbeta0.copy()))
     #     sollong = np.arctan(sinsollong.copy(),cossollong.copy())*180/np.pi
     #     #Now that we have the solar longitude and beta of every target at a
     #     #solar elongation of ss_elongation, we can calculate their zodi values
-
 
     #     sollong_indices=sollong.copy()#first, just make some arrays
     #     sollong_indices[sollong<45.]=sollong[sollong<45.]/5
@@ -263,116 +373,168 @@ def calc_zodi_flux(dec:np.array, ra:np.array, lambd:np.array, F0:np.array, stars
     #     beta_indices[beta<30.]=beta[beta<30.]/5
     #     beta_indices[beta>=45.]= 6.+(beta[beta>=30.]-30.)/15.
 
-
     #     points=np.concatenate(([sollong_indices],[beta_indices]))
     #     f = interpn((sollong_vector,beta_vector), table17/table17[k,0], points.T)
-    # TODO: Change to cubic interpolation 
-    
+    # TODO: Change to cubic interpolation
 
-  
     # wavelength dependence
     # The following comes from fits to Table 19 in Leinert et al 1998
-    ## COMMENTED TO INCREASE RESOLUTION OF THE GRID (the larger grid already does all conversions)
-    zodi_lambd = np.array([0.2,0.3,0.4,0.5,0.7,0.9,1.0,1.2,2.2,3.5,4.8,12,25,60,100,140])  #microns
-    zodi_blambd = np.array([2.5e-8,5.3e-7,2.2e-6,2.6e-6,2.0e-6,1.3e-6,1.2e-6,8.1e-7,1.7e-7,5.2e-8,1.2e-7,7.5e-7,3.2e-7,1.8e-8,3.2e-9,6.9e-10]) #W m^-2 sr^-1 micron^-1
-    #convert the above to erg s^-1 cm^-2 arcsec^-2 nm^-1
-    zodi_blambd *= 1.e7 #convert W to erg s^-1
-    zodi_blambd /= 1.e4 #convert m^-2 to cm^-2
-    zodi_blambd /= 4.25e10 #convert sr^-1 to arcsec^-2
-    zodi_blambd /= 1000.   #convert micron^-1 to nm^-1
 
+    zodi_lambd = np.array(
+        [0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1.0, 1.2, 2.2, 3.5, 4.8, 12, 25, 60, 100, 140]
+    )  # microns
+    zodi_blambd = np.array(
+        [
+            2.5e-8,
+            5.3e-7,
+            2.2e-6,
+            2.6e-6,
+            2.0e-6,
+            1.3e-6,
+            1.2e-6,
+            8.1e-7,
+            1.7e-7,
+            5.2e-8,
+            1.2e-7,
+            7.5e-7,
+            3.2e-7,
+            1.8e-8,
+            3.2e-9,
+            6.9e-10,
+        ]
+    )  # W m^-2 sr^-1 micron^-1
+    # convert the above to erg s^-1 cm^-2 arcsec^-2 nm^-1
+    zodi_blambd *= 1.0e7  # convert W to erg s^-1
+    zodi_blambd /= 1.0e4  # convert m^-2 to cm^-2
+    zodi_blambd /= 4.25e10  # convert sr^-1 to arcsec^-2
+    zodi_blambd /= 1000.0  # convert micron^-1 to nm^-1
 
-    interp= interp1d(np.log10(zodi_lambd),np.log10(zodi_blambd), kind='cubic')
-    blambd=interp(np.log10(lambd))
-    blambd = 10.**blambd
+    interp = interp1d(np.log10(zodi_lambd), np.log10(zodi_blambd), kind="cubic")
+    blambd = interp(np.log10(lambd))
+    blambd = 10.0**blambd
     I90fabsfco = blambd
 
-    #Now divide by energy of a photon in erg
-    c = 2.998e10 #cm s^-1
-    h = 6.62608e-27 #planck constant in cgs
-    ephoton = h * c/(lambd/1e4)
+    # Now divide by energy of a photon in erg
+    c = 2.998e10  # cm s^-1
+    h = 6.62608e-27  # planck constant in cgs
+    ephoton = h * c / (lambd / 1e4)
     I90fabsfco /= ephoton
     I90fabsfco /= F0
 
-    #Multiply by the wavelength dependence for each value of lambd
+    # Multiply by the wavelength dependence for each value of lambd
     nstars = len(ra)
     nlambd = len(lambd)
 
-    flux_zodi = np.full((nlambd,nstars),f)
+    flux_zodi = np.full((nlambd, nstars), f)
     for ilambd in range(nlambd):
-        flux_zodi[ilambd,:] *= I90fabsfco[ilambd]
-
-    mag_zodi = -2.5*np.log10(flux_zodi)
-
+        flux_zodi[ilambd, :] *= I90fabsfco[ilambd]
 
     return flux_zodi
 
 
-
-
-class AstrophysicalScene():
+class AstrophysicalScene:
     """
-    
+
     Methods:
     --------
-    
+
     """
+
     def __init__(self) -> None:
         """
         Initialize the object with default values for output arrays.
         """
-        pass #there are no default values, TODO it should fail if not provided
+        pass  # there are no default values, TODO it should fail if not provided
 
-    def load_configuration(self,parameters:dict) -> None:
+    def load_configuration(self, parameters: dict) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of parameters that was read from the input file.
+        Load configuration parameters for the simulation from a dictionary of
+        parameters that was read from the input file.
 
         Parameters:
         -----------
         parameters : dict
             A dictionary containing various simulation parameters including:
-            - Target star parameters (ntargs, Lstar, dist, vmag, mag, angdiam_arcsec, nzodis, ra, dec)
+            - Target star parameters (ntargs, Lstar, dist, vmag, mag, angdiam_arcsec,
+                                        nzodis, ra, dec)
             - Planet parameters (sp, deltamag, min_deltamag)
             - Observational parameters (lambd, SR, SNR, throughput, photap_rad)
             - Telescope & spacecraft parameters (D, toverhead_fixed, toverhead_multi)
-            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth, core_throughput, Lyot_transmission)
-            - Detector parameters (npix_multiplier, dark_current, read_noise, read_time, cic)
+            - Instrument parameters (IWA, OWA, contrast, noisefloor_factor, bandwidth,
+                                        core_throughput, Lyot_transmission)
+            - Detector parameters (npix_multiplier, dark_current, read_noise,
+                                    read_time, cic)
             - Coronagraph parameters (coro_type, nrolls)
         """
 
-        #-------- INPUTS ---------
+        # -------- INPUTS ---------
         # Target star parameters
-        self.ntargs=parameters['ntargs']
-        self.Lstar = np.array(parameters['Lstar'],dtype=np.float64) # luminosity of star (solar luminosities) # ntargs array
-        self.dist = np.array(parameters['distance'],dtype=np.float64)  # distance to star (pc) # ntargs array
-        self.vmag = np.array(parameters['magV'],dtype=np.float64) # stellar mag at V band # ntargs array
-        self.mag = np.array(parameters['mag'],dtype=np.float64)                     # stellar mag at desired lambd # nlambd x ntargs array
-        self.angdiam_arcsec = np.array(parameters['angdiam'],dtype=np.float64)          # angular diameter of star (arcsec) # ntargs array
-        self.nzodis = np.array(parameters['nzodis'],dtype=np.float64) # amount of exozodi around target star ("zodis") # ntargs array
-        self.ra = np.array(parameters['ra'],dtype=np.float64) # right ascension of target star used to estimate zodi (deg) # ntargs array
-        self.dec = np.array(parameters['dec'],dtype=np.float64) # declination of target star used to estimate zodi (deg) # ntargs array
+        self.ntargs = parameters["ntargs"]
+
+        # luminosity of star (solar luminosities) (ntargs array)
+        self.Lstar = np.array(parameters["Lstar"], dtype=np.float64)
+
+        # distance to star (pc) (ntargs array)
+        self.dist = np.array(parameters["distance"], dtype=np.float64)
+
+        # stellar mag at V band (ntargs array)
+        self.vmag = np.array(parameters["magV"], dtype=np.float64)
+
+        # stellar mag at desired lambd (nlambd x ntargs array)
+        self.mag = np.array(parameters["mag"], dtype=np.float64)
+
+        # angular diameter of star (arcsec) (ntargs array)
+        self.angdiam_arcsec = np.array(parameters["angdiam"], dtype=np.float64)
+
+        # amount of exozodi around target star ("zodis") (ntargs array)
+        self.nzodis = np.array(parameters["nzodis"], dtype=np.float64)
+
+        # right ascension of target star used to estimate zodi (deg) (ntargs array)
+        self.ra = np.array(parameters["ra"], dtype=np.float64)
+
+        # declination of target star used to estimate zodi (deg) (ntargs array)
+        self.dec = np.array(parameters["dec"], dtype=np.float64)
 
         # Planet parameters
-        self.sp = np.array(parameters['sp'],dtype=np.float64) # separation of planet (arcseconds) # nmeananom x norbits x ntargs array
+        # separation of planet (arcseconds) (nmeananom x norbits x ntargs array)
+        # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
+        # SO THAT XP = SP (input) and YP = 0
+        self.sp = np.array(parameters["sp"], dtype=np.float64)
         self.xp = self.sp.copy()
-        self.yp = self.sp.copy()*0.0  ## FOR NOW IT IS ASSUMED TO BE ON THE X AXIS SO THAT XP = SP (input) and YP = 0
-        self.deltamag = np.array(parameters['delta_mag'],dtype=np.float64) # difference in mag between planet and host star # nmeananom x norbits x ntargs array
-        self.min_deltamag = np.array(parameters['delta_mag_min'],dtype=np.float64) # brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts # ntargs array
+        self.yp = self.sp.copy() * 0.0
 
-        
-    def calculate_zodi_exozodi(self,observation):
-        # calculate zodi and exozodi
+        # difference in mag between planet and host star
+        # (nmeananom x norbits x ntargs array)
+        self.deltamag = np.array(parameters["delta_mag"], dtype=np.float64)
+        # brightest planet to resolve w/ photon counting detector evaluated at
+        # the IWA, sets the time between counts (ntargs array)
+        self.min_deltamag = np.array(parameters["delta_mag_min"], dtype=np.float64)
 
-        #calculate flux at zero point for the V band and the prescribed lambda
-        self.F0V= (calc_flux_zero_point(lambd=0.55, unit='pcgs',perlambd=True))/1e7 #convert to photons cm^-2 nm^-1 s^-1
-        self.F0= (calc_flux_zero_point(lambd=observation.lambd, unit='pcgs',perlambd=True))/1e7 #convert to photons cm^-2 nm^-1 s^-1
-        
-        self.M_V = self.vmag - 5.0 * np.log10(self.dist) + 5.0 #calculate absolute V band mag of target 
+    def calculate_zodi_exozodi(self, observation):
+
+        # calculate flux at zero point for the V band and the prescribed lambda
+        self.F0V = (
+            calc_flux_zero_point(lambd=0.55, unit="pcgs", perlambd=True)
+        ) / 1e7  # convert to photons cm^-2 nm^-1 s^-1
+        self.F0 = (
+            calc_flux_zero_point(lambd=observation.lambd, unit="pcgs", perlambd=True)
+        ) / 1e7  # convert to photons cm^-2 nm^-1 s^-1
+
+        self.M_V = (
+            self.vmag - 5.0 * np.log10(self.dist) + 5.0
+        )  # calculate absolute V band mag of target
         self.Fzodi_list = calc_zodi_flux(self.dec, self.ra, observation.lambd, self.F0)
-        
-        self.Fexozodi_list = calc_exozodi_flux(self.M_V, self.vmag, self.F0V, self.nzodis, observation.lambd, self.mag, self.F0)
-        self.Fbinary_list = np.full((observation.nlambd,self.ntargs),0.0) #this code ignores stray light from binaries
-        self.Fp0 = 10.**(-0.4*self.deltamag)       #flux of planet
 
-
-
+        self.Fexozodi_list = calc_exozodi_flux(
+            self.M_V,
+            self.vmag,
+            self.F0V,
+            self.nzodis,
+            observation.lambd,
+            self.mag,
+            self.F0,
+        )
+        self.Fbinary_list = np.full(
+            (observation.nlambd, self.ntargs), 0.0
+        )  # this code ignores stray light from binaries
+        self.Fp0 = 10.0 ** (-0.4 * self.deltamag)  # flux of planet
