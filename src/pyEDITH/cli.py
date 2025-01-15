@@ -1,12 +1,6 @@
-from .coronagraph import ToyModel
-from .astrophysical_scene import AstrophysicalScene
-from .observation import Observation
-from .telescope import Telescope
-from .detector import Detector
-from .exposure_time_calculator import calculate_exposure_time, calculate_signal_to_noise
-from .edith import Edith
+from pyEDITH import AstrophysicalScene, Observation, ToyModel, Edith
+from pyEDITH import calculate_exposure_time, calculate_signal_to_noise, parse_input
 from argparse import ArgumentParser
-from . import parse_input
 import numpy as np
 import sys
 
@@ -178,35 +172,31 @@ def calculate_texp(parameters: dict) -> np.array:
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(observation)
 
-    # Define Telescope and load relevant parameters
-    telescope = Telescope()
-    telescope.load_configuration(parameters)
-
-    # Define Coronagraph and load relevant parameters
+    # Define Instrument and load relevant parameters
     if parameters["coro_type"] == "toymodel":
-        coronagraph = (
-            ToyModel()
-        )  # a subclass of Coronagraph, will automatically initialize variables
-
-        # Load the configuration as specified in the general Coronagraph class.
-        # (But the method can be overwritten in the future)
-        coronagraph.load_configuration(parameters)
+        instrument = ToyModel()
+        instrument.initialize(parameters)
 
         # Generate secondary parameters specific to the ToyModel subclass
-        coronagraph.generate_secondary_parameters(observation)
+        instrument.coronagraph.generate_secondary_parameters(observation)
+        """TODO implement something like this 
+        
+        elif parameters["coro_type"] =="EAC1":
+
+            instrument = EAC1()
+            instrument.initialize(parameters) #replace EAC1 default parameters if you want
+            instrument.coronagraph.generate_secondary_parameters(observation)
+        """
+
     else:
         raise KeyError("The coro_type keyword is not valid.")
-
-    # Define Detector and load relevant parameters
-    detector = Detector()
-    detector.load_configuration(parameters)
 
     # Define Edith object and load default parameters
     edith = Edith(scene, observation)
     edith.load_default_parameters()
 
     # EXPOSURE TIME CALCULATION
-    calculate_exposure_time(observation, scene, telescope, coronagraph, detector, edith)
+    calculate_exposure_time(observation, scene, instrument, edith)
 
     return edith.exptime
 
@@ -246,28 +236,24 @@ def calculate_snr(parameters, reference_texp):
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(observation)
 
-    # Define Telescope and load relevant parameters
-    telescope = Telescope()
-    telescope.load_configuration(parameters)
-
-    # Define Coronagraph and load relevant parameters
+    # Define Instrument and load relevant parameters
     if parameters["coro_type"] == "toymodel":
-        coronagraph = (
-            ToyModel()
-        )  # a subclass of Coronagraph, will automatically initialize variables
-
-        # Load the configuration as specified in the general Coronagraph class.
-        # (But the method can be overwritten in the future)
-        coronagraph.load_configuration(parameters)
+        instrument = ToyModel()
+        instrument.initialize(parameters)
 
         # Generate secondary parameters specific to the ToyModel subclass
-        coronagraph.generate_secondary_parameters(observation)
+        instrument.coronagraph.generate_secondary_parameters(observation)
+        """TODO implement something like this 
+        
+        elif parameters["coro_type"] =="EAC1":
+
+            instrument = EAC1()
+            instrument.initialize(parameters) #replace EAC1 default parameters if you want
+            instrument.coronagraph.generate_secondary_parameters(observation)
+        """
+
     else:
         raise KeyError("The coro_type keyword is not valid.")
-
-    # Define Detector and load relevant parameters
-    detector = Detector()
-    detector.load_configuration(parameters)
 
     # Define Edith object and load default parameters
     edith = Edith(scene, observation)
@@ -275,9 +261,7 @@ def calculate_snr(parameters, reference_texp):
 
     # SNR CALCULATION
     edith.obstime = reference_texp
-    calculate_signal_to_noise(
-        observation, scene, telescope, coronagraph, detector, edith
-    )
+    calculate_signal_to_noise(observation, scene, instrument, edith)
     # print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
 
     return edith.fullsnr

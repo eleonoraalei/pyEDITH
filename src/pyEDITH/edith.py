@@ -1,6 +1,5 @@
 import numpy as np
-from pyEDITH.astrophysical_scene import AstrophysicalScene
-from pyEDITH.observation import Observation
+from pyEDITH import AstrophysicalScene, Observation
 
 
 class Edith:
