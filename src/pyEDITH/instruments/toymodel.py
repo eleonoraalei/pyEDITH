@@ -4,6 +4,12 @@ import numpy as np
 
 
 class ToyModelCoronagraph(Coronagraph):
+    """
+    A toy model coronagraph class that extends the base Coronagraph class.
+
+    This class implements a simplified coronagraph model with basic functionality
+    for generating secondary parameters and setting up coronagraph characteristics.
+    """
 
     def generate_secondary_parameters(self, observation: Observation) -> None:
         """
@@ -76,23 +82,85 @@ class ToyModelCoronagraph(Coronagraph):
 
 
 class ToyModelTelescope(Telescope):
+    """
+    A toy model telescope class that extends the base Telescope class.
+
+    This class represents a simplified telescope model for use in simulations.
+    """
+
     def load_configuration(self, parameters: dict) -> None:
+        """
+        Load configuration parameters for the toy model telescope.
+
+        Parameters
+        ----------
+        parameters : dict
+            A dictionary containing configuration parameters for the telescope.
+
+        Returns
+        -------
+        None
+        """
         super().load_configuration(parameters)
 
 
 class ToyModelDetector(Detector):
+    """
+    A toy model detector class that extends the base Detector class.
+
+    This class represents a simplified detector model for use in simulations.
+    """
+
     def load_configuration(self, parameters: dict) -> None:
+        """
+        Load configuration parameters for the toy model detector.
+
+        Parameters
+        ----------
+        parameters : dict
+            A dictionary containing configuration parameters for the detector.
+
+        Returns
+        -------
+        None
+        """
         super().load_configuration(parameters)
 
 
 class ToyModel(Instrument):
+    """
+    A toy model instrument class that combines coronagraph, telescope, and detector.
+
+    This class represents a simplified instrument model that includes a coronagraph,
+    telescope, and detector for use in simulations.
+    """
+
     def __init__(self):
+        """
+        Initialize the ToyModel instrument.
+
+        Creates instances of ToyModelCoronagraph, ToyModelTelescope, and ToyModelDetector.
+        """
         self.coronagraph = ToyModelCoronagraph()
         self.telescope = ToyModelTelescope()
         self.detector = ToyModelDetector()
 
     def initialize(self, parameters: dict):
+        """
+        Initialize the ToyModel instrument with given parameters.
+
+        This method loads the configuration for the coronagraph, telescope, and detector
+        components of the instrument.
+
+        Parameters
+        ----------
+        parameters : dict
+            A dictionary containing configuration parameters for the instrument components.
+
+        Returns
+        -------
+        None
+        """
         self.coronagraph.load_configuration(parameters)
         self.telescope.load_configuration(parameters)
         self.detector.load_configuration(parameters)
-        # Any additional initialization specific to ToyModel
