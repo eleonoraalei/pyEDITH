@@ -214,13 +214,13 @@ def parse_parameters(parameters: dict) -> dict:
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",
-        "IWA",
-        "OWA",
+        "minimum_IWA",
+        "maximum_OWA",
         "contrast",
         "noisefloor_factor",
         "bandwidth",
-        "core_throughput",
-        "Lyot_transmission",
+        "Tcore",
+        "TLyot",
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):
@@ -271,7 +271,42 @@ def read_configuration(
     return parsed_parameters, parsed_secondary_parameters
 
 
-# def read_inputs(args):
-#     '''
-#     The goal of this function is to read the three input files (.ayo file, .coro file, and the target list)
-#     and return a list of parameters that will be ingested in the edith object'''
+def get_observatory_config(parameters: Dict[str, str]) -> Union[str, Dict[str, str]]:
+    """
+    Generate observatory configuration from parameters.
+
+    Returns either a string (if all components are from the same type) or a dictionary (for mixed configurations).
+    """
+    telescope_type = parameters.get("telescope_type", "toymodel")
+    coronagraph_type = parameters.get("coronagraph_type", "toymodel")
+    detector_type = parameters.get("detector_type", "toymodel")
+
+    if telescope_type == coronagraph_type == detector_type:
+        config = telescope_type
+    else:
+        config = {
+            "telescope": f"{telescope_type.capitalize()}Telescope",
+            "coronagraph": f"{coronagraph_type.capitalize()}Coronagraph",
+            "detector": f"{detector_type.capitalize()}Detector",
+        }
+    print_observatory_config(config)
+    return config
+
+
+def print_observatory_config(config: Union[str, Dict[str, str]]) -> None:
+    """
+    Print the observatory configuration to the terminal.
+
+    Parameters:
+    -----------
+    config : Union[str, Dict[str, str]]
+        The observatory configuration, either as a string (preset) or a dictionary (custom).
+    """
+    print("Observatory Configuration:")
+    if isinstance(config, str):
+        print(f"  Using preset: {config}")
+    else:
+        print(f"  Telescope:   {config['telescope']}")
+        print(f"  Coronagraph: {config['coronagraph']}")
+        print(f"  Detector:    {config['detector']}")
+    print()  # Add a blank line for better readability

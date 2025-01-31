@@ -1,20 +1,20 @@
 # Import main classes
 from .astrophysical_scene import AstrophysicalScene
 from .observation import Observation
-from .instrument import Instrument
-from .telescope import Telescope
-from .coronagraph import Coronagraph
-from .detector import Detector
-from .edith import Edith
+from .observatory import Observatory
+from .observatory_builder import ObservatoryBuilder
+from .components.coronagraphs import Coronagraph
+from .components.telescopes import Telescope
+from .components.detectors import Detector
 
 
 # Import main functions
 from .exposure_time_calculator import calculate_exposure_time, calculate_signal_to_noise
+from .components.coronagraphs import generate_radii
 from . import parse_input
-from .coronagraph import generate_radii
 
-# Import instrument-specific models
-from .instruments.toymodel import ToyModel
+# Import instrument-specific classes and functions
+
 
 # Import CLI functions
 from .cli import main, calculate_texp, calculate_snr
@@ -23,12 +23,10 @@ from .cli import main, calculate_texp, calculate_snr
 __all__ = [
     "AstrophysicalScene",
     "Observation",
-    "Instrument",
-    "Telescope",
+    "Observatory",
+    "ObservatoryBuilder" "Telescope",
     "Coronagraph",
     "Detector",
-    "Edith",
-    "ToyModel",
     "calculate_exposure_time",
     "calculate_signal_to_noise",
     "main",

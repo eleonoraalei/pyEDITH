@@ -607,7 +607,7 @@ class AstrophysicalScene:
 
         # -------- INPUTS ---------
         # Target star parameters
-        self.ntargs = parameters["ntargs"]
+        self.ntargs = 1
 
         # luminosity of star (solar luminosities) (ntargs array)
         self.Lstar = np.array(parameters["Lstar"], dtype=np.float64)
@@ -698,3 +698,5 @@ class AstrophysicalScene:
             (observation.nlambd, self.ntargs), 0.0
         )  # this code ignores stray light from binaries
         self.Fp0 = 10.0 ** (-0.4 * self.deltamag)  # flux of planet
+
+        ### TODO deltamag --> Fp/Fs

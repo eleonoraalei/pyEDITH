@@ -18,7 +18,6 @@ photap_rad = 0.85       ;   lambd/D
 lambda = 0.5              ;   wavelength (micron)
 resolution = 5.0          ;   spectral resolution at each lambda (must have same length as lambda)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
-throughput = 0.36         ;   throughput at lambda (must have same length as lambda)
 
 ;--- STAR PARAMETERS ---
 Lstar = 0.86              ;   luminosity of star (solar luminosities)
@@ -35,28 +34,11 @@ separation = 0.0628       ;   separation of planet (arcsec)
 delta_mag = 25.5          ;   difference in mag between planet and host star 
 delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
 
-;--- TELESCOPE PARAMETERS ---
-diameter = 7.87              ;   circumscribed diameter of aperture (m)
-toverhead_fixed = 8.25e3  ;   fixed overhead time (seconds)
-toverhead_multi = 1.1     ;  multiplicative overhead time
 
-;--- CORONAGRAPH PARAMETERS ---
-type = toymodel           ;   keyword to associate to the default coronagraph type
-IWA = 2.0                 ;   smallest WA to allow (lambda/D)
-OWA = 100.0               ;   largest WA to allow (lambda/D)
-contrast = 1.05e-13       ;   contrast of coronagraph (uniform over dark hole and unitless)
-noisefloor_factor = 0.03  ;   1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-bandwidth = 0.2           ;   fractional bandwidth of coronagraph (unitless)
-core_throughput = 0.2968371     ;   core throughput of coronagraph (uniform over dark hole, unitless) 
-Lyot_transmission = 0.65  ;   Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans
-nrolls = 1                ;   number of rolls
-
-;--- DETECTOR PARAMETERS ---
-npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# nlambd array, 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
-dark_current = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
-read_noise = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
-read_time = 1000.         ;   read time (seconds) (must have same length as lambda)
-cic = 1.3e-3              ;   clock induced charge (counts pix^-1 photon_count^-1) (must have same length as lambda)
+;--- OBSERVATORY PARAMETERS ----
+tele_type = toymodel
+coro_type = toymodel
+det_type = toymodel
 
 ;--------------------------------
 ;------- SECONDARY LAMBDA -------
@@ -65,7 +47,6 @@ cic = 1.3e-3              ;   clock induced charge (counts pix^-1 photon_count^-
 ;--- OBSERVATIONAL PARAMETERS ---
 secondary_lambda = 1.0              ;   wavelength (micron)
 secondary_resolution = 5.0         ;   spectral resolution at each lambda (must have same length as lambda)
-secondary_throughput = 0.36
 
 ;--- STAR PARAMETERS ---
 secondary_mag = 4.908907              ;   magnitude at desired lambda (must have same length as lambda)
@@ -75,12 +56,5 @@ secondary_delta_mag = 25.5          ;   difference in mag between planet and hos
 secondary_delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
 
 ;--- CORONAGRAPH PARAMETERS ---
-secondary_bandwidth = 0.2           ;   fractional bandwidth of coronagraph (unitless)
-secondary_core_throughput = 1.22E-01    ;   core throughput of coronagraph (uniform over dark hole, unitless) 
+secondary_Tcore = 1.22E-01    ;   core throughput of coronagraph (uniform over dark hole, unitless) 
 
-;--- DETECTOR PARAMETERS ---
-secondary_npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# nlambd array, 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
-secondary_dark_current = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
-secondary_read_noise = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
-secondary_read_time = 1000.        ;   read time (seconds) (must have same length as lambda)
-secondary_cic = 1.3e-3            ;   clock induced charge (counts pix^-1 photon_count^-1) (must have same length as lambda)
