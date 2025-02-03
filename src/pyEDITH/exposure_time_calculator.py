@@ -617,13 +617,14 @@ def measure_coronagraph_performance(
     return det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
 
 
-def calculate_optical_detector_throughput(observatory):
+def calculate_total_throughput(observatory):
     """
-    This function calculates the optical + detector throughput, which is used as
-    multiplicative factor when calculating the noise terms.
+    This function calculates the optical (telescope + instrument path) + detector
+    throughput, which is used as multiplicative factor when calculating the noise terms.
     """
     return (
-        observatory.telescope.T_optical
+        observatory.telescope.telescope_throughput
+        * observatory.coronagraph.coronagraph_throughput
         * observatory.detector.dQE
         * observatory.detector.QE
     )
@@ -653,7 +654,7 @@ def calculate_exposure_time(
     """
 
     # Calculate optical+detector throughput (nlambd array)
-    throughput = calculate_optical_detector_throughput(observatory)
+    throughput = calculate_total_throughput(observatory)
 
     # print("Observation inputs:")
     # print(f"nlambd: {observation.nlambd}")

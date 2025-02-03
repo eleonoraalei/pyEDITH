@@ -1,5 +1,8 @@
 from typing import Union, Dict, Tuple
 from pathlib import Path
+import eacy
+import astropy.units as u
+import numpy as np
 
 
 def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
@@ -227,10 +230,19 @@ def parse_parameters(parameters: dict) -> dict:
         parsed_params[key] = float(parameters[key])
 
     # ---- CORONAGRAPH SPECS---
-    if "type" in parameters.keys():
-        parsed_params["coro_type"] = str(parameters["type"])
     if "nrolls" in parameters.keys():
         parsed_params["nrolls"] = int(parameters["nrolls"])
+
+    # ----- OBSERVATORY SPECS ---
+    for key in [
+        "observatory_preset",
+        "telescope_type",
+        "coronagraph_type",
+        "detector_type",
+    ]:
+
+        if key in parameters.keys():
+            parsed_params[key] = parameters[key]
 
     return parsed_params
 
@@ -277,18 +289,21 @@ def get_observatory_config(parameters: Dict[str, str]) -> Union[str, Dict[str, s
 
     Returns either a string (if all components are from the same type) or a dictionary (for mixed configurations).
     """
-    telescope_type = parameters.get("telescope_type", "toymodel")
-    coronagraph_type = parameters.get("coronagraph_type", "toymodel")
-    detector_type = parameters.get("detector_type", "toymodel")
-
-    if telescope_type == coronagraph_type == detector_type:
-        config = telescope_type
+    if "observatory_preset" in parameters:
+        config = parameters["observatory_preset"]
     else:
-        config = {
-            "telescope": f"{telescope_type.capitalize()}Telescope",
-            "coronagraph": f"{coronagraph_type.capitalize()}Coronagraph",
-            "detector": f"{detector_type.capitalize()}Detector",
-        }
+        telescope_type = parameters.get("telescope_type", "toymodel")
+        coronagraph_type = parameters.get("coronagraph_type", "toymodel")
+        detector_type = parameters.get("detector_type", "toymodel")
+
+        if telescope_type == coronagraph_type == detector_type:
+            config = telescope_type
+        else:
+            config = {
+                "telescope": f"{telescope_type}Telescope",
+                "coronagraph": f"{coronagraph_type}Coronagraph",
+                "detector": f"{detector_type}Detector",
+            }
     print_observatory_config(config)
     return config
 
@@ -310,3 +325,19 @@ def print_observatory_config(config: Union[str, Dict[str, str]]) -> None:
         print(f"  Coronagraph: {config['coronagraph']}")
         print(f"  Detector:    {config['detector']}")
     print()  # Add a blank line for better readability
+
+
+def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
+    # take the average within the specified wavelength range
+    numpy_array_variables = {
+        key: value for key, value in params.items() if isinstance(value, np.ndarray)
+    }
+    for key, value in numpy_array_variables.items():
+        if key != "lam":
+            params[key] = np.mean(
+                params[key][
+                    (params["lam"].value >= wavelength_range[0])
+                    & (params["lam"].value <= wavelength_range[1])
+                ]
+            )
+    return params
