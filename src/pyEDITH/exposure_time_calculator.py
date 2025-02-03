@@ -1188,7 +1188,7 @@ def calculate_signal_to_noise(
     """
 
     # Calculate optical+detector throughput (nlambd array)
-    throughput = calculate_optical_detector_throughput(observatory)
+    throughput = calculate_total_throughput(observatory)
 
     for istar in range(scene.ntargs):  # set to 1
         for ilambd in range(observation.nlambd):  # set to 1
