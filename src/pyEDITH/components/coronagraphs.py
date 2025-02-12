@@ -164,7 +164,6 @@ class Coronagraph(ABC):
             "psf_trunc_ratio": np.ndarray,
             "minimum_IWA": (float, np.floating),
             "maximum_OWA": (float, np.floating),
-            "bandwidth": (float, np.floating),
             "coronagraph_throughput": np.ndarray,
         }
 
