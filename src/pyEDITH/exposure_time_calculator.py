@@ -298,6 +298,58 @@ def calculate_CRbbin(
 
     return F0 * Fbinary * skytrans * area * throughput * dlambda
 
+def calculate_CRbth(
+    lam : float,    
+    skytrans: float,
+    area: float,
+    throughput: float,
+    dlambda: float,
+    temp: float, 
+    lod_arcsec: float,
+    emis=1.
+) -> float:
+    """
+    Calculate background thermal count rate
+
+    Parameters
+    ----------
+    lam : float 
+        wavelengths of observation
+    skytrans : float
+        Sky transmission.
+    area : float
+        Collecting area of the telescope.
+    throughput : float
+        Throughput of the system.
+    dlambda : float
+        Bandwidth.
+    temp  : float
+        Telescope mirror temperature [K]
+    emis : float
+        Effective emissivity for the observing system (of order unity)
+
+    Returns
+    -------
+    float
+        Count rate from thermal background
+    """
+
+    lam *= u.um
+    epower = c.h*c.c / lam / c.k_B / temp
+    Bsys = 2 * c.h*c.c**2 / lam**5 / (np.exp(epower) - 1)
+
+    Bsys = Bsys.to(u.W/u.m**2/u.um) / u.sr
+
+    # angular area of photometric aperture 
+    Omega = np.pi * (lod_arcsec)**2 # in arcsec**2
+    Omega = Omega.to(u.sr)
+
+    photon_energy = c.h*c.c / lam
+    photon_energy = photon_energy.to(u.J) / u.photon
+
+    return (Bsys * emis * Omega * skytrans * area * throughput * dlambda / photon_energy).to(u.photon/u.s).value
+
+
 
 def calculate_t_photon_count(
     lod_arcsec: float,
@@ -843,8 +895,17 @@ def calculate_exposure_time(
                 throughput[ilambd],
                 deltalambda_nm,
             )
+            det_CRbth = calculate_CRbth(
+                lambda, ### this is the wavelength of observation; is this the right variable name??
+                det_skytrans,
+                area_cm2,
+                throughput[ilambd],
+                deltalambda_nm,
+                300, # temperature (should be a variable eventually)
+                lod_arcsec
+            )
 
-            det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
+            det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin + det_CRbth
 
             for iorbit in np.arange(observation.norbits):
 
@@ -1000,10 +1061,19 @@ def calculate_exposure_time(
                                     det_omega_lod,
                                     detpixscale_lod,
                                 )
+                                CRbth = calculate_CRbth(
+                                    lambda, ### this is the wavelength of observation; is this the right variable name??
+                                    det_skytrans,
+                                    area_cm2,
+                                    throughput[ilambd],
+                                    deltalambda_nm,
+                                    300, # temperature (should be a variable eventually)
+                                    lod_arcsec
+                                )
 
                                 # TOTAL BACKGROUND NOISE
                                 CRb = (
-                                    CRbs + CRbz + CRbez + CRbbin
+                                    CRbs + CRbz + CRbez + CRbbin + CRbth
                                 ) * observatory.coronagraph.omega_lod[
                                     int(np.floor(iy)), int(np.floor(ix)), iratio
                                 ]
