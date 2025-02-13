@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
+from .. import parse_input
 
 
 def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
@@ -132,6 +133,8 @@ class Coronagraph(ABC):
         Minimum Inner Working Angle (lambd/D)
     maximum_OWA : float
         Maximum Outer Working Angle (lambd/D)
+    coronagraph_throughput: np.ndarray
+        Throughput for all coronagraph optics in the optical path
     """
 
     @abstractmethod
@@ -161,7 +164,7 @@ class Coronagraph(ABC):
             "psf_trunc_ratio": np.ndarray,
             "minimum_IWA": (float, np.floating),
             "maximum_OWA": (float, np.floating),
-            "bandwidth": (float, np.floating),
+            "coronagraph_throughput": np.ndarray,
         }
 
         for arg, expected_type in expected_args.items():
@@ -194,6 +197,7 @@ class ToyModelCoronagraph(Coronagraph):
         "nrolls": 1,  # number of rolls
         "psf_trunc_ratio": [0.3],  # nlambda array
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
+        "coronagraph_throughput": 1,  # NOTE taken into account in telescope_throughput for ToyModel
     }
 
     def load_configuration(self, parameters, mediator):
@@ -218,11 +222,138 @@ class ToyModelCoronagraph(Coronagraph):
             setattr(self, key, parameters.get(key, default_value))
 
         # Convert to numpy array when appropriate
-        array_params = ["psf_trunc_ratio", "angdiams"]
+        array_params = ["psf_trunc_ratio", "angdiams", "coronagraph_throughput"]
         for param in array_params:
             setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
 
         # Derived parameters
+        self.npix = int(2 * 60 / self.pixscale)
+        self.xcenter = self.npix / 2.0
+        self.ycenter = self.npix / 2.0
+        self.ndiams = len(self.angdiams)
+
+        self.r = (
+            generate_radii(self.npix, self.npix) * self.pixscale
+        )  # create an array of circumstellar separations in units of lambd/D centered on star
+
+        self.omega_lod = np.full(
+            (self.npix, self.npix, len(self.psf_trunc_ratio)),
+            float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
+        )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
+
+        self.skytrans = np.full(
+            (self.npix, self.npix), self.TLyot
+        )  # skytrans at all separations
+
+        self.photap_frac = np.full(
+            (self.npix, self.npix, len(self.psf_trunc_ratio)), self.Tcore
+        )  # core throughput at all separations (npix,npix,len(psftruncratio))
+        # TODO check change)
+        # j = np.where(r lt self.IWA or r gt self.OWA)
+        # find separations interior to IWA or exterior to OWA
+        # if j[0] ne -1 then photap_frac1[j] = 0.0
+
+        self.photap_frac[self.r < self.minimum_IWA] = 0.0  # index 0 is the
+        self.photap_frac[self.r > self.maximum_OWA] = 0.0
+
+        # put in the right dimensions (3d arrays), but third dimension
+        # is 1 (number of psf_trunc_ratio)
+        # self.omega_lod = np.array([self.omega_lod])
+        # self.photap_frac = np.array([self.photap_frac])
+
+        self.PSFpeak = (
+            0.025 * self.TLyot
+        )  # this is an approximation based on PAPLC results
+
+        Istar = np.full((self.npix, self.npix), self.contrast * self.PSFpeak)
+        self.Istar = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        for z in range(len(self.angdiams)):
+            self.Istar[:, :, z] = Istar
+
+        self.noisefloor = (
+            self.noisefloor_factor * self.contrast
+        )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
+        n_floor = np.full((self.npix, self.npix), self.noisefloor * self.PSFpeak)
+        self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        for z in range(len(self.angdiams)):
+            self.noisefloor[:, :, z] = n_floor
+
+
+class EAC1Coronagraph(Coronagraph):
+    """
+    A toy model coronagraph class that extends the base Coronagraph class.
+
+    This class implements a simplified coronagraph model with basic functionality
+    for generating secondary parameters and setting up coronagraph characteristics.
+    """
+
+    DEFAULT_CONFIG = {
+        "pixscale": 0.25,  # lambd/D
+        "angdiams": [0.0, 10.0],
+        "minimum_IWA": 2.0,  # smallest WA to allow (lambda/D) (scalar)
+        "maximum_OWA": 100.0,  # largest WA to allow (lambda/D) (scalar)
+        "contrast": 1.05e-13,  # contrast of coronagraph (uniform over dark hole and unitless)
+        "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
+        "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
+        "Tcore": 0.2968371,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
+        "TLyot": 0.65,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
+        "nrolls": 1,  # number of rolls
+        "psf_trunc_ratio": [0.3],  # nlambda array
+        "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
+        "coronagraph_throughput": None,
+    }
+
+    def load_configuration(self, parameters, mediator):
+        """
+        Load configuration parameters for the simulation from a dictionary.
+
+        Parameters
+        ----------
+        parameters : dict
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        observation: Observation
+            An instance of the observation class.
+        ALL OF THE CLASSES
+        Returns
+        -------
+        None
+        """
+
+        from eacy import load_instrument
+
+        # ***** Set the bandwith *****
+        setattr(
+            self,
+            "bandwidth",
+            parameters.get("bandwidth", self.DEFAULT_CONFIG["bandwidth"]),
+        )
+
+        # ****** Update Default Config when necessary ******
+        wavelength_range = [
+            mediator.get_observation_parameter("lambd") * (1 - 0.5 * self.bandwidth),
+            mediator.get_observation_parameter("lambd") * (1 + 0.5 * self.bandwidth),
+        ]
+        instrument_params = load_instrument("EAC1").__dict__
+
+        instrument_params = parse_input.average_over_bandpass(
+            instrument_params, wavelength_range
+        )
+
+        self.DEFAULT_CONFIG["coronagraph_throughput"] = instrument_params[
+            "total_inst_refl"
+        ]  # Optical throughput (nlambd array)
+
+        # ***** Load parameters, use defaults if not provided *****
+        for key, default_value in self.DEFAULT_CONFIG.items():
+            setattr(self, key, parameters.get(key, default_value))
+
+        # ***** Convert to numpy array when appropriate *****
+        array_params = ["psf_trunc_ratio", "angdiams", "coronagraph_throughput"]
+        for param in array_params:
+            setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
+
+        # ***** Derived parameters *****
         self.npix = int(2 * 60 / self.pixscale)
         self.xcenter = self.npix / 2.0
         self.ycenter = self.npix / 2.0

@@ -36,9 +36,9 @@ delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting det
 
 
 ;--- OBSERVATORY PARAMETERS ----
-tele_type = toymodel
-coro_type = toymodel
-det_type = toymodel
+telescope_type = EAC1
+coronagraph_type = EAC1
+detector_type = EAC1
 
 ;--------------------------------
 ;------- SECONDARY LAMBDA -------

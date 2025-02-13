@@ -4,6 +4,14 @@ from argparse import ArgumentParser
 import numpy as np
 import sys
 
+import os
+
+# Declare the environment variable
+os.environ["SCI_ENG_DIR"] = "/Users/ealei/Coding/pyEDITH/Sci-Eng-Interface/hwo_sci_eng"
+
+# Print the value of the environment variable
+print(os.environ["SCI_ENG_DIR"])
+
 
 def main():
     """

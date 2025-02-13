@@ -6,12 +6,12 @@ class ObservatoryBuilder:
 
     # Default presents for the currently implemented concepts
     PRESETS = {
-        "toymodel": {
+        "ToyModel": {
             "telescope": "ToyModelTelescope",
             "coronagraph": "ToyModelCoronagraph",
             "detector": "ToyModelDetector",
         },
-        "eac1": {
+        "EAC1": {
             "telescope": "EAC1Telescope",
             "coronagraph": "EAC1Coronagraph",
             "detector": "EAC1Detector",
@@ -35,7 +35,7 @@ class ObservatoryBuilder:
 
         # Check that the config is either a string with a valid keyword...
         if isinstance(config, str):
-            config = ObservatoryBuilder.PRESETS.get(config.lower())
+            config = ObservatoryBuilder.PRESETS.get(config)
             if config is None:
                 raise ValueError(f"Unknown preset observatory: {config}")
         # Or a dictionary that sets up the configuration
@@ -44,13 +44,16 @@ class ObservatoryBuilder:
                 "Config must be either a string (preset name) or a dictionary (custom configuration)"
             )
 
+        print(config)
         # Initialize the components, or pick the ToyModel versions if not available.
-        telescope = ObservatoryBuilder._create_component(
-            config.get("telescope", "ToyModelTelescope"), telescopes
-        )
         coronagraph = ObservatoryBuilder._create_component(
             config.get("coronagraph", "ToyModelCoronagraph"), coronagraphs
         )
+
+        telescope = ObservatoryBuilder._create_component(
+            config.get("telescope", "ToyModelTelescope"), telescopes
+        )
+
         detector = ObservatoryBuilder._create_component(
             config.get("detector", "ToyModelDetector"), detectors
         )
