@@ -1,6 +1,11 @@
 from typing import Tuple
 import numpy as np
 from pyEDITH import AstrophysicalScene, Observation, Observatory
+import astropy.constants as c
+import astropy.units as u
+
+# TODO : add QE to detector noise
+# TODO : verify thermal noise
 
 
 def calculate_CRp(
@@ -11,6 +16,7 @@ def calculate_CRp(
     Upsilon: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
 ) -> float:
     """
     Calculate the planet count rate.
@@ -31,6 +37,8 @@ def calculate_CRp(
         Throughput of the system.
     dlambda : float
         Bandwidth.
+    nchannels : int
+        Number of channels.
 
     Returns
     -------
@@ -49,13 +57,13 @@ def calculate_CRp(
 
     in AYO:
 
-    FATDL = F0 * A_cm * throughput * deltalambda_nm
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
     Fstar = 10**(-0.4 * magstar)
     CRpfactor = Fstar * FATDL
     tempCRpfactor = Fp0[iplanetpistartnp] * CRpfactor
     CRp = tempCRpfactor * photap_frac[index2]
     """
-    return F0 * Fstar * Fp0 * area * Upsilon * throughput * dlambda
+    return F0 * Fstar * Fp0 * area * Upsilon * throughput * dlambda * nchannels
 
 
 def calculate_CRbs(
@@ -66,6 +74,7 @@ def calculate_CRbs(
     pixscale: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
 ) -> float:
     """
     Calculate the stellar leakage count rate.
@@ -86,6 +95,8 @@ def calculate_CRbs(
         Throughput of the system.
     dlambda : float
         Bandwidth.
+    nchannels : int
+        Number of channels.
 
     Returns
     -------
@@ -104,7 +115,7 @@ def calculate_CRbs(
 
     in AYO:
 
-    FATDL = F0 * A_cm * throughput * deltalambda_nm;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannel
     CRbsfactor = Fstar * oneopixscale2 * FATDL  # for stellar leakage
                                                 # count rate calculation
     Fstar = 10**(-0.4 * magstar)
@@ -117,7 +128,7 @@ def calculate_CRbs(
     # CRbs = tempCRbsfactor * omega_lod[index2]
 
     """
-    return F0 * Fstar * Istar * area * throughput * dlambda / (pixscale**2)
+    return F0 * Fstar * Istar * area * throughput * dlambda * nchannels / (pixscale**2)
 
 
 def calculate_CRbz(
@@ -128,6 +139,7 @@ def calculate_CRbz(
     area: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
 ) -> float:
     """
     Calculate the local zodiacal light count rate.
@@ -148,6 +160,8 @@ def calculate_CRbz(
         Throughput of the system.
     dlambda : float
         Bandwidth.
+    nchannels : int
+        Number of channels.
 
     Returns
     -------
@@ -163,7 +177,7 @@ def calculate_CRbz(
 
     In AYO:
 
-    FATDL = F0 * A_cm * throughput * deltalambda_nm;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
     CRbzfactor = Fzodi * lod_arcsec2 * FATDL  # count rate for zodi
     tempCRbzfactor = CRbzfactor * skytrans[index]
     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
@@ -175,7 +189,9 @@ def calculate_CRbz(
     CRbz = tempCRbzfactor * omega_lod[index2];
     """
 
-    return F0 * Fzodi * skytrans * area * throughput * dlambda * lod_arcsec**2
+    return (
+        F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
+    )
 
 
 def calculate_CRbez(
@@ -186,6 +202,7 @@ def calculate_CRbez(
     area: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
     dist: float,
     sp: float,
 ) -> float:
@@ -212,6 +229,8 @@ def calculate_CRbez(
         Distance to the star.
     sp : float
         Separation of the planet.
+    nchannels : int
+        Number of channels.
 
     Returns
     -------
@@ -226,7 +245,7 @@ def calculate_CRbez(
     In AYO:
 
     CRbezfactor = Fexozodi * lod_arcsec2 * FATDL / (dist * dist);
-    FATDL = F0 * A_cm * throughput * deltalambda_nm;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
     tempCRbezfactor = CRbezfactor * skytrans[index] /
                         (sp[iplanetpistartnp] * sp[iplanetpistartnp]);
     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
@@ -239,7 +258,14 @@ def calculate_CRbez(
 
     """
     return (
-        F0 * Fexozodi * skytrans * area * throughput * dlambda * lod_arcsec**2
+        F0
+        * Fexozodi
+        * skytrans
+        * area
+        * throughput
+        * dlambda
+        * nchannels
+        * lod_arcsec**2
     ) / (dist**2 * sp**2)
 
 
@@ -250,6 +276,7 @@ def calculate_CRbbin(
     area: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
 ) -> float:
     """
     Calculate the count rate from neighboring stars.
@@ -268,6 +295,8 @@ def calculate_CRbbin(
         Throughput of the system.
     dlambda : float
         Bandwidth.
+    nchannels : int
+        Number of channels.
 
     Returns
     -------
@@ -284,7 +313,7 @@ def calculate_CRbbin(
 
     In AYO:
 
-    FATDL = F0 * A_cm * throughput * deltalambda_nm;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
     CRbbinfactor = Fbinary * FATDL  # count rate for scattered light from
                                     # nearby stars
     tempCRbbinfactor = CRbbinfactor * skytrans[index]
@@ -296,7 +325,7 @@ def calculate_CRbbin(
 
     """
 
-    return F0 * Fbinary * skytrans * area * throughput * dlambda
+    return F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels
 
 
 def calculate_CRbth(
@@ -456,6 +485,7 @@ def calculate_CRnf(
     pixscale: float,
     throughput: float,
     dlambda: float,
+    nchannels: int,
     SNR: float,
     noisefloor: float,
 ) -> float:
@@ -508,7 +538,7 @@ def calculate_CRnf(
 
     in AYO:
 
-    FATDL = F0 * A_cm * throughput * deltalambda_nm;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
     CRbsfactor = Fstar * oneopixscale2 * FATDL  # for stellar leakage count
     rate calculation
     Fstar = 10**(-0.4 * magstar)
@@ -521,7 +551,11 @@ def calculate_CRnf(
     # CRnoisefloor = tempCRnffactor * omega_lod[index2];
 
     """
-    return SNR * (F0 * Fstar * area * throughput * dlambda / (pixscale**2)) * noisefloor
+    return (
+        SNR
+        * (F0 * Fstar * area * throughput * dlambda * nchannels / (pixscale**2))
+        * noisefloor
+    )
 
 
 def interpolate_arrays(
@@ -696,71 +730,6 @@ def calculate_exposure_time(
 
     """
 
-    # print("Observation inputs:")
-    # print(f"nlambd: {observation.nlambd}")
-    # print(f"lambd[0]: {observation.lambd[0]}")
-    # print(f"SR[0]: {observation.SR[0]}")
-    # print(f"SNR[0]: {observation.SNR[0]}")
-
-    # print("\nScene inputs:")
-    # print(f"ntargs: {scene.ntargs}")
-    # print(f"mag[0, 0]: {scene.mag[0, 0]}")
-    # print(f"F0[0]: {scene.F0[0]}")
-    # print(f"Fzodi_list[0, 0]: {scene.Fzodi_list[0, 0]}")
-    # print(f"Fexozodi_list[0, 0]: {scene.Fexozodi_list[0, 0]}")
-    # print(f"Fbinary_list[0, 0]: {scene.Fbinary_list[0, 0]}")
-    # print(f"angdiam_arcsec[0]: {scene.angdiam_arcsec[0]}")
-    # print(f"dist[0]: {scene.dist[0]}")
-    # print(f"xp[0, 0, 0]: {scene.xp[0, 0, 0]}")
-    # print(f"yp[0, 0, 0]: {scene.yp[0, 0, 0]}")
-    # print(f"sp[0, 0, 0]: {scene.sp[0, 0, 0]}")
-    # print(f"Fp0[0, 0, 0]: {scene.Fp0[0, 0, 0]}")
-    # print(f"min_deltamag[0]: {scene.min_deltamag[0]}")
-
-    # print("\nInstrument inputs:")
-    # print(f"telescope.D: {observatory.telescope.diameter}")
-    # print(f"telescope.Area: {observatory.telescope.Area}")
-    # print(f"telescope.throughput[0]: {throughput[0]}")
-    # print(f"telescope.toverhead_multi: {observatory.telescope.toverhead_multi}")
-    # print(f"telescope.toverhead_fixed: {observatory.telescope.toverhead_fixed}")
-    # print(f"coronagraph.bandwidth: {observatory.coronagraph.bandwidth}")
-    # print(f"coronagraph.pixscale: {observatory.coronagraph.pixscale}")
-    # print(f"coronagraph.IWA: {observatory.coronagraph.minimum_IWA}")
-    # print(f"coronagraph.OWA: {observatory.coronagraph.maximum_OWA}")
-    # print(f"coronagraph.npix: {observatory.coronagraph.npix}")
-    # print(f"coronagraph.ndiams: {observatory.coronagraph.ndiams}")
-    # print(f"coronagraph.xcenter: {observatory.coronagraph.xcenter}")
-    # print(f"coronagraph.ycenter: {observatory.coronagraph.ycenter}")
-    # print(f"coronagraph.nrolls: {observatory.coronagraph.nrolls}")
-    # print(f"coronagraph.npsfratios: {observatory.coronagraph.npsfratios}")
-    # print(f"coronagraph.Istar[0, 0, 0]: {observatory.coronagraph.Istar[0, 0, 0]}")
-    # print(
-    #     f"coronagraph.noisefloor[0, 0, 0]: {observatory.coronagraph.noisefloor[0, 0, 0]}"
-    # )
-    # print(f"coronagraph.angdiams[0]: {observatory.coronagraph.angdiams[0]}")
-    # print(
-    #     f"coronagraph.psf_trunc_ratio[0]: {observatory.coronagraph.psf_trunc_ratio[0]}"
-    # )
-    # print(
-    #     f"coronagraph.photap_frac[0, 0, 0]: {observatory.coronagraph.photap_frac[0, 0, 0]}"
-    # )
-    # print(f"coronagraph.skytrans[0, 0]: {observatory.coronagraph.skytrans[0, 0]}")
-    # print(
-    #     f"coronagraph.omega_lod[0, 0, 0]: {observatory.coronagraph.omega_lod[0, 0, 0]}"
-    # )
-
-    # print(f"detector.det_pixscale_mas: {observatory.detector.pixscale_mas}")
-    # print(f"detector.det_npix_multiplier[0]: {observatory.detector.npix_multiplier[0]}")
-    # print(f"detector.det_DC[0]: {observatory.detector.DC[0]}")
-    # print(f"detector.det_RN[0]: {observatory.detector.RN[0]}")
-    # print(f"detector.det_tread[0]: {observatory.detector.tread[0]}")
-    # print(f"detector.det_CIC[0]: {observatory.detector.CIC[0]}")
-
-    # print("\nEDITH inputs:")
-    # print(f"norbits: {observation.norbits}")
-    # print(f"nmeananom: {observation.nmeananom}")
-    # print(f"td_limit: {observation.td_limit}")
-
     for istar in range(scene.ntargs):  # set to 1
         for ilambd in range(observation.nlambd):  # set to 1
 
@@ -777,9 +746,10 @@ def calculate_exposure_time(
                 ]
             )
 
-            lod_arcsec = (
+            lod_rad = (
                 observation.lambd[ilambd] * 1e-6 / observatory.telescope.diameter
-            ) * 206264.806
+            )  # l/D in radians
+            lod_arcsec = lod_rad * 206264.806  # l/D in arcsec
 
             area_cm2 = observatory.telescope.Area * 100 * 100
 
@@ -843,6 +813,7 @@ def calculate_exposure_time(
                 det_photap_frac,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CRbs = calculate_CRbs(
@@ -853,6 +824,7 @@ def calculate_exposure_time(
                 observatory.coronagraph.pixscale,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CRbz = calculate_CRbz(
@@ -863,6 +835,7 @@ def calculate_exposure_time(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CRbez = calculate_CRbez(
@@ -873,6 +846,7 @@ def calculate_exposure_time(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
                 scene.dist[istar],
                 det_sep,
             )
@@ -883,6 +857,7 @@ def calculate_exposure_time(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
             det_CRbth = 0.0
             # calculate_CRbth(
@@ -943,6 +918,7 @@ def calculate_exposure_time(
                                 ],
                                 observatory.total_throughput[ilambd],
                                 deltalambda_nm,
+                                observatory.coronagraph.nchannels,
                             )
 
                             # NOISE FLOOR CRNF
@@ -953,6 +929,7 @@ def calculate_exposure_time(
                                 observatory.coronagraph.pixscale,
                                 observatory.total_throughput[ilambd],
                                 deltalambda_nm,
+                                observatory.coronagraph.nchannels,
                                 observation.SNR[ilambd],
                                 noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
                             )
@@ -992,6 +969,7 @@ def calculate_exposure_time(
                                     observatory.coronagraph.pixscale,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbz
@@ -1005,6 +983,7 @@ def calculate_exposure_time(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbez
@@ -1018,6 +997,7 @@ def calculate_exposure_time(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                     scene.dist[istar],
                                     scene.sp[iphase, iorbit, istar],
                                 )
@@ -1032,6 +1012,7 @@ def calculate_exposure_time(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbd
@@ -1079,7 +1060,9 @@ def calculate_exposure_time(
                                 # count rate term
                                 # NOTE this includes the systematic noise floor
                                 # term a la Bijan Nemati
-                                cp = (CRp + 2 * CRb) / (CRp * CRp - CRnf * CRnf)
+                                cp = (CRp + observation.CRb_multiplier * CRb) / (
+                                    CRp * CRp - CRnf * CRnf
+                                )
 
                                 # Calculate Exposure time
                                 observation.exptime[istar, ilambd] = (
@@ -1118,100 +1101,51 @@ def calculate_exposure_time(
                         # IWA/OWA cutoffs
                         observation.exptime[istar, ilambd] = np.inf
 
-                    # print("Interesting variables for exposure time calculation:")
-                    # print(f"CRp: {CRp:.6e}")
-                    # print(f"CRb: {CRb:.6e}")
-                    # print(f"SNRCRpfloor: {CRnf:.6e}")
-                    # print(f"SNR: {observation.SNR[ilambd]:.6e}")
-                    # print(
-                    #     f"toverhead_multi: {observatory.telescope.toverhead_multi:.6e}"
-                    # )
-                    # print(
-                    #     f"toverhead_fixed: {observatory.telescope.toverhead_fixed:.6e}"
-                    # )
-                    # # Print calculated values
-                    # print(f"Calculated cp: {cp:.6e}")
-
-                    # print("Useful quantities:")
-                    # print(
-                    #     f"det_npix: {(observatory.detector.npix_multiplier[ilambd] * det_omega_lod /(detpixscale_lod**2)):.6e}"
-                    # )
-                    # print(
-                    #     f"det_npix_multiplier: {observatory.detector.npix_multiplier[ilambd]:.6e}"
-                    # )
-                    # print(
-                    #     f"omega_lod[iratio, iy, ix]: {observatory.coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]:.6e}"
-                    # )
-                    # print(f"oneodetpixscale_lod2: {1/detpixscale_lod**2:.6e}")
-                    # print(
-                    #     f"CRbdfactor: {CRbd/(observatory.detector.npix_multiplier[ilambd]*det_omega_lod/(detpixscale_lod)**2):.6e}"
-                    # )
-                    # print(f"CRbd: {CRbd:.6e}")
-                    # print(f"det_DC: {observatory.detector.DC[ilambd]:.6e}")
-                    # print(f"det_RN: {observatory.detector.RN[ilambd]:.6e}")
-                    # print(f"det_CIC: {observatory.detector.CIC[ilambd]:.6e}")
-                    # print(f"det_tread: {observatory.detector.tread[ilambd]:.6e}")
-                    # print(f"t_photon_count: {t_photon_count:.6e}")
-                    # print(f"det_CR: {det_CR:.6e}")
-                    # print(f"det_sep: {det_sep:.6e}")
-                    # print(f"det_sep_pix: {det_sep_pix:.6e}")
-                    # print(f"det_Istar: {det_Istar:.6e}")
-                    # print(f"det_skytrans: {det_skytrans:.6e}")
-                    # print(f"det_photap_frac: {det_photap_frac:.6e}")
-                    # print(f"det_omega_lod: {det_omega_lod:.6e}")
-                    # print("Interesting Variables:")
-                    # print(f"Fstar: {Fstar:.6e}")
-                    # print(f"deltalambda_nm: {deltalambda_nm:.6e}")
-                    # print(f"lod_arcsec: {lod_arcsec:.6e}")
-                    # print(f"area_cm2: {area_cm2:.6e}")
-                    # print(f"stellar_diam_lod: {stellar_diam_lod:.6e}")
-                    # print(f"pixscale_rad: {pixscale_rad:.6e}")
-                    # print(f"oneopixscale_arcsec: {oneopixscale_arcsec:.6e}")
-
-                    # print("\nCoronagraph Performance:")
-                    # print(f"det_sep_pix: {det_sep_pix:.6e}")
-                    # print(f"det_sep: {det_sep:.6e}")
-                    # print(f"det_Istar: {det_Istar:.6e}")
-                    # print(f"det_skytrans: {det_skytrans:.6e}")
-                    # print(f"det_photap_frac: {det_photap_frac:.6e}")
-                    # print(f"det_omega_lod: {det_omega_lod:.6e}")
-
-                    # print("\nDetector Noise Estimates:")
-                    # print(f"det_CRp: {det_CRp:.6e}")
-                    # print(f"det_CRbs: {det_CRbs:.6e}")
-                    # print(f"det_CRbz: {det_CRbz:.6e}")
-                    # print(f"det_CRbez: {det_CRbez:.6e}")
-                    # print(f"det_CRbbin: {det_CRbbin:.6e}")
-
-                    # print("\nNoise floor:")
-                    # print(f"CRnf: {CRnf:.6e}")
-                    # print("\nCount Rates:")
-                    # print(
-                    #     f"omega_lod: {observatory.coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)),iratio]:.6e}"
-                    # )
-
-                    # print(
-                    #     f"CRp: {CRp:.6e}"
-                    # )  # photap_frac dimensions (npix,npix,len(photap_frac))
-                    # print(
-                    #     f"CRbs/omega_lod: {CRbs:.6e}"
-                    # )  # Istar_interp dimensions (npix,npix,len(angdiams))
-                    # print(
-                    #     f"CRbz/omega_lod: {CRbz:.6e}"
-                    # )  # skytrans dimensions (npix,npix)
-                    # print(
-                    #     f"CRbez/omega_lod: {CRbez:.6e}"
-                    # )  # skytrans dimensions (npix,npix) x sp dimensions (nmeananom, norbits, ntargs)
-                    # print(
-                    #     f"CRbbin/omega_lod: {CRbbin:.6e}"
-                    # )  # skytrans dimensions (npix,npix)
-                    # print(
-                    #     f"CRbbd/omega_lod: {CRbd:.6e}"
-                    # )  # skytrans dimensions (npix,npix)
-                    # print(f"t_photon_count:{t_photon_count:.6e}")
-                    # print(f"CRbd:{CRbd:.6e}")
-                    # print(f"Total Background Noise (CRb+CRbd): {CRb:.6e}")
-
+                    print_diagnostic_info(
+                        istar,
+                        Fstar,
+                        deltalambda_nm,
+                        lod_arcsec,
+                        area_cm2,
+                        stellar_diam_lod,
+                        pixscale_rad,
+                        oneopixscale_arcsec,
+                        det_sep_pix,
+                        det_sep,
+                        det_Istar,
+                        det_skytrans,
+                        det_photap_frac,
+                        det_omega_lod,
+                        det_CRp,
+                        det_CRbs,
+                        det_CRbz,
+                        det_CRbez,
+                        det_CRbbin,
+                        det_CRbth,
+                        CRp,
+                        CRb,
+                        CRnf,
+                        observation.SNR[ilambd],
+                        observatory.telescope.toverhead_multi,
+                        observatory.telescope.toverhead_fixed,
+                        cp,
+                        observation.exptime[istar, ilambd],
+                        scene.F0[ilambd],
+                        scene.mag[istar, ilambd],
+                        observatory.telescope.diameter,
+                        observation.lambd[ilambd],
+                        observatory.total_throughput[ilambd],
+                        observatory.detector.DC[ilambd],
+                        observatory.detector.RN[ilambd],
+                        observatory.detector.CIC[ilambd],
+                        observatory.detector.tread[ilambd],
+                        observatory.detector.pixscale_mas,
+                        observatory.telescope.temperature,
+                        lod_rad,
+                        observatory.epswarmTrcold[ilambd],
+                        observatory.detector.QE[ilambd]
+                        * observatory.detector.dQE[ilambd],
+                    )
         # NOTE FOR FUTURE DEVELOPMENT
         # The nmeananom, norbits, npsfratios loops are not stored in the
         # exptime matrix.
@@ -1338,6 +1272,7 @@ def calculate_signal_to_noise(
                 observatory.coronagraph.pixscale,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CRbz = calculate_CRbz(
@@ -1348,6 +1283,7 @@ def calculate_signal_to_noise(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CRbez = calculate_CRbez(
@@ -1358,6 +1294,7 @@ def calculate_signal_to_noise(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
                 scene.dist[istar],
                 det_sep,
             )
@@ -1368,6 +1305,7 @@ def calculate_signal_to_noise(
                 area_cm2,
                 observatory.total_throughput[ilambd],
                 deltalambda_nm,
+                observatory.coronagraph.nchannels,
             )
 
             det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
@@ -1428,6 +1366,7 @@ def calculate_signal_to_noise(
                                 observatory.coronagraph.pixscale,
                                 observatory.total_throughput[ilambd],
                                 deltalambda_nm,
+                                observatory.coronagraph.nchannels,
                                 1,
                                 noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
                             )
@@ -1464,6 +1403,7 @@ def calculate_signal_to_noise(
                                     observatory.coronagraph.pixscale,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbz
@@ -1477,6 +1417,7 @@ def calculate_signal_to_noise(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbez
@@ -1490,6 +1431,7 @@ def calculate_signal_to_noise(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                     scene.dist[istar],
                                     scene.sp[iphase, iorbit, istar],
                                 )
@@ -1504,6 +1446,7 @@ def calculate_signal_to_noise(
                                     area_cm2,
                                     observatory.total_throughput[ilambd],
                                     deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
                                 )
 
                                 # Calculate CRbd
@@ -1574,3 +1517,110 @@ def calculate_signal_to_noise(
         # "fake" loops as of now (nmeananom, norbits, npsfratios all are 1).
         # But this might change in the future.
         return
+
+
+def print_diagnostic_info(
+    istar,
+    Fstar,
+    deltalambda_nm,
+    lod_arcsec,
+    area_cm2,
+    stellar_diam_lod,
+    pixscale_rad,
+    oneopixscale_arcsec,
+    det_sep_pix,
+    det_sep,
+    det_Istar,
+    det_skytrans,
+    det_photap_frac,
+    det_omega_lod,
+    det_CRp,
+    det_CRbs,
+    det_CRbz,
+    det_CRbez,
+    det_CRbbin,
+    det_CRbthermal,
+    CRp,
+    CRb,
+    CRnf,
+    SNR,
+    toverhead_multi,
+    toverhead_fixed,
+    cp,
+    temptp,
+    F0,
+    magstar,
+    D,
+    lambd,
+    throughput,
+    det_DC,
+    det_RN,
+    det_CIC,
+    det_tread,
+    det_pixscale_mas,
+    temperature,
+    lod_rad,
+    epswarmTrcold,
+    QE,
+):
+
+    print(f"\n--- Diagnostic Information for Star {istar} ---")
+
+    print("\nBasic Parameters:")
+    print(f"F0: {F0:.6e}")
+    print(f"magstar: {magstar:.6e}")
+    print(f"D: {D:.6e}")
+    print(f"lambda: {lambd * 1000.0:.6e}")
+    print(f"deltalambda_nm: {deltalambda_nm:.6e}")
+    print(f"throughput: {throughput:.6e}")
+
+    print("\nAstrophysical Quantities:")
+    print(f"Fstar: {Fstar:.6e}")
+    print(f"stellar_diam_lod: {stellar_diam_lod:.6e}")
+
+    print("\nGeometric Parameters:")
+    print(f"area_cm2: {area_cm2:.6e}")
+    print(f"lod_arcsec: {lod_arcsec:.6e}")
+    print(f"lod_rad: {lod_rad:.6e}")
+    print(f"pixscale_rad: {pixscale_rad:.6e}")
+    print(f"oneopixscale_arcsec: {oneopixscale_arcsec:.6e}")
+
+    print("\nCoronagraph Performance:")
+    print(f"det_sep_pix: {det_sep_pix:.6e}")
+    print(f"det_sep: {det_sep:.6e}")
+    print(f"det_Istar: {det_Istar:.6e}")
+    print(f"det_skytrans: {det_skytrans:.6e}")
+    print(f"det_photap_frac: {det_photap_frac:.6e}")
+    print(f"det_omega_lod: {det_omega_lod:.6e}")
+
+    print("\nDetector Parameters:")
+    print(f"det_DC: {det_DC:.6e}")
+    print(f"det_RN: {det_RN:.6e}")
+    print(f"det_CIC: {det_CIC:.6e}")
+    print(f"det_tread: {det_tread:.6e}")
+    print(f"det_pixscale_mas: {det_pixscale_mas:.6e}")
+
+    print("\nCount Rates:")
+    print(f"CRp: {CRp:.6e}")
+    print(f"det_CRp: {det_CRp:.6e}")
+    print(f"det_CRbs: {det_CRbs:.6e}")
+    print(f"det_CRbz: {det_CRbz:.6e}")
+    print(f"det_CRbez: {det_CRbez:.6e}")
+    print(f"det_CRbbin: {det_CRbbin:.6e}")
+    print(f"det_CRbthermal: {det_CRbthermal:.6e}")
+    print(f"CRb: {CRb:.6e}")
+    print(f"CRnf: {CRnf:.6e}")
+
+    print("\nExposure Time Calculation:")
+    print(f"SNR: {SNR:.6e}")
+    print(f"toverhead_multi: {toverhead_multi:.6e}")
+    print(f"toverhead_fixed: {toverhead_fixed:.6e}")
+    print(f"cp: {cp:.6e}")
+    print(f"temptp (Exposure Time): {temptp:.6e}")
+
+    print("\nThermal Parameters:")
+    print(f"temperature: {temperature:.6e}")
+    print(f"epswarmTrcold: {epswarmTrcold:.6e}")
+    print(f"QE*dQE: {QE:.6e}")
+
+    print("\n--- End of Diagnostic Information ---\n")
