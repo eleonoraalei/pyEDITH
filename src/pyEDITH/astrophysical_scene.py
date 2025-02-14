@@ -700,3 +700,40 @@ class AstrophysicalScene:
         self.Fp0 = 10.0 ** (-0.4 * self.deltamag)  # flux of planet
 
         ### TODO deltamag --> Fp/Fs
+
+    def validate_configuration(self):
+        """
+        Check that mandatory variables are there and have the right format.
+        There can be other variables, but they are not needed for the calculation.
+        """
+        expected_args = {
+            "ntargs": (int, np.integer),
+            "Lstar": np.ndarray,
+            "dist": np.ndarray,
+            "vmag": np.ndarray,
+            "mag": np.ndarray,
+            "angdiam_arcsec": np.ndarray,
+            "nzodis": np.ndarray,
+            "ra": np.ndarray,
+            "dec": np.ndarray,
+            "sp": np.ndarray,
+            "xp": np.ndarray,
+            "yp": np.ndarray,
+            "deltamag": np.ndarray,
+            "min_deltamag": np.ndarray,
+            "F0V": (float, np.floating),
+            "F0": np.ndarray,
+            "M_V": np.ndarray,
+            "Fzodi_list": np.ndarray,
+            "Fexozodi_list": np.ndarray,
+            "Fbinary_list": np.ndarray,
+            "Fp0": np.ndarray,
+        }
+
+        for arg, expected_type in expected_args.items():
+            if not hasattr(self, arg):
+                raise AttributeError(f"AstrophysicalScene is missing attribute: {arg}")
+            if not isinstance(getattr(self, arg), expected_type):
+                raise TypeError(
+                    f"AstrophysicalScene attribute {arg} should be of type {expected_type}, but is {type(getattr(self, arg))}"
+                )

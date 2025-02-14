@@ -175,12 +175,14 @@ def calculate_texp(parameters: dict) -> np.array:
     observation = Observation()
     observation.load_configuration(parameters)
     observation.set_output_arrays()
+    observation.validate_configuration()
 
     # Define Astrophysical Scene and load relevant parameters,
     # then calculate zodi/exozodi
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(observation)
+    scene.validate_configuration()
 
     # Create and configure Observatory using ObservatoryBuilder
     observatory_config = parse_input.get_observatory_config(parameters)

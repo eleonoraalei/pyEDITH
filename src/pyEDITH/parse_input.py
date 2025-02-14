@@ -160,12 +160,15 @@ def parse_parameters(parameters: dict) -> dict:
     wavelength_params = [
         "resolution",
         "snr",
-        "throughput",
+        "Toptical",
+        "epswarmTrcold",
         "npix_multiplier",
         "dark_current",
         "read_noise",
         "read_time",
         "cic",
+        "QE",
+        "dQE",
     ]
 
     parsed_params.update(
@@ -224,6 +227,9 @@ def parse_parameters(parameters: dict) -> dict:
         "bandwidth",
         "Tcore",
         "TLyot",
+        "temperature",
+        "Tcontam",
+        "CRb_multiplier",
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):

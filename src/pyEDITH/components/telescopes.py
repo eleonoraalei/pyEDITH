@@ -22,7 +22,10 @@ class Telescope(ABC):
         Multiplicative overhead time.
     telescope_throughput : numpy.ndarray
         Array of throughput values.
-
+    temperature : float
+        Temperature of the warm optics.
+    Tcontam : float
+        Effective throughput factor to budget for contamination.
     """
 
     @abstractmethod
@@ -40,6 +43,8 @@ class Telescope(ABC):
             "toverhead_fixed": (float, np.floating),
             "toverhead_multi": (float, np.floating),
             "telescope_throughput": np.ndarray,
+            "temperature": (float, np.floating),
+            "Tcontam": (float, np.floating),
         }
 
         for arg, expected_type in expected_args.items():
@@ -63,7 +68,11 @@ class ToyModelTelescope(Telescope):
         "unobscured_area": 1.0 - 0.121,  # unobscured area (percentage,scalar)
         "toverhead_fixed": 8.25e3,  # fixed overhead time (seconds,scalar)
         "toverhead_multi": 1.1,  # multiplicative overhead time (scalar)
-        "telescope_throughput": [0.5333333],  # Optical throughput (nlambd array)
+        "telescope_throughput": [
+            0.823
+        ],  # Optical throughput (nlambd array) [made up from EAC1-ish]
+        "temperature": 290,
+        "Tcontam": 0.95,
     }
 
     def load_configuration(self, parameters, mediator) -> None:

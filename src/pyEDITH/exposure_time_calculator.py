@@ -673,19 +673,6 @@ def measure_coronagraph_performance(
     return det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
 
 
-def calculate_total_throughput(observatory):
-    """
-    This function calculates the optical (telescope + instrument path) + detector
-    throughput, which is used as multiplicative factor when calculating the noise terms.
-    """
-    return (
-        observatory.telescope.telescope_throughput
-        * observatory.coronagraph.coronagraph_throughput
-        * observatory.detector.dQE
-        * observatory.detector.QE
-    )
-
-
 def calculate_exposure_time(
     observation: Observation,
     scene: AstrophysicalScene,
@@ -708,9 +695,6 @@ def calculate_exposure_time(
         Object containing observatory parameters.
 
     """
-
-    # Calculate optical+detector throughput (nlambd array)
-    throughput = calculate_total_throughput(observatory)
 
     # print("Observation inputs:")
     # print(f"nlambd: {observation.nlambd}")
@@ -857,7 +841,7 @@ def calculate_exposure_time(
                 10 * 10 ** (-0.4 * scene.min_deltamag[istar]),
                 area_cm2,
                 det_photap_frac,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -867,7 +851,7 @@ def calculate_exposure_time(
                 det_Istar,
                 area_cm2,
                 observatory.coronagraph.pixscale,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -877,7 +861,7 @@ def calculate_exposure_time(
                 lod_arcsec,
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -887,7 +871,7 @@ def calculate_exposure_time(
                 lod_arcsec,
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
                 scene.dist[istar],
                 det_sep,
@@ -897,7 +881,7 @@ def calculate_exposure_time(
                 scene.Fbinary_list[istar, ilambd],
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
             det_CRbth = 0.0
@@ -907,7 +891,7 @@ def calculate_exposure_time(
             #     ],  ### this is the wavelength of observation; is this the right variable name??
             #     det_skytrans,
             #     area_cm2,
-            #     throughput[ilambd],
+            #     observatory.total_throughput[ilambd],
             #     deltalambda_nm,
             #     300,  # temperature (should be a variable eventually)
             #     lod_arcsec,
@@ -957,7 +941,7 @@ def calculate_exposure_time(
                                 observatory.coronagraph.photap_frac[
                                     int(np.floor(iy)), int(np.floor(ix)), iratio
                                 ],
-                                throughput[ilambd],
+                                observatory.total_throughput[ilambd],
                                 deltalambda_nm,
                             )
 
@@ -967,7 +951,7 @@ def calculate_exposure_time(
                                 Fstar,
                                 area_cm2,
                                 observatory.coronagraph.pixscale,
-                                throughput[ilambd],
+                                observatory.total_throughput[ilambd],
                                 deltalambda_nm,
                                 observation.SNR[ilambd],
                                 noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
@@ -1006,7 +990,7 @@ def calculate_exposure_time(
                                     Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
                                     area_cm2,
                                     observatory.coronagraph.pixscale,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 
@@ -1019,7 +1003,7 @@ def calculate_exposure_time(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 
@@ -1032,7 +1016,7 @@ def calculate_exposure_time(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                     scene.dist[istar],
                                     scene.sp[iphase, iorbit, istar],
@@ -1046,7 +1030,7 @@ def calculate_exposure_time(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 
@@ -1076,7 +1060,7 @@ def calculate_exposure_time(
                                 #     ],  ### this is the wavelength of observation; is this the right variable name??
                                 #     det_skytrans,
                                 #     area_cm2,
-                                #     throughput[ilambd],
+                                #     observatory.total_throughput[ilambd],
                                 #     deltalambda_nm,
                                 #     300,  # temperature (should be a variable eventually)
                                 #     lod_arcsec,
@@ -1267,9 +1251,6 @@ def calculate_signal_to_noise(
     the achieved signal-to-noise ratio for planet detection given a fixed observation time.
     """
 
-    # Calculate optical+detector throughput (nlambd array)
-    throughput = calculate_total_throughput(observatory)
-
     for istar in range(scene.ntargs):  # set to 1
         for ilambd in range(observation.nlambd):  # set to 1
 
@@ -1345,7 +1326,7 @@ def calculate_signal_to_noise(
                 10 * 10 ** (-0.4 * scene.min_deltamag[istar]),
                 area_cm2,
                 det_photap_frac,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -1355,7 +1336,7 @@ def calculate_signal_to_noise(
                 det_Istar,
                 area_cm2,
                 observatory.coronagraph.pixscale,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -1365,7 +1346,7 @@ def calculate_signal_to_noise(
                 lod_arcsec,
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -1375,7 +1356,7 @@ def calculate_signal_to_noise(
                 lod_arcsec,
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
                 scene.dist[istar],
                 det_sep,
@@ -1385,7 +1366,7 @@ def calculate_signal_to_noise(
                 scene.Fbinary_list[istar, ilambd],
                 det_skytrans,
                 area_cm2,
-                throughput[ilambd],
+                observatory.total_throughput[ilambd],
                 deltalambda_nm,
             )
 
@@ -1431,7 +1412,7 @@ def calculate_signal_to_noise(
                                 observatory.coronagraph.photap_frac[
                                     int(np.floor(iy)), int(np.floor(ix)), iratio
                                 ],
-                                throughput[ilambd],
+                                observatory.total_throughput[ilambd],
                                 deltalambda_nm,
                             )
 
@@ -1445,7 +1426,7 @@ def calculate_signal_to_noise(
                                 Fstar,
                                 area_cm2,
                                 observatory.coronagraph.pixscale,
-                                throughput[ilambd],
+                                observatory.total_throughput[ilambd],
                                 deltalambda_nm,
                                 1,
                                 noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
@@ -1481,7 +1462,7 @@ def calculate_signal_to_noise(
                                     Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
                                     area_cm2,
                                     observatory.coronagraph.pixscale,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 
@@ -1494,7 +1475,7 @@ def calculate_signal_to_noise(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 
@@ -1507,7 +1488,7 @@ def calculate_signal_to_noise(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                     scene.dist[istar],
                                     scene.sp[iphase, iorbit, istar],
@@ -1521,7 +1502,7 @@ def calculate_signal_to_noise(
                                         int(np.floor(iy)), int(np.floor(ix))
                                     ],
                                     area_cm2,
-                                    throughput[ilambd],
+                                    observatory.total_throughput[ilambd],
                                     deltalambda_nm,
                                 )
 

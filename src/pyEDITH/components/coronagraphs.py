@@ -127,6 +127,8 @@ class Coronagraph(ABC):
         Number of PSF ratios.
     nrolls : int
         Number of roll angles.
+    nchannels : int
+        Number of channels.
     psf_trunc_ratio : np.ndarray
         PSF truncation ratio.
     minimum_IWA : float
@@ -161,6 +163,7 @@ class Coronagraph(ABC):
             "ndiams": (int, np.integer),
             "npsfratios": (int, np.integer),
             "nrolls": (int, np.integer),
+            "nchannels": (int, np.integer),
             "psf_trunc_ratio": np.ndarray,
             "minimum_IWA": (float, np.floating),
             "maximum_OWA": (float, np.floating),
@@ -195,9 +198,10 @@ class ToyModelCoronagraph(Coronagraph):
         "Tcore": 0.2968371,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
         "TLyot": 0.65,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "nrolls": 1,  # number of rolls
+        "nchannels": 2,  # number of channels
         "psf_trunc_ratio": [0.3],  # nlambda array
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
-        "coronagraph_throughput": 1,  # NOTE taken into account in telescope_throughput for ToyModel
+        "coronagraph_throughput": 0.44,  # Coronagraph throughput [made up from EAC1-ish]
     }
 
     def load_configuration(self, parameters, mediator):
@@ -209,9 +213,6 @@ class ToyModelCoronagraph(Coronagraph):
         parameters : dict
             A dictionary containing simulation parameters including target star
             parameters, planet parameters, and observational parameters.
-        observation: Observation
-            An instance of the observation class.
-        ALL OF THE CLASSES
         Returns
         -------
         None

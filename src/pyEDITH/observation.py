@@ -92,6 +92,7 @@ class Observation:
             parameters["snr"], dtype=np.float64
         )  # signal to noise # nlambd array
         self.photap_rad = parameters["photap_rad"]  # (lambd/D) # scalar
+        self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
     def set_output_arrays(self):
         """
@@ -113,3 +114,25 @@ class Observation:
 
         # only used for snr calculation
         self.fullsnr = np.full((1, self.nlambd), 0.0)
+
+    def validate_configuration(self):
+        """
+        Check that mandatory variables are there and have the right format.
+        There can be other variables, but they are not needed for the calculation.
+        """
+        expected_args = {
+            "lambd": np.ndarray,
+            "nlambd": (int, np.integer),
+            "SR": np.ndarray,
+            "SNR": np.ndarray,
+            "photap_rad": (float, np.floating),
+            "CRb_multiplier": (float, np.floating),
+        }
+
+        for arg, expected_type in expected_args.items():
+            if not hasattr(self, arg):
+                raise AttributeError(f"Observation is missing attribute: {arg}")
+            if not isinstance(getattr(self, arg), expected_type):
+                raise TypeError(
+                    f"Observation attribute {arg} should be of type {expected_type}, but is {type(getattr(self, arg))}"
+                )
