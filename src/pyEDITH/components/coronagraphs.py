@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from .. import parse_input
+from yippy import Coronagraph as yippycoro
+from lod_unit import lod
 
 
 def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
@@ -369,9 +371,34 @@ class EAC1Coronagraph(Coronagraph):
             float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
         )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
-        self.skytrans = np.full(
-            (self.npix, self.npix), self.TLyot
-        )  # skytrans at all separations
+        have_YIP=False
+        if have_YIP:
+
+            YIP_dir = "/Users/mhcurrie/science/packages/yippy/yips/usort_offaxis_ovc"
+
+            # if you have a YIP to use
+            # load skytrans using yippy and a YIP
+            # Create a coronagraph object by specifying the path to the yield input package
+            coro = yippycoro(YIP_dir)
+
+            # Off-axis PSF at a given point source position in the (x,y) plane
+            # TODO: these are defined somewhere in here. same with stellar diameter
+            x_pos = 2 * lod # 2 lambda/D
+            y_pos = 5 * lod # 5 lambda/D
+            offaxis_psf = coro.offax(x_pos, y_pos)
+
+            # On-axis intensity map with a stellar diameter
+            stellar_diameter = 1*lod
+            stellar_intensity = coro.stellar_intens(stellar_diameter)
+
+            # Sky transmission map for extended sources
+            self.skytrans = coro.sky_trans()
+
+        else:
+            # load a generic skytrans map
+            self.skytrans = np.full(
+                (self.npix, self.npix), self.TLyot
+            )  # skytrans at all separations
 
         self.photap_frac = np.full(
             (self.npix, self.npix, len(self.psf_trunc_ratio)), self.Tcore
