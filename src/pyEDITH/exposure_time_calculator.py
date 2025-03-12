@@ -24,7 +24,7 @@ def calculate_CRp(
     Parameters
     ----------
     F0 : float
-        Flux zero point.
+        Flux zero point. [photons]
     Fstar : float
         Stellar flux.
     Fp0 : float
@@ -1025,7 +1025,7 @@ def calculate_exposure_time(
                                     det_omega_lod,
                                     detpixscale_lod,
                                 )
-                                #CRbth = 0
+
                                 CRbth = calculate_CRbth(
                                     observation.lambd[
                                         ilambd

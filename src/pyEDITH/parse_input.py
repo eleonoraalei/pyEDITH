@@ -5,7 +5,7 @@ import astropy.units as u
 import numpy as np
 
 
-def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
+def parse_input_file(file_path: Union[Path, str], secondary_flag, units_flag) -> Tuple[Dict, Dict]:
     """
     Parses an input file and extracts variables and secondary variables.
 
@@ -13,6 +13,10 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
     -----------
     file_path : Union[Path,str]
         Path to the input file.
+    units_flag : bool
+        if true, units should be in input file as the first IDL comment.
+        i.e. a line in the input file should look like this:
+        parameter = value ;  unit ; parameter description
 
     Returns:
     --------
@@ -38,14 +42,41 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
         if line.strip() and not line.strip().startswith(";")
     ]
 
+    if units_flag:
+        import astropy.units as u
+        # define a couple of custom units:
+        readout = u.def_unit("readout")
+        photon_count = u.def_unit("photon_count")
+        units_arr = [line.split(";")[1].strip() for line in content.split("\n")
+                if line.strip() and not line.strip().startswith(";")]
+        
+        # convert to astropy units:
+        for u_i in range(len(units_arr)):
+            if units_arr[u_i] in ["", None, "dimensionless"]:
+                unit_astropy = u.dimensionless_unscaled
+            elif units_arr[u_i] == "ct/pix/readout":
+                unit_astropy = u.ct/u.pix/readout
+            elif units_arr[u_i] == "ct/pix/photon_count":
+                unit_astropy = u.ct / u.pix / photon_count
+            else:
+                try:
+                    unit_astropy = u.Unit(units_arr[u_i])
+                except ValueError:
+                    raise ValueError(f"Invalid unit '{units_arr[u_i]}' ")
+            units_arr[u_i] = unit_astropy
+        assert len(lines) == len(units_arr)
+
     variables = {}
     secondary_variables = {}
-    for line in lines:
+    if units_flag:
+        units = {}
+    for i_line, line in enumerate(lines):
         if "=" in line:
             key, value = line.split("=", 1)
             key = key.strip()
             value = value.strip()
-
+            if units_flag:
+                val_unit = units_arr[i_line]
             # Handle arrays
             if value.startswith("[") and value.endswith("]"):
                 value = [float(v.strip()) for v in value[1:-1].split(",")]
@@ -62,18 +93,22 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
                         value = int(value)
                 except ValueError:
                     pass  # Keep as string if it's not a number
-
-            if "secondary" in key and secondary_flag:
-                secondary_variables[key[10:]] = value  # it replaces the default value
+            if units_flag:
+                if "secondary" in key and secondary_flag:
+                    secondary_variables[key[10:]] = (value,val_unit)  # it replaces the default value
+                else:
+                    variables[key] = (value,val_unit)
             else:
-                variables[key] = value
+                if "secondary" in key and secondary_flag:
+                    secondary_variables[key[10:]] = value  # it replaces the default value
+                else:
+                    variables[key] = value
 
     # Fill in missing secondary variables with primary variable values
     # if secondary_flag:
     #     for key in variables:
     #         if key not in secondary_variables:
     #             secondary_variables[key] = variables[key]
-
     return variables, secondary_variables
 
 
@@ -106,7 +141,7 @@ def checks_on_list_values(key: str, value, length: int) -> bool:
     return True
 
 
-def parse_parameters(parameters: dict) -> dict:
+def parse_parameters(parameters: dict, units_flag=False) -> dict:
     """
     Parses and processes input parameters for the Edith simulation.
 
@@ -135,15 +170,19 @@ def parse_parameters(parameters: dict) -> dict:
     nmeananom and norbits are defaulted to 1.
     """
 
-    def parse_list_param(key, default_len):
-        value = parameters[key]
+    def parse_list_param(key, default_len, units_flag):
+        if units_flag:
+            value = parameters[key][0]
+        else:
+            value = parameters[key]
+        
         if default_len > 1:
             # it is supposed to be a list.
             checks_on_list_values(key, value, default_len)
             return [float(v) for v in value]
         else:
             return [float(value)]
-
+        
     parsed_params = {}
 
     # CONSTANTS
@@ -155,8 +194,8 @@ def parse_parameters(parameters: dict) -> dict:
     parsed_params["ntargs"] = 1  # For now, we assume one target
 
     # ------ ARRAYS OF LENGTH NLAMBDA ------
-    parsed_params["lambd"] = parse_list_param("lambda", parsed_params["nlambda"])
-
+    parsed_params["lambd"] = parse_list_param("lambda", parsed_params["nlambda"], units_flag)
+    
     wavelength_params = [
         "resolution",
         "snr",
@@ -173,7 +212,7 @@ def parse_parameters(parameters: dict) -> dict:
 
     parsed_params.update(
         {
-            key: parse_list_param(key, parsed_params["nlambda"])
+            key: parse_list_param(key, parsed_params["nlambda"], units_flag)
             for key in list(set(wavelength_params) & set(parameters.keys()))
         }
     )
@@ -192,7 +231,7 @@ def parse_parameters(parameters: dict) -> dict:
 
     parsed_params.update(
         {
-            key: parse_list_param(key, parsed_params["ntargs"])
+            key: parse_list_param(key, parsed_params["ntargs"], units_flag)
             for key in list(set(target_params) & set(parameters.keys()))
         }
     )
@@ -200,18 +239,18 @@ def parse_parameters(parameters: dict) -> dict:
     # ----- ARRAYS OF LENGTH NLAMBDA x NTARGS ----
     if "mag" in parameters.keys():
         parsed_params["mag"] = [
-            parse_list_param("mag", parsed_params["nlambda"])
+            parse_list_param("mag", parsed_params["nlambda"], units_flag)
             for targs in range(parsed_params["ntargs"])
         ]
         parsed_params["mag"] = list(map(list, zip(*parsed_params["mag"])))
     # ---- ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1)
     if "separation" in parameters.keys():
         parsed_params["sp"] = [
-            [parse_list_param("separation", parsed_params["ntargs"])]
+            [parse_list_param("separation", parsed_params["ntargs"], units_flag)]
         ]
     if "delta_mag" in parameters.keys():
         parsed_params["delta_mag"] = [
-            [parse_list_param("delta_mag", parsed_params["ntargs"])]
+            [parse_list_param("delta_mag", parsed_params["ntargs"], units_flag)]
         ]
 
     # ----- SCALARS ----
@@ -229,15 +268,21 @@ def parse_parameters(parameters: dict) -> dict:
         "TLyot",
         "temperature",
         "Tcontam",
-        "CRb_multiplier",
+        "CRb_multiplier"
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):
-        parsed_params[key] = float(parameters[key])
+        if units_flag:
+            parsed_params[key] = float(parameters[key][0])
+        else:
+            parsed_params[key] = float(parameters[key])
 
     # ---- CORONAGRAPH SPECS---
     if "nrolls" in parameters.keys():
-        parsed_params["nrolls"] = int(parameters["nrolls"])
+        if units_flag:
+            parsed_params["nrolls"] = int(parameters["nrolls"][0])
+        else:
+            parsed_params["nrolls"] = int(parameters["nrolls"])
 
     # ----- OBSERVATORY SPECS ---
     for key in [
@@ -250,11 +295,19 @@ def parse_parameters(parameters: dict) -> dict:
         if key in parameters.keys():
             parsed_params[key] = parameters[key]
 
+    params_with_units = wavelength_params + target_params + scalar_params
+    if units_flag:
+        # do lambd since the name changed between parameters and parsed_params (Why is this??)
+        parsed_params["lambd"] = (parsed_params["lambd"], parameters["lambda"][1])
+        for key in list(set(params_with_units) & set(parameters.keys())):
+            # include the unit
+            parsed_params[key] = (parsed_params[key], parameters[key][1])
+
     return parsed_params
 
 
 def read_configuration(
-    input_file: Union[Path, str], secondary_flag=False
+    input_file: Union[Path, str], secondary_flag=False, units_flag=False,
 ) -> Tuple[Dict, Dict]:
     """
     Reads and parses the configuration from an input file.
@@ -280,8 +333,8 @@ def read_configuration(
     parse_parameters() to process them.
     """
 
-    parameters, secondary_parameters = parse_input_file(input_file, secondary_flag)
-    parsed_parameters = parse_parameters(parameters)
+    parameters, secondary_parameters = parse_input_file(input_file, secondary_flag, units_flag)
+    parsed_parameters = parse_parameters(parameters, units_flag=units_flag)
     if secondary_flag:
         parsed_secondary_parameters = parse_parameters(secondary_parameters)
     else:

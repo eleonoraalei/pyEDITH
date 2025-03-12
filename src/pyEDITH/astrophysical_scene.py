@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
+import astropy.units as u
+import astropy.constants as c
 
 
 def calc_flux_zero_point(
@@ -19,7 +21,7 @@ def calc_flux_zero_point(
     Parameters:
     -----------
     lambd : np.ndarray
-        Wavelengths in microns.
+        Wavelengths in microns. [um]
     unit : str, optional
         Output unit. Possible values are:
         - "jy" for output in Jy
@@ -106,7 +108,10 @@ def calc_flux_zero_point(
             kind="cubic",
             fill_value="extrapolate",
         )  # TODO this interpolation is not exactly the same, is that okay?
-        logf0 = interp(np.log10(lambd))
+        if isinstance(lambd, u.Quantity):
+            logf0 = interp(np.log10(lambd.value))
+        else:
+            logf0 = interp(np.log10(lambd))
         f0 = 10.0**logf0  # undo the logarithm
 
     # Now change the units from Jy if necessary
@@ -327,8 +332,12 @@ def calc_zodi_flux(
         )
 
     # Convert to radians internally
-    dec_rad = dec * (np.double(np.pi) / 180.0)
-    ra_rad = ra * (np.double(np.pi) / 180.0)
+    if isinstance(dec, u.Quantity):
+        dec_rad = dec.to(u.radian)
+        ra_rad = ra.to(u.radian)
+    else:
+        dec_rad = dec * (np.double(np.pi) / 180.0)
+        ra_rad = ra * (np.double(np.pi) / 180.0)
 
     # First, convert equatorial coordinates to ecliptic coordinates
     # This is nicely summarized in Leinert et al. (1998)
@@ -429,7 +438,7 @@ def calc_zodi_flux(
         kind="cubic",
         fill_value="extrapolate",
     )
-    f = interp(sinbeta)
+    f = interp(sinbeta) # TODO: what are the units here??? Unclear.
 
     # STARSHADE functionality not enabled #
     # For a starshade, we assume a mean solar elongation of 59 degrees
@@ -466,7 +475,7 @@ def calc_zodi_flux(
 
     zodi_lambd = np.array(
         [0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1.0, 1.2, 2.2, 3.5, 4.8, 12, 25, 60, 100, 140]
-    )  # microns
+    ) *u.um  # microns
     zodi_blambd = np.array(
         [
             2.5e-8,
@@ -486,30 +495,59 @@ def calc_zodi_flux(
             3.2e-9,
             6.9e-10,
         ]
-    )  # W m^-2 sr^-1 micron^-1
+    ) * u.W/u.m**2/u.sr/u.um  # W m^-2 sr^-1 micron^-1
+    # validated with previous method (i.e. dividing by a bunch of stuff)
+    zodi_blambd = zodi_blambd.to(u.erg/u.s/u.cm**2/u.arcsec**2/u.nm)
     # convert the above to erg s^-1 cm^-2 arcsec^-2 nm^-1
-    zodi_blambd *= 1.0e7  # convert W to erg s^-1
-    zodi_blambd /= 1.0e4  # convert m^-2 to cm^-2
-    zodi_blambd /= 4.25e10  # convert sr^-1 to arcsec^-2
-    zodi_blambd /= 1000.0  # convert micron^-1 to nm^-1
+    # zodi_blambd *= 1.0e7  # convert W to erg s^-1
+    # zodi_blambd /= 1.0e4  # convert m^-2 to cm^-2
+    # zodi_blambd /= 4.25e10  # convert sr^-1 to arcsec^-2
+    # zodi_blambd /= 1000.0  # convert micron^-1 to nm^-1
+    print("zodi_blambd", zodi_blambd)
 
-    interp = interp1d(np.log10(zodi_lambd), np.log10(zodi_blambd), kind="cubic")
-    blambd = interp(np.log10(lambd))
-    blambd = 10.0**blambd
+    def log_interp(xnew, x, y):
+        # custom log interpolation functiont that preserves astropy units 
+        if isinstance(x, u.Quantity):
+            yunits = y.unit
+            xnew = xnew.value
+            x = x.value
+            y = y.value
+        else:
+            yunits = 1. # return no units if none were given
+
+        xnew_log = np.log10(xnew)
+
+        interp_func = interp1d(np.log10(x), np.log10(y), kind="cubic")
+
+        ynew_log = interp_func(xnew_log)
+
+        ynew = 10**ynew_log * yunits
+
+        return ynew
+
+    # interp = interp1d(np.log10(zodi_lambd.value), np.log10(zodi_blambd.value), kind="cubic")
+    # blambd = interp(np.log10(lambd))
+    # blambd = 10.0**blambd
+    blambd = log_interp(lambd, zodi_lambd, zodi_blambd) # validated with method above
+    
     I90fabsfco = blambd
 
     # Now divide by energy of a photon in erg
-    c = 2.998e10  # cm s^-1
-    h = 6.62608e-27  # planck constant in cgs
-    ephoton = h * c / (lambd / 1e4)
+    # c = 2.998e10  # cm s^-1
+    # h = 6.62608e-27  # planck constant in cgs
+    # ephoton = h * c / (lambd.value / 1e4)
+    # validated with above
+    ephoton = (c.h * c.c / lambd).to(u.erg)
     I90fabsfco /= ephoton
     I90fabsfco /= F0
+    print("I90fabsfco", I90fabsfco)
 
     # Multiply by the wavelength dependence for each value of lambd
     nstars = len(ra)
     nlambd = len(lambd)
 
     flux_zodi = np.full((nlambd, nstars), f)
+    print(flux_zodi)
     for ilambd in range(nlambd):
         flux_zodi[ilambd, :] *= I90fabsfco[ilambd]
 
@@ -604,49 +642,95 @@ class AstrophysicalScene:
         KeyError
             If a required parameter is missing from the input dictionary.
         """
+        def process_param(param):
+            if isinstance(param, tuple):
+                param_updated = np.array(param[0], dtype=np.float64)*param[1]
+            else:
+                param_updated = np.array(param, dtype=np.float64)
+            return param_updated
 
         # -------- INPUTS ---------
         # Target star parameters
         self.ntargs = 1
 
         # luminosity of star (solar luminosities) (ntargs array)
-        self.Lstar = np.array(parameters["Lstar"], dtype=np.float64)
+        self.Lstar = process_param(parameters["Lstar"])
 
         # distance to star (pc) (ntargs array)
-        self.dist = np.array(parameters["distance"], dtype=np.float64)
+        self.dist = process_param(parameters["distance"])
 
         # stellar mag at V band (ntargs array)
-        self.vmag = np.array(parameters["magV"], dtype=np.float64)
+        self.vmag =  process_param(parameters["magV"])
 
         # stellar mag at desired lambd (nlambd x ntargs array)
-        self.mag = np.array(parameters["mag"], dtype=np.float64)
+        self.mag =  process_param(parameters["mag"])
 
         # angular diameter of star (arcsec) (ntargs array)
-        self.angdiam_arcsec = np.array(parameters["angdiam"], dtype=np.float64)
+        self.angdiam_arcsec =  process_param(parameters["angdiam"])
 
         # amount of exozodi around target star ("zodis") (ntargs array)
-        self.nzodis = np.array(parameters["nzodis"], dtype=np.float64)
+        self.nzodis =  process_param(parameters["nzodis"])
 
         # right ascension of target star used to estimate zodi (deg) (ntargs array)
-        self.ra = np.array(parameters["ra"], dtype=np.float64)
+        self.ra =  process_param(parameters["ra"])
 
         # declination of target star used to estimate zodi (deg) (ntargs array)
-        self.dec = np.array(parameters["dec"], dtype=np.float64)
+        self.dec =  process_param(parameters["dec"])
 
         # Planet parameters
         # separation of planet (arcseconds) (nmeananom x norbits x ntargs array)
         # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
         # SO THAT XP = SP (input) and YP = 0
-        self.sp = np.array(parameters["sp"], dtype=np.float64)
+        self.sp =  process_param(parameters["sp"])
         self.xp = self.sp.copy()
         self.yp = self.sp.copy() * 0.0
 
         # difference in mag between planet and host star
         # (nmeananom x norbits x ntargs array)
-        self.deltamag = np.array(parameters["delta_mag"], dtype=np.float64)
+        self.deltamag =  process_param(parameters["delta_mag"])
         # brightest planet to resolve w/ photon counting detector evaluated at
         # the IWA, sets the time between counts (ntargs array)
-        self.min_deltamag = np.array(parameters["delta_mag_min"], dtype=np.float64)
+        self.min_deltamag =  process_param(parameters["delta_mag_min"])
+                     
+
+        # # luminosity of star (solar luminosities) (ntargs array)
+        # self.Lstar = np.array(parameters["Lstar"], dtype=np.float64)
+
+        # # distance to star (pc) (ntargs array)
+        # self.dist = np.array(parameters["distance"], dtype=np.float64)
+
+        # # stellar mag at V band (ntargs array)
+        # self.vmag = np.array(parameters["magV"], dtype=np.float64)
+
+        # # stellar mag at desired lambd (nlambd x ntargs array)
+        # self.mag = np.array(parameters["mag"], dtype=np.float64)
+
+        # # angular diameter of star (arcsec) (ntargs array)
+        # self.angdiam_arcsec = np.array(parameters["angdiam"], dtype=np.float64)
+
+        # # amount of exozodi around target star ("zodis") (ntargs array)
+        # self.nzodis = np.array(parameters["nzodis"], dtype=np.float64)
+
+        # # right ascension of target star used to estimate zodi (deg) (ntargs array)
+        # self.ra = np.array(parameters["ra"], dtype=np.float64)
+
+        # # declination of target star used to estimate zodi (deg) (ntargs array)
+        # self.dec = np.array(parameters["dec"], dtype=np.float64)
+
+        # # Planet parameters
+        # # separation of planet (arcseconds) (nmeananom x norbits x ntargs array)
+        # # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
+        # # SO THAT XP = SP (input) and YP = 0
+        # self.sp = np.array(parameters["sp"], dtype=np.float64)
+        # self.xp = self.sp.copy()
+        # self.yp = self.sp.copy() * 0.0
+
+        # # difference in mag between planet and host star
+        # # (nmeananom x norbits x ntargs array)
+        # self.deltamag = np.array(parameters["delta_mag"], dtype=np.float64)
+        # # brightest planet to resolve w/ photon counting detector evaluated at
+        # # the IWA, sets the time between counts (ntargs array)
+        # self.min_deltamag = np.array(parameters["delta_mag_min"], dtype=np.float64)
 
     def calculate_zodi_exozodi(self, observation: object) -> None:
         """
@@ -680,9 +764,14 @@ class AstrophysicalScene:
             calc_flux_zero_point(lambd=observation.lambd, unit="pcgs", perlambd=True)
         ) / 1e7  # convert to photons cm^-2 nm^-1 s^-1
 
-        self.M_V = (
-            self.vmag - 5.0 * np.log10(self.dist) + 5.0
-        )  # calculate absolute V band mag of target
+        if isinstance(self.dist, u.Quantity):
+            self.M_V = (
+                self.vmag - 5.0 * np.log10(self.dist/u.pc)*u.mag + 5.0*u.mag
+            )  # calculate absolute V band mag of target
+        else:
+            self.M_V = (
+                self.vmag - 5.0 * np.log10(self.dist) + 5.0
+            )  # calculate absolute V band mag of target
         self.Fzodi_list = calc_zodi_flux(self.dec, self.ra, observation.lambd, self.F0)
 
         self.Fexozodi_list = calc_exozodi_flux(

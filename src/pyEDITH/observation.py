@@ -1,5 +1,5 @@
 import numpy as np
-
+import astropy.units as u
 
 class Observation:
     """
@@ -81,18 +81,36 @@ class Observation:
 
         # -------- INPUTS ---------
         # Observational parameters
-        self.lambd = np.array(
-            parameters["lambd"], dtype=np.float64
-        )  # wavelength # nlambd array #unit: micron
+        def process_param(param):
+            if isinstance(param, tuple):
+                param_updated = np.array(param[0], dtype=np.float64)*param[1]
+            else:
+                param_updated = np.array(param, dtype=np.float64)
+            return param_updated
+        
+        self.lambd = process_param(parameters["lambd"])
+        self.SR = process_param(parameters["resolution"]) 
+        self.SNR = process_param(parameters["snr"]) #np.array(
+        self.photap_rad = process_param(parameters["photap_rad"])
+        self.CRb_multiplier = process_param(parameters["CRb_multiplier"])
+
+    #     self.lambd = np.array(
+    #         parameters["lambd"], dtype=np.float64
+    #     )  # wavelength # nlambd array #unit: micron
+
+    #     self.SR = np.array(
+    #     parameters["resolution"], dtype=np.float64
+    # )  # spec res # nlambd array
+        
+    #     self.SNR = np.array(
+    #     parameters["snr"], dtype=np.float64
+    # )  # signal to noise # nlambd array
+        
+    #     self.photap_rad = parameters["photap_rad"]  # (lambd/D) # scalar
+
+    #     self.CRb_multiplier = float(parameters["CRb_multiplier"])
+        
         self.nlambd = len(self.lambd)
-        self.SR = np.array(
-            parameters["resolution"], dtype=np.float64
-        )  # spec res # nlambd array
-        self.SNR = np.array(
-            parameters["snr"], dtype=np.float64
-        )  # signal to noise # nlambd array
-        self.photap_rad = parameters["photap_rad"]  # (lambd/D) # scalar
-        self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
     def set_output_arrays(self):
         """
@@ -121,12 +139,12 @@ class Observation:
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "lambd": np.ndarray,
+            "lambd": (np.ndarray),
             "nlambd": (int, np.integer),
             "SR": np.ndarray,
             "SNR": np.ndarray,
-            "photap_rad": (float, np.floating),
-            "CRb_multiplier": (float, np.floating),
+            "photap_rad": (float, np.floating, u.quantity.Quantity),
+            "CRb_multiplier": (float, np.floating, u.quantity.Quantity),
         }
 
         for arg, expected_type in expected_args.items():
