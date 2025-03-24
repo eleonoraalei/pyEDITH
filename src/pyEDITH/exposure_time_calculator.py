@@ -6,9 +6,6 @@ import astropy.units as u
 from astropy.modeling import models
 from .units import *
 
-# TODO : add QE to detector noise
-# TODO : verify thermal noise
-
 
 def calculate_CRp(
     F0: u.Quantity,
@@ -345,6 +342,7 @@ def calculate_CRbth(
     lod_rad: u.Quantity,
     emis: u.Quantity,
     QE: u.Quantity,
+    dQE: u.Quantity,
 ) -> u.Quantity:
     """
     Calculate background thermal count rate.
@@ -365,7 +363,8 @@ def calculate_CRbth(
         Effective emissivity for the observing system. [dimensionless]
     QE : u.Quantity
         Quantum efficiency. [electron/photon]
-
+    dQE : u.Quantity
+        Effective QE due to degradation. [dimensionless factor to multiply to QE]
     Returns
     -------
     u.Quantity
@@ -394,11 +393,11 @@ def calculate_CRbth(
 
     # Convert to photon spectral radiance
     Blambda_photon = (Blambda_energy).to(
-        u.photon / (u.cm**2 * u.um * u.s * u.sr), equivalencies=u.spectral_density(lam)
+        u.photon / (u.cm**2 * u.nm * u.s * u.sr), equivalencies=u.spectral_density(lam)
     )
 
     # Calculate thermal background count rate
-    return (Blambda_photon * dlambda * area * (lod_rad * lod_rad) * emis * QE).to(
+    return (Blambda_photon * dlambda * area * (lod_rad * lod_rad) * emis * QE * dQE).to(
         u.electron / u.s
     )
 
@@ -418,30 +417,19 @@ def calculate_CRbth(
 
 
 def calculate_t_photon_count(
-    det_pixscale_mas: u.Quantity,
-    det_npix_multiplier: float,
-    det_omega_lod: u.Quantity,
+    det_npix: u.Quantity,
     det_CR: u.Quantity,
-    wavelength: u.Quantity,
-    diameter: u.Quantity,
 ) -> u.Quantity:
     """
     Calculate the photon counting time.
 
     Parameters
     ----------
-    det_pixscale_mas : u.Quantity
-        Detector pixel scale. [mas]
-    det_npix_multiplier : float
-        Multiplier for number of detector pixels.
-    det_omega_lod : u.Quantity
-        Solid angle of the photometric aperture. [lambda/D]^2
+    det_npix : u.Quantity
+        Number of detector pixels [pix]
     det_CR : u.Quantity
         Detector count rate. [photons / s]
-    wavelength : u.Quantity
-        Wavelength of observation. [um]
-    diameter : u.Quantity
-        Telescope diameter. [m]
+
 
     Returns
     -------
@@ -477,16 +465,7 @@ def calculate_t_photon_count(
 
     So this means that t should have [s/frame] units
     """
-    detpixscale_lod = arcsec_to_lambda_d(
-        det_pixscale_mas.to(ARCSEC), wavelength, diameter
-    )
-
-    #  this is temporary to estimate the per pixel noise
-    det_npix = (
-        det_npix_multiplier * det_omega_lod / (detpixscale_lod**2)
-    ) * PIXEL  # number of pixels in detector
     counts_per_second_per_pixel = det_CR / det_npix  #  electron / s / pix
-    print("counts_per_second_per_pixel", counts_per_second_per_pixel)
     # NOTE: I am just extrapolating that 6.73 has units [pix*frame/electron]
     t_photon_count = 1.0 / (
         6.73 * PIXEL * FRAME / ELECTRON * counts_per_second_per_pixel
@@ -495,22 +474,20 @@ def calculate_t_photon_count(
 
 
 def calculate_CRbd(
-    det_npix_multiplier: float,
+    det_npix: u.Quantity,
     det_DC: u.Quantity,
     det_RN: u.Quantity,
     det_tread: u.Quantity,
     det_CIC: u.Quantity,
     t_photon_count: u.Quantity,
-    det_omega_lod: u.Quantity,
-    detpixscale_lod: u.Quantity,
 ) -> u.Quantity:
     """
     Calculate the detector noise count rate.
 
     Parameters
     ----------
-    det_npix_multiplier : float
-        Multiplier for number of detector pixels.
+    det_npix : u.Quantity
+        Number of detector pixels [pix]
     det_DC : u.Quantity
         Dark current. [electron / pix / s]
     det_RN : u.Quantity
@@ -521,11 +498,6 @@ def calculate_CRbd(
         Clock-induced charge. [electron / pix / photon]
     t_photon_count : u.Quantity
         Photon counting time. [pix * s / electron]
-    det_omega_lod : u.Quantity
-        Solid angle of the photometric aperture. [lambda/D]^2
-    detpixscale_lod : u.Quantity
-        Detector pixel scale. [lambda/D]
-
     Returns
     -------
     u.Quantity
@@ -549,13 +521,6 @@ def calculate_CRbd(
     +++ THEN: CRb += CRbd; +++
 
     """
-    # Print all variables involved in the function
-
-    # calculate npix
-    det_npix = det_npix_multiplier * det_omega_lod / (detpixscale_lod) ** 2 * PIXEL
-
-    # Print the calculated det_npix
-    print(f"Calculated det_npix: {det_npix}")
     print(det_DC, det_RN * det_RN / det_tread, det_CIC / t_photon_count)
     print("THIS DOES NOT WORK. I WILL HARDCODE THE VALUES FOR NOW")
     return (
@@ -814,6 +779,7 @@ def calculate_exposure_time(
     observation: Observation,
     scene: AstrophysicalScene,
     observatory: Observatory,
+    verbose: bool,
 ) -> None:
     """
     Calculate the exposure time for each target and wavelength.
@@ -830,7 +796,8 @@ def calculate_exposure_time(
         Object containing scene parameters.
     observatory: Observatory
         Object containing observatory parameters.
-
+    verbose : boolean
+        Verbose flag.
     """
 
     for istar in range(scene.ntargs):  # set to 1
@@ -927,6 +894,14 @@ def calculate_exposure_time(
                 oneopixscale_arcsec,
             )
 
+            #  Calculate det_npix
+            det_npix = (
+                observatory.detector.npix_multiplier[ilambd]
+                * det_omega_lod
+                / (detpixscale_lod**2)
+                * observatory.coronagraph.nchannels
+            ) * PIXEL  # number of pixels in detector
+
             # Here we calculate detector noise, as it may depend on count rates
             # We don't know the count rates yet, so we make estimates based on
             # values near the IWA
@@ -990,14 +965,18 @@ def calculate_exposure_time(
                 observatory.coronagraph.nchannels,
             )
 
-            det_CRbth = calculate_CRbth(
-                observation.lambd[ilambd],
-                area_cm2,
-                deltalambda_nm,
-                observatory.telescope.temperature,
-                lod_rad,
-                observatory.epswarmTrcold[ilambd],
-                observatory.detector.QE[ilambd,],
+            det_CRbth = (
+                calculate_CRbth(
+                    observation.lambd[ilambd],
+                    area_cm2,
+                    deltalambda_nm,
+                    observatory.telescope.temperature,
+                    lod_rad,
+                    observatory.epswarmTrcold[ilambd],
+                    observatory.detector.QE[ilambd,],
+                    observatory.detector.dQE[ilambd,],
+                )
+                * det_omega_lod
             )
 
             det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin + det_CRbth
@@ -1157,23 +1136,17 @@ def calculate_exposure_time(
 
                                 # Calculate CRbd
                                 t_photon_count = calculate_t_photon_count(
-                                    observatory.detector.pixscale_mas,
-                                    observatory.detector.npix_multiplier[ilambd],
-                                    det_omega_lod,
+                                    det_npix,
                                     det_CR,
-                                    observation.lambd[ilambd],
-                                    observatory.telescope.diameter,
                                 )
 
                                 CRbd = calculate_CRbd(
-                                    observatory.detector.npix_multiplier[ilambd],
+                                    det_npix,
                                     observatory.detector.DC[ilambd],
                                     observatory.detector.RN[ilambd],
                                     observatory.detector.tread[ilambd],
                                     observatory.detector.CIC[ilambd],
                                     t_photon_count,
-                                    det_omega_lod,
-                                    detpixscale_lod,
                                 )
 
                                 CRbth = calculate_CRbth(
@@ -1184,6 +1157,7 @@ def calculate_exposure_time(
                                     lod_rad,
                                     observatory.epswarmTrcold[ilambd],
                                     observatory.detector.QE[ilambd,],
+                                    observatory.detector.dQE[ilambd,],
                                 )
 
                                 # TOTAL BACKGROUND NOISE
@@ -1242,14 +1216,21 @@ def calculate_exposure_time(
                         # outside of the input contrast map or hard
                         # IWA/OWA cutoffs
                         observation.exptime[istar, ilambd] = np.inf
-
-                    print_diagnostic_info(
-                        istar,
+                if verbose:
+                    print_all_variables(
+                        observation,
+                        scene,
+                        observatory,
                         Fstar,
                         deltalambda_nm,
+                        lod,
+                        lod_rad,
                         lod_arcsec,
                         area_cm2,
+                        detpixscale_lod,
                         stellar_diam_lod,
+                        Istar_interp,
+                        noisefloor_interp,
                         pixscale_rad,
                         oneopixscale_arcsec,
                         det_sep_pix,
@@ -1264,29 +1245,21 @@ def calculate_exposure_time(
                         det_CRbez,
                         det_CRbbin,
                         det_CRbth,
+                        det_CR,
+                        ix,
+                        iy,
+                        sp_lod,
                         CRp,
-                        CRb,
                         CRnf,
-                        observation.SNR[ilambd],
-                        observatory.telescope.toverhead_multi,
-                        observatory.telescope.toverhead_fixed,
+                        CRbs,
+                        CRbz,
+                        CRbez,
+                        CRbbin,
+                        t_photon_count,
+                        CRbd,
+                        CRbth,
+                        CRb,
                         cp,
-                        observation.exptime[istar, ilambd],
-                        scene.F0[ilambd],
-                        scene.mag[istar, ilambd],
-                        observatory.telescope.diameter,
-                        observation.lambd[ilambd],
-                        observatory.total_throughput[ilambd],
-                        observatory.detector.DC[ilambd],
-                        observatory.detector.RN[ilambd],
-                        observatory.detector.CIC[ilambd],
-                        observatory.detector.tread[ilambd],
-                        observatory.detector.pixscale_mas,
-                        observatory.telescope.temperature,
-                        lod_rad,
-                        observatory.epswarmTrcold[ilambd],
-                        observatory.detector.QE[ilambd]
-                        * observatory.detector.dQE[ilambd],
                     )
         # NOTE FOR FUTURE DEVELOPMENT
         # The nmeananom, norbits, npsfratios loops are not stored in the
@@ -1662,13 +1635,98 @@ def calculate_signal_to_noise(
         return
 
 
-def print_diagnostic_info(
-    istar,
+def print_array_info(file, name, arr, mode="full_info"):
+    if mode == "full_info":
+        file.write(f"{name}:\n")
+
+        # Handle units
+        if hasattr(arr, "unit"):
+            if arr.unit == u.dimensionless_unscaled:
+                file.write(" Unit: dimensionless\n")
+            else:
+                file.write(f" Unit: {arr.unit}\n")
+        else:
+            file.write(" Unit: N/A\n")
+
+        # Convert to numpy array if it's not already
+        if not isinstance(arr, np.ndarray):
+            arr = np.array(arr)
+
+        # Handle shape
+        if arr.size == 1:
+            file.write(" Shape: scalar\n")
+            if np.issubdtype(arr.dtype, np.integer):
+                file.write(f" Value: {arr.item():d}\n")
+            else:
+                file.write(f" Value: {arr.item():.6e}\n")
+        else:
+            file.write(f" Shape: {arr.shape}\n")
+            if arr.size > 0:
+                max_val = np.max(arr)
+                min_val = np.min(arr)
+                max_coords = np.unravel_index(np.argmax(arr), arr.shape)
+                min_coords = np.unravel_index(np.argmin(arr), arr.shape)
+                file.write(f" Max value: {max_val} at coordinates: {max_coords}\n")
+                file.write(f" Min value: {min_val} at coordinates: {min_coords}\n")
+            else:
+                file.write(" Array is empty\n")
+    else:
+        # C-like output for non-full_info mode
+        file.write(f"{name}: ")
+
+        # Convert to numpy array if it's not already
+        if not isinstance(arr, np.ndarray):
+            arr = np.array(arr)
+
+        is_int = np.issubdtype(arr.dtype, np.integer)
+
+        # Check if the array has units
+        has_units = hasattr(arr, "unit")
+
+        if arr.size == 1:
+            if has_units:
+                if is_int:
+                    file.write(f"value: {arr.value.item():d}\n")
+                else:
+                    file.write(f"value: {arr.value.item():.6e}\n")
+            else:
+                if is_int:
+                    file.write(f"value: {arr.item():d}\n")
+                else:
+                    file.write(f"value: {arr.item():.6e}\n")
+        else:
+            max_val = np.max(arr)
+            min_val = np.min(arr)
+            if has_units:
+                if is_int:
+                    file.write(
+                        f"max value: {max_val.value:d}, min value: {min_val.value:d}\n"
+                    )
+                else:
+                    file.write(
+                        f"max value: {max_val.value:.6e}, min value: {min_val.value:.6e}\n"
+                    )
+            else:
+                if is_int:
+                    file.write(f"max value: {max_val:d}, min value: {min_val:d}\n")
+                else:
+                    file.write(f"max value: {max_val:.6e}, min value: {min_val:.6e}\n")
+
+
+def print_all_variables(
+    observation,
+    scene,
+    observatory,
     Fstar,
     deltalambda_nm,
+    lod,
+    lod_rad,
     lod_arcsec,
     area_cm2,
+    detpixscale_lod,
     stellar_diam_lod,
+    Istar_interp,
+    noisefloor_interp,
     pixscale_rad,
     oneopixscale_arcsec,
     det_sep_pix,
@@ -1683,87 +1741,271 @@ def print_diagnostic_info(
     det_CRbez,
     det_CRbbin,
     det_CRbth,
+    det_CR,
+    ix,
+    iy,
+    sp_lod,
     CRp,
-    CRb,
     CRnf,
-    SNR,
-    toverhead_multi,
-    toverhead_fixed,
+    CRbs,
+    CRbz,
+    CRbez,
+    CRbbin,
+    t_photon_count,
+    CRbd,
+    CRbth,
+    CRb,
     cp,
-    temptp,
-    F0,
-    magstar,
-    D,
-    lambd,
-    throughput,
-    det_DC,
-    det_RN,
-    det_CIC,
-    det_tread,
-    det_pixscale_mas,
-    temperature,
-    lod_rad,
-    epswarmTrcold,
-    QE,
 ):
+    for mode in ["validation", "full_info"]:
+        with open("pyedith_" + mode + ".txt", "w") as file:
+            file.write("Input Objects and Their Relevant Properties:\n")
+            file.write("1. Observation:\n")
+            print_array_info(file, "observation.lambd", observation.lambd, mode)
+            print_array_info(file, "observation.SR", observation.SR, mode)
+            print_array_info(file, "observation.SNR", observation.SNR, mode)
+            print_array_info(file, "observation.td_limit", observation.td_limit, mode)
+            print_array_info(
+                file, "observation.CRb_multiplier", observation.CRb_multiplier, mode
+            )
 
-    print(f"\n--- Diagnostic Information for Star {istar} ---")
+            file.write("\n2. Scene:\n")
+            print_array_info(file, "scene.mag", scene.mag, mode)
+            print_array_info(file, "scene.angdiam_arcsec", scene.angdiam_arcsec, mode)
+            print_array_info(file, "scene.F0", scene.F0, mode)
+            print_array_info(file, "scene.Fp0", scene.Fp0, mode)
+            print_array_info(file, "scene.Fzodi_list", scene.Fzodi_list, mode)
+            print_array_info(file, "scene.Fexozodi_list", scene.Fexozodi_list, mode)
+            print_array_info(file, "scene.Fbinary_list", scene.Fbinary_list, mode)
+            print_array_info(file, "scene.xp", scene.xp, mode)
+            print_array_info(file, "scene.yp", scene.yp, mode)
+            print_array_info(file, "scene.sp", scene.sp, mode)
+            print_array_info(file, "scene.dist", scene.dist, mode)
 
-    print("\nBasic Parameters:")
-    print(f"F0: {F0:.6e}")
-    print(f"magstar: {magstar:.6e}")
-    print(f"D: {D:.6e}")
-    print(f"lambda: {lambd * 1000.0:.6e}")
-    print(f"deltalambda_nm: {deltalambda_nm:.6e}")
-    print(f"throughput: {throughput:.6e}")
+            file.write("\n3. Observatory:\n")
+            file.write("Telescope:\n")
 
-    print("\nAstrophysical Quantities:")
-    print(f"Fstar: {Fstar:.6e}")
-    print(f"stellar_diam_lod: {stellar_diam_lod:.6e}")
+            print_array_info(
+                file,
+                "observatory.telescope.diameter",
+                observatory.telescope.diameter,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.telescope.temperature",
+                observatory.telescope.temperature,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.telescope.toverhead_multi",
+                observatory.telescope.toverhead_multi,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.telescope.toverhead_fixed",
+                observatory.telescope.toverhead_fixed,
+                mode,
+            )
+            print_array_info(
+                file, "observatory.total_throughput", observatory.total_throughput, mode
+            )
+            print_array_info(
+                file, "observatory.epswarmTrcold", observatory.epswarmTrcold, mode
+            )
 
-    print("\nGeometric Parameters:")
-    print(f"area_cm2: {area_cm2:.6e}")
-    print(f"lod_arcsec: {lod_arcsec:.6e}")
-    print(f"lod_rad: {lod_rad:.6e}")
-    print(f"pixscale_rad: {pixscale_rad:.6e}")
-    print(f"oneopixscale_arcsec: {oneopixscale_arcsec:.6e}")
+            file.write("\nCoronagraph:\n")
+            print_array_info(
+                file,
+                "observatory.coronagraph.bandwidth",
+                observatory.coronagraph.bandwidth,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.Istar",
+                observatory.coronagraph.Istar,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.noisefloor",
+                observatory.coronagraph.noisefloor,
+                mode,
+            )
+            print_array_info(
+                file, "observatory.coronagraph.npix", observatory.coronagraph.npix, mode
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.ndiams",
+                observatory.coronagraph.ndiams,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.angdiams",
+                observatory.coronagraph.angdiams,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.pixscale",
+                observatory.coronagraph.pixscale,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.psf_trunc_ratio",
+                observatory.coronagraph.psf_trunc_ratio,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.photap_frac",
+                observatory.coronagraph.photap_frac,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.skytrans",
+                observatory.coronagraph.skytrans,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.omega_lod",
+                observatory.coronagraph.omega_lod,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.xcenter",
+                observatory.coronagraph.xcenter,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.ycenter",
+                observatory.coronagraph.ycenter,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.nchannels",
+                observatory.coronagraph.nchannels,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.minimum_IWA",
+                observatory.coronagraph.minimum_IWA,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.maximum_OWA",
+                observatory.coronagraph.maximum_OWA,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.npsfratios",
+                observatory.coronagraph.npsfratios,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.coronagraph.nrolls",
+                observatory.coronagraph.nrolls,
+                mode,
+            )
 
-    print("\nCoronagraph Performance:")
-    print(f"det_sep_pix: {det_sep_pix:.6e}")
-    print(f"det_sep: {det_sep:.6e}")
-    print(f"det_Istar: {det_Istar:.6e}")
-    print(f"det_skytrans: {det_skytrans:.6e}")
-    print(f"det_photap_frac: {det_photap_frac:.6e}")
-    print(f"det_omega_lod: {det_omega_lod:.6e}")
+            file.write("\nDetector:\n")
+            print_array_info(
+                file,
+                "observatory.detector.pixscale_mas",
+                observatory.detector.pixscale_mas,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.detector.QE*observatory.detector.dQE",
+                observatory.detector.QE * observatory.detector.dQE,
+                mode,
+            )
+            print_array_info(
+                file,
+                "observatory.detector.npix_multiplier",
+                observatory.detector.npix_multiplier,
+                mode,
+            )
+            print_array_info(
+                file, "observatory.detector.DC", observatory.detector.DC, mode
+            )
+            print_array_info(
+                file, "observatory.detector.RN", observatory.detector.RN, mode
+            )
+            print_array_info(
+                file, "observatory.detector.tread", observatory.detector.tread, mode
+            )
+            print_array_info(
+                file, "observatory.detector.CIC", observatory.detector.CIC, mode
+            )
 
-    print("\nDetector Parameters:")
-    print(f"det_DC: {det_DC:.6e}")
-    print(f"det_RN: {det_RN:.6e}")
-    print(f"det_CIC: {det_CIC:.6e}")
-    print(f"det_tread: {det_tread:.6e}")
-    print(f"det_pixscale_mas: {det_pixscale_mas:.6e}")
+            file.write("\nCalculated Variables:\n")
+            file.write("\n1. Initial Calculations:\n")
+            print_array_info(file, "Fstar", Fstar, mode)
+            print_array_info(file, "deltalambda_nm", deltalambda_nm, mode)
+            print_array_info(file, "lod", lod, mode)
+            print_array_info(file, "lod_rad", lod_rad, mode)
+            print_array_info(file, "lod_arcsec", lod_arcsec, mode)
+            print_array_info(file, "area_cm2", area_cm2, mode)
+            print_array_info(file, "detpixscale_lod", detpixscale_lod, mode)
+            print_array_info(file, "stellar_diam_lod", stellar_diam_lod, mode)
 
-    print("\nCount Rates:")
-    print(f"CRp: {CRp:.6e}")
-    print(f"det_CRp: {det_CRp:.6e}")
-    print(f"det_CRbs: {det_CRbs:.6e}")
-    print(f"det_CRbz: {det_CRbz:.6e}")
-    print(f"det_CRbez: {det_CRbez:.6e}")
-    print(f"det_CRbbin: {det_CRbbin:.6e}")
-    print(f"det_CRbth: {det_CRbth:.6e}")
-    print(f"CRb: {CRb:.6e}")
-    print(f"CRnf: {CRnf:.6e}")
+            file.write("\n2. Interpolated Arrays:\n")
+            print_array_info(file, "Istar_interp", Istar_interp, mode)
+            print_array_info(file, "noisefloor_interp", noisefloor_interp, mode)
 
-    print("\nExposure Time Calculation:")
-    print(f"SNR: {SNR:.6e}")
-    print(f"toverhead_multi: {toverhead_multi:.6e}")
-    print(f"toverhead_fixed: {toverhead_fixed:.6e}")
-    print(f"cp: {cp:.6e}")
-    print(f"temptp (Exposure Time): {temptp:.6e}")
+            file.write("\n3. Coronagraph Performance Measurements:\n")
+            print_array_info(file, "pixscale_rad", pixscale_rad, mode)
+            print_array_info(file, "oneopixscale_arcsec", oneopixscale_arcsec, mode)
+            print_array_info(file, "det_sep_pix", det_sep_pix, mode)
+            print_array_info(file, "det_sep", det_sep, mode)
+            print_array_info(file, "det_Istar", det_Istar, mode)
+            print_array_info(file, "det_skytrans", det_skytrans, mode)
+            print_array_info(file, "det_photap_frac", det_photap_frac, mode)
+            print_array_info(file, "det_omega_lod", det_omega_lod, mode)
 
-    print("\nThermal Parameters:")
-    print(f"temperature: {temperature:.6e}")
-    print(f"epswarmTrcold: {epswarmTrcold:.6e}")
-    print(f"QE*dQE: {QE:.6e}")
+            file.write("\n4. Detector Noise Calculations:\n")
+            print_array_info(file, "det_CRp", det_CRp, mode)
+            print_array_info(file, "det_CRbs", det_CRbs, mode)
+            print_array_info(file, "det_CRbz", det_CRbz, mode)
+            print_array_info(file, "det_CRbez", det_CRbez, mode)
+            print_array_info(file, "det_CRbbin", det_CRbbin, mode)
+            print_array_info(file, "det_CRbth", det_CRbth, mode)
+            print_array_info(file, "det_CR", det_CR, mode)
 
-    print("\n--- End of Diagnostic Information ---\n")
+            file.write("\n5. Planet Position and Separation:\n")
+            print_array_info(file, "ix", ix, mode)
+            print_array_info(file, "iy", iy, mode)
+            print_array_info(file, "sp_lod", sp_lod, mode)
+
+            file.write("\n6. Count Rates and Exposure Time Calculation:\n")
+            print_array_info(file, "CRp", CRp, mode)
+            print_array_info(file, "CRnf", CRnf, mode)
+            print_array_info(file, "CRbs", CRbs, mode)
+            print_array_info(file, "CRbz", CRbz, mode)
+            print_array_info(file, "CRbez", CRbez, mode)
+            print_array_info(file, "CRbbin", CRbbin, mode)
+            print_array_info(file, "t_photon_count", t_photon_count, mode)
+            print_array_info(file, "CRbd", CRbd, mode)
+            print_array_info(file, "CRbth", CRbth, mode)
+            print_array_info(file, "CRb", CRb, mode)
+            print_array_info(file, "cp", cp, mode)
+
+            file.write("\n7. Final Result:\n")
+            print_array_info(file, "observation.exptime", observation.exptime, mode)

@@ -60,7 +60,13 @@ def main():
             calculated on a primary lambda (in .edith file)",
     )
     parser_c.add_argument("--edith", type=str, help="an .edith file")
-
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Increase output verbosity",
+        default=False,
+    )
     args = parser.parse_args()
 
     if args.subfunction == "etc":
@@ -69,7 +75,7 @@ def main():
             parser_a.print_help(sys.stderr)
             sys.exit(1)
         parameters, _ = parse_input.read_configuration(args.edith)
-        texp = calculate_texp(parameters)
+        texp = calculate_texp(parameters, args.verbose)
         print(texp)
 
     elif args.subfunction == "snr":
@@ -144,7 +150,7 @@ def main():
 #     return parameters
 
 
-def calculate_texp(parameters: dict) -> np.array:
+def calculate_texp(parameters: dict, verbose) -> np.array:
     """
     Calculates the exposure time for a planet observed with a given coronagraph.
 
@@ -193,7 +199,7 @@ def calculate_texp(parameters: dict) -> np.array:
     observatory.validate_configuration()
 
     # EXPOSURE TIME CALCULATION
-    calculate_exposure_time(observation, scene, observatory)
+    calculate_exposure_time(observation, scene, observatory, verbose)
 
     return observation.exptime
 
