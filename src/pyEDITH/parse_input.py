@@ -170,6 +170,7 @@ def parse_parameters(parameters: dict) -> dict:
         "cic",
         "QE",
         "dQE",
+        "IFS_eff"
     ]
 
     parsed_params.update(
@@ -246,6 +247,7 @@ def parse_parameters(parameters: dict) -> dict:
         "telescope_type",
         "coronagraph_type",
         "detector_type",
+        "observing_mode"
     ]:
 
         if key in parameters.keys():
