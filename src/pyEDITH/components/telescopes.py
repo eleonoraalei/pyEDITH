@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from .. import parse_input
+import astropy.units as u
+from ..units import *
 
 
 class Telescope(ABC):
@@ -38,21 +40,24 @@ class Telescope(ABC):
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "diameter": (float, np.floating),
-            "Area": (float, np.floating),
-            "toverhead_fixed": (float, np.floating),
-            "toverhead_multi": (float, np.floating),
-            "telescope_throughput": np.ndarray,
-            "temperature": (float, np.floating),
-            "Tcontam": (float, np.floating),
+            "diameter": LENGTH,
+            "Area": LENGTH**2,
+            "toverhead_fixed": TIME,
+            "toverhead_multi": DIMENSIONLESS,
+            "telescope_throughput": DIMENSIONLESS,
+            "temperature": TEMPERATURE,
+            "Tcontam": DIMENSIONLESS,
         }
 
-        for arg, expected_type in expected_args.items():
+        for arg, expected_unit in expected_args.items():
             if not hasattr(self, arg):
                 raise AttributeError(f"Telescope is missing attribute: {arg}")
-            if not isinstance(getattr(self, arg), expected_type):
-                raise TypeError(
-                    f"Telescope attribute {arg} should be of type {expected_type}, but is {type(getattr(self, arg))}"
+            value = getattr(self, arg)
+            if not isinstance(value, u.Quantity):
+                raise TypeError(f"Telescope attribute {arg} should be a Quantity")
+            if not value.unit.is_equivalent(expected_unit):
+                raise ValueError(
+                    f"Telescope attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
                 )
 
 
@@ -64,15 +69,14 @@ class ToyModelTelescope(Telescope):
     """
 
     DEFAULT_CONFIG = {
-        "diameter": 7.87,  # circumscribed diameter of aperture (m, scalar)
-        "unobscured_area": 1.0 - 0.121,  # unobscured area (percentage,scalar)
-        "toverhead_fixed": 8.25e3,  # fixed overhead time (seconds,scalar)
-        "toverhead_multi": 1.1,  # multiplicative overhead time (scalar)
-        "telescope_throughput": [
-            0.823
-        ],  # Optical throughput (nlambd array) [made up from EAC1-ish]
-        "temperature": 290,
-        "Tcontam": 0.95,
+        "diameter": 7.87 * LENGTH,  # circumscribed diameter of aperture (m, scalar)
+        "unobscured_area": (1.0 - 0.121),  # unobscured area (percentage,scalar)
+        "toverhead_fixed": 8.25e3 * TIME,  # fixed overhead time (seconds,scalar)
+        "toverhead_multi": 1.1 * DIMENSIONLESS,  # multiplicative overhead time (scalar)
+        "telescope_throughput": [0.823]
+        * DIMENSIONLESS,  # Optical throughput (nlambd array) [made up from EAC1-ish]
+        "temperature": 290 * TEMPERATURE,
+        "Tcontam": 0.95 * DIMENSIONLESS,
     }
 
     def load_configuration(self, parameters, mediator) -> None:
@@ -91,16 +95,44 @@ class ToyModelTelescope(Telescope):
         None
         """
 
-        # load parameters from input file if available, otherwise use default
+        # Load parameters, use defaults if not provided
         for key, default_value in self.DEFAULT_CONFIG.items():
-            setattr(self, key, parameters.get(key, default_value))
+            if key in parameters:
+                # User provided a value
+                user_value = parameters[key]
+                if isinstance(default_value, u.Quantity):
+                    # Ensure the user value has the same unit as the default
+                    # TODO Implement conversion of units from the input file
+
+                    if isinstance(user_value, u.Quantity):
+                        setattr(self, key, user_value.to(default_value.unit))
+                    else:
+                        setattr(self, key, u.Quantity(user_value, default_value.unit))
+                else:
+                    # For non-Quantity values (like integers), use as is
+                    setattr(self, key, user_value)
+            else:
+                # Use default value
+                setattr(self, key, default_value)
 
         # Convert to numpy array when appropriate
         array_params = [
             "telescope_throughput",
         ]
         for param in array_params:
-            setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
+            attr_value = getattr(self, param)
+            if isinstance(attr_value, u.Quantity):
+                # If it's already a Quantity, convert to numpy array while preserving units
+                setattr(
+                    self,
+                    param,
+                    u.Quantity(
+                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
+                    ),
+                )
+            else:
+                # If it's not a Quantity, convert to numpy array without units
+                setattr(self, param, np.array(attr_value, dtype=np.float64))
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar
@@ -117,8 +149,10 @@ class EAC1Telescope(Telescope):
     DEFAULT_CONFIG = {
         "diameter": None,  # circumscribed diameter of aperture (m, scalar)
         "unobscured_area": 1.0,  # unobscured area (percentage,scalar) ### NOTE default for now
-        "toverhead_fixed": 8.25e3,  # fixed overhead time (seconds,scalar) ### NOTE default for now
-        "toverhead_multi": 1.1,  # multiplicative overhead time (scalar) ### NOTE default for now
+        "toverhead_fixed": 8.25e3
+        * TIME,  # fixed overhead time (seconds,scalar) ### NOTE default for now
+        "toverhead_multi": 1.1
+        * DIMENSIONLESS,  # multiplicative overhead time (scalar) ### NOTE default for now
         "telescope_throughput": None,  # Optical throughput (nlambd array)
     }
 
@@ -146,28 +180,54 @@ class EAC1Telescope(Telescope):
             * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             mediator.get_observation_parameter("lambd")
             * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-        ]
+        ] * WAVELENGTH
         telescope_params = load_telescope("EAC1").__dict__
 
         telescope_params = parse_input.average_over_bandpass(
-            telescope_params, wavelength_range
+            telescope_params, wavelength_range.value
         )
 
-        self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"]
-        self.DEFAULT_CONFIG["telescope_throughput"] = telescope_params[
-            "total_tele_refl"
-        ]  # Optical throughput (nlambd array)
+        self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
+        self.DEFAULT_CONFIG["telescope_throughput"] = (
+            telescope_params["total_tele_refl"] * DIMENSIONLESS
+        )  # Optical throughput (nlambd array)
 
-        # ***** Load parameters, use defaults if not provided *****
+        # Load parameters, use defaults if not provided
         for key, default_value in self.DEFAULT_CONFIG.items():
-            setattr(self, key, parameters.get(key, default_value))
+            if key in parameters:
+                # User provided a value
+                user_value = parameters[key]
+                if isinstance(default_value, u.Quantity):
+                    # Ensure the user value has the same unit as the default
+                    if isinstance(user_value, u.Quantity):
+                        setattr(self, key, user_value.to(default_value.unit))
+                    else:
+                        setattr(self, key, u.Quantity(user_value, default_value.unit))
+                else:
+                    # For non-Quantity values (like integers), use as is
+                    setattr(self, key, user_value)
+            else:
+                # Use default value
+                setattr(self, key, default_value)
 
         # ***** Convert to numpy array when appropriate *****
         array_params = [
             "telescope_throughput",
         ]
         for param in array_params:
-            setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
+            attr_value = getattr(self, param)
+            if isinstance(attr_value, u.Quantity):
+                # If it's already a Quantity, convert to numpy array while preserving units
+                setattr(
+                    self,
+                    param,
+                    u.Quantity(
+                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
+                    ),
+                )
+            else:
+                # If it's not a Quantity, convert to numpy array without units
+                setattr(self, param, np.array(attr_value, dtype=np.float64))
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar

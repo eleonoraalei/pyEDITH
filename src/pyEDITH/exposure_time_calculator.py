@@ -3,47 +3,49 @@ import numpy as np
 from pyEDITH import AstrophysicalScene, Observation, Observatory
 import astropy.constants as c
 import astropy.units as u
+from astropy.modeling import models
+from .units import *
 
 # TODO : add QE to detector noise
 # TODO : verify thermal noise
 
 
 def calculate_CRp(
-    F0: float,
-    Fstar: float,
-    Fp0: float,
-    area: float,
-    Upsilon: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fstar: u.Quantity,
+    Fp0: u.Quantity,
+    area: u.Quantity,
+    Upsilon: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-) -> float:
+) -> u.Quantity:
     """
     Calculate the planet count rate.
 
     Parameters
     ----------
-    F0 : float
-        Flux zero point. [photons]
-    Fstar : float
-        Stellar flux.
-    Fp0 : float
-        Planet flux relative to star.
-    area : float
-        Collecting area of the telescope.
-    Upsilon : float
-        Core throughput of the coronagraph.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fstar : u.Quantity
+        Stellar flux. [dimensionless]
+    Fp0 : u.Quantity
+        Planet flux relative to star. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    Upsilon : u.Quantity
+        Core throughput of the coronagraph. [dimensionless]
+    throughput : u.Quantity
+        Throughput of the system (includes QE). [electrons/photons]
+    dlambda : u.Quantity
+        Bandwidth. [um]
     nchannels : int
         Number of channels.
 
     Returns
     -------
-    float
-        Planet count rate.
+    u.Quantity
+        Planet count rate. [electrons / s]
 
     Notes
     -----
@@ -67,45 +69,46 @@ def calculate_CRp(
 
 
 def calculate_CRbs(
-    F0: float,
-    Fstar: float,
-    Istar: float,
-    area: float,
-    pixscale: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fstar: u.Quantity,
+    Istar: u.Quantity,
+    area: u.Quantity,
+    pixscale: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-) -> float:
+) -> u.Quantity:
     """
     Calculate the stellar leakage count rate.
 
     Parameters
     ----------
-    F0 : float
-        Flux zero point.
-    Fstar : float
-        Stellar flux.
-    Istar : float
-        Stellar intensity at the given pixel.
-    area : float
-        Collecting area of the telescope.
-    pixscale : float
-        Pixel scale of the detector.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fstar : u.Quantity
+        Stellar flux. [dimensionless]
+    Istar : u.Quantity
+        Stellar intensity at the given pixel. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    pixscale : u.Quantity
+        Pixel scale of the detector. [lambda/D]
+    throughput : u.Quantity
+        Throughput of the system (includes QE). [electrons/photons]
+    dlambda : u.Quantity
+        Bandwidth. [um]
     nchannels : int
         Number of channels.
 
     Returns
     -------
-    float
-        Stellar leakage count rate.
+    u.Quantity
+        Stellar leakage count rate. [electrons / s]
+
 
     Notes
     -----
-    STELLAR LEAKAGE
+    THEORY: STELLAR LEAKAGE
 
     CRbs = F_0 * 10^{-0.4m_lambda} * zeta * PSF_{peak}
             * Omega * A * T * Deltalambda
@@ -113,80 +116,76 @@ def calculate_CRbs(
     This simplifies as
     CRbs = F_0 * F_{star} *(zeta * PSF_{peak}) * A * Omega * T * Deltalambda
 
-    in AYO:
-
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannel
-    CRbsfactor = Fstar * oneopixscale2 * FATDL  # for stellar leakage
-                                                # count rate calculation
-    Fstar = 10**(-0.4 * magstar)
-    tempCRbsfactor = CRbsfactor * Istar_interp[index]
-
-
-    # NOTE: Since Omega is not used when calculating the detector
-    # noise components, this multiplication is done outside the
-    # function when needed. i.e.
-    # CRbs = tempCRbsfactor * omega_lod[index2]
-
+    IN AYO:
+    Fstar = pow((double) 10., -0.4*magstar);
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels;
+    CRbsfactor = Fstar * oneopixscale2 * FATDL;
+    -- DETECTOR:
+       det_CRbs = CRbsfactor * det_Istar;
+       +++ NOTE: Later used to calculate photon counting time +++
+    -- ETC:
+       tempCRbsfactor = CRbsfactor * Istar_interp[index];
+       +++ NOTE: Later added add together into tempCRbfactor+++
+       +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
     return F0 * Fstar * Istar * area * throughput * dlambda * nchannels / (pixscale**2)
 
 
 def calculate_CRbz(
-    F0: float,
-    Fzodi: float,
-    lod_arcsec: float,
-    skytrans: float,
-    area: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fzodi: u.Quantity,
+    lod_arcsec: u.Quantity,
+    skytrans: u.Quantity,
+    area: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-) -> float:
+) -> u.Quantity:
     """
     Calculate the local zodiacal light count rate.
 
-    Parameters
+     Parameters
     ----------
-    F0 : float
-        Flux zero point.
-    Fzodi : float
-        Zodiacal light flux.
-    lod_arcsec : float
-        Lambda/D in arcseconds.
-    skytrans : float
-        Sky transmission.
-    area : float
-        Collecting area of the telescope.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fzodi : u.Quantity
+        Zodiacal light flux. [dimensionless]
+    lod_arcsec : u.Quantity
+        Lambda/D in arcseconds. [arcsec]
+    skytrans : u.Quantity
+        Sky transmission. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    throughput : u.Quantity
+        Throughput of the system (includes QE). [electrons/photons]
+    dlambda : u.Quantity
+        Bandwidth. [um]
     nchannels : int
         Number of channels.
 
     Returns
     -------
-    float
-        Local zodiacal light count rate.
+    u.Quantity
+        Local zodiacal light count rate. [electrons / s]
 
     Notes
     -----
-
-    LOCAL ZODI LEAKAGE
+    THEORY: LOCAL ZODI LEAKAGE
 
     CRbz=F_0* 10^{-0.4z}* Omega A T Delta lambda
 
-    In AYO:
-
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    CRbzfactor = Fzodi * lod_arcsec2 * FATDL  # count rate for zodi
-    tempCRbzfactor = CRbzfactor * skytrans[index]
+    IN AYO:
+    CRbzfactor = Fzodi * lod_arcsec2 * FATDL;
+    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels;
     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
     lod_arcsec2 = lod_arcsec * lod_arcsec
-
-    # NOTE: Since Omega is not used when calculating the detector noise
-    # components,this multiplication is done outside the function when needed.
-    # i.e.
-    CRbz = tempCRbzfactor * omega_lod[index2];
+    -- DETECTOR:
+        det_CRbz = CRbzfactor * det_skytrans;
+         +++ NOTE: Later used to calculate photon counting time +++
+    -- ETC:
+        tempCRbzfactor = CRbzfactor * skytrans[index];
+        +++NOTE: Later added together into tempCRbfactor+++
+        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
 
     return (
@@ -195,133 +194,143 @@ def calculate_CRbz(
 
 
 def calculate_CRbez(
-    F0: float,
-    Fexozodi: float,
-    lod_arcsec: float,
-    skytrans: float,
-    area: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fexozodi: u.Quantity,
+    lod_arcsec: u.Quantity,
+    skytrans: u.Quantity,
+    area: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-    dist: float,
-    sp: float,
-) -> float:
+    dist: u.Quantity,
+    sp: u.Quantity,
+) -> u.Quantity:
     """
     Calculate the exozodiacal light count rate.
 
     Parameters
     ----------
-    F0 : float
-        Flux zero point.
-    Fexozodi : float
-        Exozodiacal light flux.
-    lod_arcsec : float
-        Lambda/D in arcseconds.
-    skytrans : float
-        Sky transmission.
-    area : float
-        Collecting area of the telescope.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
-    dist : float
-        Distance to the star.
-    sp : float
-        Separation of the planet.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fexozodi : u.Quantity
+        Exozodiacal light flux. [dimensionless]
+    lod_arcsec : u.Quantity
+        Lambda/D in arcseconds. [arcsec]
+    skytrans : u.Quantity
+        Sky transmission. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    throughput : u.Quantity
+        Throughput of the system (includes QE). [electrons/photons]
+    dlambda : u.Quantity
+        Bandwidth. [um]
     nchannels : int
         Number of channels.
+    dist : u.Quantity
+        Distance to the star. [pc]
+    sp : u.Quantity
+        Separation of the planet. [arcsec]
 
     Returns
     -------
-    float
-        Exozodiacal light count rate.
+    u.Quantity
+        Exozodiacal light count rate. [electrons / s]
 
     Notes
     -----
-    EXOZODI LEAKAGE
+    THEORY: EXOZODI LEAKAGE
     CRbez=F_0 * n * 10^{-0.4mag_{exozodi}} * Omega * A * T * Delta lambda
 
-    In AYO:
-
-    CRbezfactor = Fexozodi * lod_arcsec2 * FATDL / (dist * dist);
+    IN AYO:
+    CRbezfactor = Fexozodi * lod_arcsec2 * FATDL / (dist*dist);
     FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    tempCRbezfactor = CRbezfactor * skytrans[index] /
-                        (sp[iplanetpistartnp] * sp[iplanetpistartnp]);
     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
     lod_arcsec2 = lod_arcsec * lod_arcsec
+    -- DETECTOR:
+        det_CRbez = CRbezfactor * det_skytrans / (det_sep*det_sep);
+        ++ NOTE: Later used to calculate photon counting time +++
+    -- ETC:
+        tempCRbezfactor = CRbezfactor * skytrans[index] / (sp[iplanetpistartnp]*sp[iplanetpistartnp]);
+        +++NOTE: Later added together into tempCRbfactor+++
+        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
 
-    # NOTE: Since Omega is not used when calculating the detector noise
-    # components,this multiplication is done outside the function when needed.
-    # i.e.
-    CRbez = tempCRbezfactor * omega_lod[index2];
+    Chris Stark Mar 2025: The flux from the exozodi gets scaled as (1 AU / sp_AU)^2.
+    This is because we define exozodi in terms of a surface density at 1 AU from a
+    solar twin, not a surface brightness. So if at 10 pc 1 zodi of exozodi has a
+    surface brightness of X at 1 AU, at 2 AU it would have 1/4th the surface brightness
+    to account for the 1/r^2 illumination factor. I.e., planets that are more distant
+    from their host stars reside in fainter exozodi.
 
     """
+    # Calculate Fexozodi at the separation (scale the value of Fexozodi at 1 AU
+    # to the separation in AU)
+    scaling_factor = u.AU / arcsec_to_au(sp, dist)
+
     return (
         F0
-        * Fexozodi
+        * (Fexozodi * scaling_factor**2)
         * skytrans
         * area
         * throughput
         * dlambda
         * nchannels
         * lod_arcsec**2
-    ) / (dist**2 * sp**2)
+    ).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
+    )  # this is to simplify the arcsec^2/arcsec^2 that somehow does not simplify by itself
 
 
 def calculate_CRbbin(
-    F0: float,
-    Fbinary: float,
-    skytrans: float,
-    area: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fbinary: u.Quantity,
+    skytrans: u.Quantity,
+    area: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-) -> float:
+) -> u.Quantity:
     """
     Calculate the count rate from neighboring stars.
 
     Parameters
     ----------
-    F0 : float
-        Flux zero point.
-    Fbinary : float
-        Flux from neighboring stars.
-    skytrans : float
-        Sky transmission.
-    area : float
-        Collecting area of the telescope.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fbinary : u.Quantity
+        Flux from neighboring stars. [dimensionless]
+    skytrans : u.Quantity
+        Sky transmission. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    throughput : u.Quantity
+        Throughput of the system (includes QE). [electrons/photons]
+    dlambda : u.Quantity
+        Bandwidth. [um]
     nchannels : int
         Number of channels.
 
     Returns
     -------
-    float
-        Count rate from neighboring stars.
-
+    u.Quantity
+        Count rate from neighboring stars. [electrons / s]
     Notes
     -----
-    NEIGHBORING STARS LEAKAGE
-
-    TBD
+    THEORY: NEIGHBORING STARS LEAKAGE
 
     CRbbin=F_0* 10^{-0.4mag_binary}* Omega A T Delta lambda
 
-    In AYO:
-
+    IN AYO:
+    CRbbinfactor = Fbinary * FATDL;
     FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    CRbbinfactor = Fbinary * FATDL  # count rate for scattered light from
-                                    # nearby stars
-    tempCRbbinfactor = CRbbinfactor * skytrans[index]
+    -- DETECTOR:
+        det_CRbbin = CRbbinfactor * det_skytrans;
+        ++ NOTE: Later used to calculate photon counting time +++
 
-    # NOTE: Since Omega is not used when calculating the detector noise
-    # components, this multiplication is done outside the function when needed.
-    # i.e.
-    # CRbbin = tempCRbbinfactor * omega_lod[index2];
+    -- ETC:
+        tempCRbbinfactor = CRbbinfactor * skytrans[index];
+        +++ NOTE: Later added together into tempCRbfactor+++
+        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
 
     """
 
@@ -329,82 +338,115 @@ def calculate_CRbbin(
 
 
 def calculate_CRbth(
-    lam: float,
-    area: float,
-    dlambda: float,
-    temp: float,
-    lod_arcsec: float,
-    emis=1.0,
-) -> float:
+    lam: u.Quantity,
+    area: u.Quantity,
+    dlambda: u.Quantity,
+    temp: u.Quantity,
+    lod_rad: u.Quantity,
+    emis: u.Quantity,
+    QE: u.Quantity,
+) -> u.Quantity:
     """
-    Calculate background thermal count rate
+    Calculate background thermal count rate.
 
-    Parameters
+     Parameters
     ----------
-    lam : float
-        wavelengths of observation
-    area : float
-        Collecting area of the telescope.
-    dlambda : float
-        Bandwidth.
-    temp  : float
-        Telescope mirror temperature [K]
-    emis : float
-        Effective emissivity for the observing system (of order unity)
+    lam : u.Quantity
+        Wavelength of observation. [um]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    dlambda : u.Quantity
+        Bandwidth. [um]
+    temp : u.Quantity
+        Telescope mirror temperature. [K]
+    lod_rad : u.Quantity
+        Lambda/D in radians. [rad]
+    emis : u.Quantity
+        Effective emissivity for the observing system. [dimensionless]
+    QE : u.Quantity
+        Quantum efficiency. [electron/photon]
 
     Returns
     -------
-    float
-        Count rate from thermal background
+    u.Quantity
+        Count rate from thermal background. [electrons / s]
+
+    Notes
+    -----
+
+    IN AYO:
+    Blambda = calcBlambda(temperature, lambda);
+    CRbthermalfactor = Blambda * deltalambda_nm * A_cm * (lod_rad * lod_rad) * epswarmTrcold * QE;
+    -- DETECTOR:
+        det_CRbthermal = CRbthermalfactor * det_omega_lod;
+        ++ NOTE: Later used to calculate photon counting time +++
+
+    -- ETC:
+        tempCRbthermalfactor = CRbthermalfactor;
+        +++ NOTE: Later added together into tempCRbfactor+++
+        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
-
-    exp_power = c.h * c.c / lam / c.k_B / temp
-    Bsys = 2 * c.h * c.c**2 / ( lam**5 * (np.exp(exp_power) - 1))
-
-    Bsys = Bsys.to(u.W / u.m**2 / u.um) / u.sr
-
-    # angular area of photometric aperture
-    Omega =  np.pi*lod_arcsec ** 2  # in arcsec**2
-    Omega = Omega.to(u.sr)
-
-    photon_energy = c.h * c.c / lam
-    photon_energy = photon_energy.to(u.J) / u.photon
-
-    return (
-        (Bsys * emis * Omega * area * dlambda / photon_energy)
-        .to(u.photon / u.s)
-        .value
+    # Calculate blackbody radiation
+    bb = models.BlackBody(
+        temperature=temp, scale=1 * u.erg / (u.cm**2 * u.AA * u.s * u.sr)
     )
+    Blambda_energy = bb(lam)
+
+    # Convert to photon spectral radiance
+    Blambda_photon = (Blambda_energy).to(
+        u.photon / (u.cm**2 * u.um * u.s * u.sr), equivalencies=u.spectral_density(lam)
+    )
+
+    # Calculate thermal background count rate
+    return (Blambda_photon * dlambda * area * (lod_rad * lod_rad) * emis * QE).to(
+        u.electron / u.s
+    )
+
+    # exp_power = c.h * c.c / lam / c.k_B / temp
+    # Bsys = 2 * c.h * c.c**2 / (lam**5 * (np.exp(exp_power) - 1))
+
+    # Bsys = Bsys.to(u.W / u.m**2 / u.um) / u.sr
+
+    # # angular area of photometric aperture
+    # Omega = np.pi * lod_arcsec**2  # in arcsec**2
+    # Omega = Omega.to(u.sr)
+
+    # photon_energy = c.h * c.c / lam
+    # photon_energy = photon_energy.to(u.J) / u.photon
+
+    # return (Bsys * emis * Omega * area * dlambda / photon_energy).to(u.photon / u.s)
 
 
 def calculate_t_photon_count(
-    lod_arcsec: float,
-    det_pixscale_mas: float,
+    det_pixscale_mas: u.Quantity,
     det_npix_multiplier: float,
-    det_omega_lod: float,
-    det_CR: float,
-) -> float:
+    det_omega_lod: u.Quantity,
+    det_CR: u.Quantity,
+    wavelength: u.Quantity,
+    diameter: u.Quantity,
+) -> u.Quantity:
     """
     Calculate the photon counting time.
 
     Parameters
     ----------
-    lod_arcsec : float
-        Lambda/D in arcseconds.
-    det_pixscale_mas : float
-        Detector pixel scale in milliarcseconds.
+    det_pixscale_mas : u.Quantity
+        Detector pixel scale. [mas]
     det_npix_multiplier : float
         Multiplier for number of detector pixels.
-    det_omega_lod : float
-        Solid angle of the photometric aperture in units of (lambda/D)^2.
-    det_CR : float
-        Detector count rate.
+    det_omega_lod : u.Quantity
+        Solid angle of the photometric aperture. [lambda/D]^2
+    det_CR : u.Quantity
+        Detector count rate. [photons / s]
+    wavelength : u.Quantity
+        Wavelength of observation. [um]
+    diameter : u.Quantity
+        Telescope diameter. [m]
 
     Returns
     -------
-    float
-        Photon counting time.
-
+    u.Quantity
+        Photon counting time i.e. average time to detect one photon per pixel. [s * pixel / ph ]
     Notes
     -----
 
@@ -413,26 +455,55 @@ def calculate_t_photon_count(
     # If q = 0.99, (1+W_-1[q/e])^-1 = -6.73 such that
     # effective_dark_current = dark_current + f * cic * 6.73,
     # where f is the brightest pixel you care about in counts s^-1
-    """
 
-    detpixscale_lod = det_pixscale_mas / (lod_arcsec * 1000.0)
+    From Stark 2019:
+    q is Geiger efficiency = quantifies the probability that one or fewer
+    photons arrive during a frame. [units: photons/frame?]
+
+    t=-1/CRsat*{1+W_-1[-q/e]}
+
+    CRsat = count rate of the brightest pixel for which we wish to achieve a given q.
+            -> WE ASSUME THAT IT IS det_CR I.E. THE NOISE AROUND THE IWA
+               CALCULATED EARLIER [electron / s]
+
+    If q = 0.99, (1+W_-1[q/e])^-1 = -6.73, so
+    t = -1/CRsat / -6.73 = 1/(CRsat*6.73) --> GOAL OF THIS FUNCTION
+
+    Which eventually becomes (in CRd):
+    effective_dark_current = dark_current - cic * CRsat (1+W_-1[q/e])^-1 =
+                            dark_current + cic/t = dark_current + cic*CRsat*6.73
+
+          UNITS:            [electrons/pix/s] +[electrons/pix/frame]/[s/frame]
+
+    So this means that t should have [s/frame] units
+    """
+    detpixscale_lod = arcsec_to_lambda_d(
+        det_pixscale_mas.to(ARCSEC), wavelength, diameter
+    )
 
     #  this is temporary to estimate the per pixel noise
-    det_npix = det_npix_multiplier * det_omega_lod / (detpixscale_lod**2)
-    t_photon_count = 1.0 / (6.73 * (det_CR / det_npix))
+    det_npix = (
+        det_npix_multiplier * det_omega_lod / (detpixscale_lod**2)
+    ) * PIXEL  # number of pixels in detector
+    counts_per_second_per_pixel = det_CR / det_npix  #  electron / s / pix
+    print("counts_per_second_per_pixel", counts_per_second_per_pixel)
+    # NOTE: I am just extrapolating that 6.73 has units [pix*frame/electron]
+    t_photon_count = 1.0 / (
+        6.73 * PIXEL * FRAME / ELECTRON * counts_per_second_per_pixel
+    )
     return t_photon_count
 
 
 def calculate_CRbd(
     det_npix_multiplier: float,
-    det_DC: float,
-    det_RN: float,
-    det_tread: float,
-    det_CIC: float,
-    t_photon_count: float,
-    det_omega_lod: float,
-    detpixscale_lod: float,
-) -> float:
+    det_DC: u.Quantity,
+    det_RN: u.Quantity,
+    det_tread: u.Quantity,
+    det_CIC: u.Quantity,
+    t_photon_count: u.Quantity,
+    det_omega_lod: u.Quantity,
+    detpixscale_lod: u.Quantity,
+) -> u.Quantity:
     """
     Calculate the detector noise count rate.
 
@@ -440,74 +511,102 @@ def calculate_CRbd(
     ----------
     det_npix_multiplier : float
         Multiplier for number of detector pixels.
-    det_DC : float
-        Dark current.
-    det_RN : float
-        Read noise.
-    det_tread : float
-        Read time.
-    det_CIC : float
-        Clock-induced charge.
-    t_photon_count : float
-        Photon counting time.
-    det_omega_lod : float
-        Solid angle of the photometric aperture in units of (lambda/D)^2.
-    detpixscale_lod : float
-        Detector pixel scale in units of lambda/D.
+    det_DC : u.Quantity
+        Dark current. [electron / pix / s]
+    det_RN : u.Quantity
+        Read noise. [electron / pix / read]
+    det_tread : u.Quantity
+        Read time. [s]
+    det_CIC : u.Quantity
+        Clock-induced charge. [electron / pix / photon]
+    t_photon_count : u.Quantity
+        Photon counting time. [pix * s / electron]
+    det_omega_lod : u.Quantity
+        Solid angle of the photometric aperture. [lambda/D]^2
+    detpixscale_lod : u.Quantity
+        Detector pixel scale. [lambda/D]
 
     Returns
     -------
-    float
-        Detector noise count rate.
+    u.Quantity
+        Detector noise count rate. [photons / s]
 
     Notes
     -----
     DETECTOR NOISE
 
     CRbd = n_{pix}(xi +RN^2/tau_{exposure}+CIC/t_{photon_count})
+        = npix (xi+RN^2/tau_{exposure}+ 6.73*CRsat*CIC
+
+    IN AYO:
+    CRbdfactor = det_DC + det_RN * det_RN/det_tread + det_CIC / t_photon_count;
+    -- DETECTOR:
+    N/A (calculated directly in ETC)
+    -- ETC:
+    det_npix = det_npix_multiplier * (omega_lod[index2] * oneodetpixscale_lod2) * nchannels;
+    CRbd = CRbdfactor * det_npix;
+    +++NOTE: Later added to CRb+++
+    +++ THEN: CRb += CRbd; +++
+
     """
+    # Print all variables involved in the function
+
     # calculate npix
-    det_npix = det_npix_multiplier * det_omega_lod / (detpixscale_lod) ** 2
-    return (det_DC + det_RN * det_RN / det_tread + det_CIC / t_photon_count) * det_npix
+    det_npix = det_npix_multiplier * det_omega_lod / (detpixscale_lod) ** 2 * PIXEL
+
+    # Print the calculated det_npix
+    print(f"Calculated det_npix: {det_npix}")
+    print(det_DC, det_RN * det_RN / det_tread, det_CIC / t_photon_count)
+    print("THIS DOES NOT WORK. I WILL HARDCODE THE VALUES FOR NOW")
+    return (
+        det_DC
+        + det_RN.value
+        * det_RN.value
+        / det_tread.value
+        * DARK_CURRENT  ## TODO Somehow fix this
+        + det_CIC / t_photon_count
+    ) * det_npix
 
 
 def calculate_CRnf(
-    F0: float,
-    Fstar: float,
-    area: float,
-    pixscale: float,
-    throughput: float,
-    dlambda: float,
+    F0: u.Quantity,
+    Fstar: u.Quantity,
+    area: u.Quantity,
+    pixscale: u.Quantity,
+    throughput: u.Quantity,
+    dlambda: u.Quantity,
     nchannels: int,
-    SNR: float,
-    noisefloor: float,
-) -> float:
+    SNR: u.Quantity,
+    noisefloor: u.Quantity,
+) -> u.Quantity:
     """
     Calculate the noise floor count rate.
 
     Parameters
     ----------
-    F0 : float
-        Flux zero point.
-    Fstar : float
-        Stellar flux.
-    area : float
-        Collecting area of the telescope.
-    pixscale : float
-        Pixel scale of the detector.
-    throughput : float
-        Throughput of the system.
-    dlambda : float
-        Bandwidth.
+    F0 : u.Quantity
+        Flux zero point. [photons / (s * cm^2 * nm)]
+    Fstar : u.Quantity
+        Stellar flux. [dimensionless]
+    area : u.Quantity
+        Collecting area of the telescope. [cm^2]
+    pixscale : u.Quantity
+        Pixel scale of the detector. [lambda/D]
+    throughput : u.Quantity
+        Throughput of the system. [dimensionless]
+    dlambda : u.Quantity
+        Bandwidth. [um]
+    nchannels : int
+        Number of channels.
     SNR : float
         Signal-to-noise ratio.
-    noisefloor : float
-        Noise floor level.
+    noisefloor : u.Quantity
+        Noise floor level. [dimensionless]
 
     Returns
     -------
-    float
-        Noise floor count rate.
+    u.Quantity
+        Noise floor count rate. [photons / s]
 
     Notes
     -----
@@ -544,6 +643,7 @@ def calculate_CRnf(
     # CRnoisefloor = tempCRnffactor * omega_lod[index2];
 
     """
+
     return (
         SNR
         * (F0 * Fstar * area * throughput * dlambda * nchannels / (pixscale**2))
@@ -552,35 +652,36 @@ def calculate_CRnf(
 
 
 def interpolate_arrays(
-    Istar: np.ndarray,
-    noisefloor: np.ndarray,
+    Istar: u.Quantity,
+    noisefloor: u.Quantity,
     npix: int,
     ndiams: int,
-    stellar_diam_lod: float,
-    angdiams: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+    stellar_diam_lod: u.Quantity,
+    angdiams: u.Quantity,
+) -> Tuple[u.Quantity, u.Quantity]:
     """
     Interpolate Istar and noisefloor arrays based on stellar diameter.
 
     Parameters
     ----------
-    Istar : np.ndarray
-        3D array of star intensities.
-    noisefloor : np.ndarray
-        3D array of noise floor values.
+    Istar : u.Quantity
+        3D array of star intensities. [dimensionless]
+    noisefloor :u.Quantity
+        3D array of noise floor values. [dimensionless]
     npix : int
         Number of pixels in each dimension.
     ndiams : int
         Number of stellar diameters.
-    stellar_diam_lod : float
-        Stellar diameter in lambda/D units.
-    angdiams : np.ndarray
-        Array of angular diameters.
+    stellar_diam_lod : u.Quantity
+        Stellar diameter. [lambda/D]
+    angdiams : u.Quantity
+        Array of angular diameters. [lambda/D]
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray]
-        Interpolated Istar and noisefloor arrays.
+    Tuple[u.Quantity, u.Quantity]
+        Interpolated Istar and noisefloor arrays. [dimensionless]
+
 
     Notes
     -----
@@ -595,8 +696,8 @@ def interpolate_arrays(
                         npix, ndiams, stellar_diam_lod, angdiams)
 
     """
-    Istar_interp = np.zeros((npix, npix))
-    noisefloor_interp = np.zeros((npix, npix))
+    Istar_interp = np.zeros((npix, npix)) * DIMENSIONLESS
+    noisefloor_interp = np.zeros((npix, npix)) * DIMENSIONLESS
 
     k = np.searchsorted(angdiams, stellar_diam_lod)
 
@@ -627,44 +728,49 @@ def interpolate_arrays(
 
 
 def measure_coronagraph_performance(
-    psf_trunc_ratio: np.ndarray,
-    photap_frac: np.ndarray,
-    Istar_interp: np.ndarray,
-    skytrans: np.ndarray,
-    omega_lod: np.ndarray,
+    psf_trunc_ratio: u.Quantity,
+    photap_frac: u.Quantity,
+    Istar_interp: u.Quantity,
+    skytrans: u.Quantity,
+    omega_lod: u.Quantity,
     npix: int,
-    xcenter: float,
-    ycenter: float,
-    oneopixscale_arcsec: float,
-) -> Tuple[float, float, float, float, float, float]:
+    xcenter: u.Quantity,
+    ycenter: u.Quantity,
+    oneopixscale_arcsec: u.Quantity,
+) -> Tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity]:
     """
     Measure the performance of the coronagraph.
 
-    Parameters
+     Parameters
     ----------
-    psf_trunc_ratio : np.ndarray
-        PSF truncation ratios.
-    photap_frac : np.ndarray
-        Photometric aperture fractions.
-    Istar_interp : np.ndarray
-        Interpolated stellar intensity.
-    skytrans : np.ndarray
-        Sky transmission.
-    omega_lod : np.ndarray
-        Solid angle of photometric aperture in (lambda/D)^2.
+    psf_trunc_ratio : u.Quantity
+        PSF truncation ratios. [dimensionless]
+    photap_frac : u.Quantity
+        Photometric aperture fractions. [dimensionless]
+    Istar_interp : u.Quantity
+        Interpolated stellar intensity. [dimensionless]
+    skytrans : u.Quantity
+        Sky transmission. [dimensionless]
+    omega_lod : u.Quantity
+        Solid angle of photometric aperture. [lambda/D]^2
     npix : int
         Number of pixels in each dimension.
-    xcenter : float
-        X-coordinate of the center.
-    ycenter : float
-        Y-coordinate of the center.
-    oneopixscale_arcsec : float
-        Inverse of pixel scale in arcseconds.
+    xcenter : u.Quantity
+        X-coordinate of the center. [pixel]
+    ycenter : u.Quantity
+        Y-coordinate of the center. [pixel]
+    oneopixscale_arcsec : u.Quantity
+        Inverse of pixel scale. [1/arcsec]
 
     Returns
     -------
-    Tuple[float, float, float, float, float, float]
-        det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
+    Tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity]
+        det_sep_pix : Separation at detection point. [pixel]
+        det_sep : Separation at detection point. [arcsec]
+        det_Istar : Stellar intensity at detection point. [dimensionless]
+        det_skytrans : Sky transmission at detection point. [dimensionless]
+        det_photap_frac : Photometric aperture fraction at detection point. [dimensionless]
+        det_omega_lod : Solid angle at detection point. [lambda/D]^2
 
     Notes
     -----
@@ -677,24 +783,28 @@ def measure_coronagraph_performance(
     bestiratio = np.argmin(np.abs(psf_trunc_ratio - 0.3))
 
     # Find maximum photap_frac in first half of image
-    maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter), bestiratio])
+    maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter.value), bestiratio])
 
     # Find IWA
-    row = photap_frac[:, int(ycenter), bestiratio]
-    iwa_index = np.where(row[: int(xcenter)] > 0.5 * maxphotap_frac)[0][-1]
-    det_sep_pix = abs((iwa_index + 0.5) - xcenter)
-    det_sep = det_sep_pix / oneopixscale_arcsec
+    row = photap_frac[:, int(ycenter.value), bestiratio]
+    iwa_index = np.where(row[: int(xcenter.value)] > 0.5 * maxphotap_frac)[0][-1]
+    det_sep_pix = abs((iwa_index + 0.5) - xcenter.value) * PIXEL
+    det_sep = det_sep_pix / oneopixscale_arcsec  # translates to arcsec
 
     # Calculate max values in 2-pixel annulus at det_sep
     y, x = np.ogrid[:npix, :npix]
-    dist_from_center = np.sqrt((x - xcenter + 0.5) ** 2 + (y - ycenter + 0.5) ** 2)
-    mask = np.abs(dist_from_center - det_sep_pix) < 2
+    dist_from_center = (
+        np.sqrt((x - xcenter.value + 0.5) ** 2 + (y - ycenter.value + 0.5) ** 2)
+    ) * PIXEL
 
-    det_Istar = np.max(Istar_interp[mask])
-    det_skytrans = np.max(skytrans[mask])
+    mask = np.abs(dist_from_center.value - det_sep_pix.value) < 2
+    # NOTE: We use .value because we want indices
+
+    det_Istar = np.max(Istar_interp[mask]) * DIMENSIONLESS
+    det_skytrans = np.max(skytrans[mask]) * DIMENSIONLESS
 
     photap_frac_masked = photap_frac[:, :, bestiratio][mask]
-    det_photap_frac = np.max(photap_frac_masked)
+    det_photap_frac = np.max(photap_frac_masked) * DIMENSIONLESS
     det_omega_lod = omega_lod[:, :, bestiratio][mask][np.argmax(photap_frac_masked)]
 
     return det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
@@ -726,29 +836,52 @@ def calculate_exposure_time(
     for istar in range(scene.ntargs):  # set to 1
         for ilambd in range(observation.nlambd):  # set to 1
 
-            # Calculate useful quantities
-            Fstar = 10 ** (-0.4 * scene.mag[istar, ilambd])
+            # Calculate Fstar factor (dimensionless, will be multiplied by F0
+            # that gives it dimensions)
+            Fstar = 10 ** (-0.4 * scene.mag[istar, ilambd].value) * DIMENSIONLESS
 
             # Take the lesser of the desired bandwidth
             # and what coronagraph allows
-            deltalambda_nm = np.min(
-                [
-                    (observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd],
-                    observatory.coronagraph.bandwidth
-                    * (observation.lambd[ilambd] * 1000.0),
-                ]
+            deltalambda_nm = (
+                np.min(
+                    [
+                        (observation.lambd[ilambd].to(u.nm).value)
+                        / observation.SR[ilambd],
+                        observatory.coronagraph.bandwidth
+                        * (observation.lambd[ilambd].to(u.nm).value),
+                    ]
+                )
+                * u.nm
+            )  # nanometers
+
+            # Calculate λ/D (dimensionless)
+            lod = 1 * LAMBDA_D
+
+            # Convert to radians
+            # NOTE: using LENGTH here ensures that if we change the value of the unit,
+            # this is still dimensionless
+            lod_rad = lambda_d_to_radians(
+                lod,
+                observation.lambd[ilambd].to(LENGTH),
+                observatory.telescope.diameter.to(LENGTH),
             )
 
-            lod_rad = (
-                observation.lambd[ilambd] * 1e-6 / observatory.telescope.diameter
-            )  # l/D in radians
-            lod_arcsec = lod_rad * 206264.806  # l/D in arcsec
+            # Convert to arcseconds
+            lod_arcsec = lod_rad.to(u.arcsec)
 
-            area_cm2 = observatory.telescope.Area * 100 * 100
+            area_cm2 = observatory.telescope.Area.to(u.cm**2)
 
-            stellar_diam_lod = scene.angdiam_arcsec[istar] / lod_arcsec
+            detpixscale_lod = arcsec_to_lambda_d(
+                observatory.detector.pixscale_mas.to(u.arcsec),
+                observation.lambd[ilambd].to(LENGTH),
+                observatory.telescope.diameter.to(LENGTH),
+            )  # LAMBDA_D units
 
-            detpixscale_lod = observatory.detector.pixscale_mas / (lod_arcsec * 1000.0)
+            stellar_diam_lod = arcsec_to_lambda_d(
+                scene.angdiam_arcsec[istar],
+                observation.lambd[ilambd].to(LENGTH),
+                observatory.telescope.diameter.to(LENGTH),
+            )  # LAMBDA_D units
 
             # Interpolate Istar, noisefloor based on angular diameter
             # of the star (depends on the target). It reduces dimensionality
@@ -766,10 +899,13 @@ def calculate_exposure_time(
             )
 
             # Measure coronagraph performance at each IWA
-            pixscale_rad = observatory.coronagraph.pixscale * (
-                observation.lambd[ilambd] * 1e-6 / observatory.telescope.diameter
-            )
-            oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
+            pixscale_rad = observatory.coronagraph.pixscale * lambda_d_to_radians(
+                lod,
+                observation.lambd[ilambd].to(LENGTH),
+                observatory.telescope.diameter.to(LENGTH),
+            )  # going from LAMBDA_D to radians
+
+            oneopixscale_arcsec = 1 * PIXEL / pixscale_rad.to(u.arcsec)
 
             # Measure coronagraph performance at each IWA
             (
@@ -801,7 +937,7 @@ def calculate_exposure_time(
             det_CRp = calculate_CRp(
                 scene.F0[ilambd],
                 Fstar,
-                10 * 10 ** (-0.4 * scene.min_deltamag[istar]),
+                10 * 10 ** (-0.4 * scene.min_deltamag[istar].value),
                 area_cm2,
                 det_photap_frac,
                 observatory.total_throughput[ilambd],
@@ -843,6 +979,7 @@ def calculate_exposure_time(
                 scene.dist[istar],
                 det_sep,
             )
+
             det_CRbbin = calculate_CRbbin(
                 scene.F0[ilambd],
                 scene.Fbinary_list[istar, ilambd],
@@ -854,15 +991,15 @@ def calculate_exposure_time(
             )
 
             det_CRbth = calculate_CRbth(
-                observation.lambd[
-                    ilambd
-                ]*u.um,  ### this is the wavelength of observation; is this the right variable name??
-                 area_cm2*u.cm**2,
-                 deltalambda_nm*u.nm,
-                 observatory.telescope.temperature*u.K,  # temperature (should be a variable eventually)
-                 lod_arcsec*u.arcsec, 
-                 observatory.epswarmTrcold[ilambd], # emissivity, should be variable eventually
-             )
+                observation.lambd[ilambd],
+                area_cm2,
+                deltalambda_nm,
+                observatory.telescope.temperature,
+                lod_rad,
+                observatory.epswarmTrcold[ilambd],
+                observatory.detector.QE[ilambd,],
+            )
+
             det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin + det_CRbth
 
             for iorbit in np.arange(observation.norbits):
@@ -874,24 +1011,36 @@ def calculate_exposure_time(
                     ix = (
                         scene.xp[iphase, iorbit, istar] * oneopixscale_arcsec
                         + observatory.coronagraph.xcenter
-                    )
+                    ).value  # this is the "index" of the position in pixel, i.e. the number of the pixel where the planet is
                     iy = (
                         scene.yp[iphase, iorbit, istar] * oneopixscale_arcsec
                         + observatory.coronagraph.ycenter
-                    )
+                    ).value  # this is the "index" of the position in pixel, i.e. the number of the pixel where the planet is
 
-                    # Calculate separation in arcsec
-                    sp_lod = scene.sp[iphase, iorbit, istar] / lod_arcsec
+                    # Calculate separation (from arcsec to l/D)
+                    sp_lod = arcsec_to_lambda_d(
+                        scene.sp[iphase, iorbit, istar],
+                        observation.lambd[ilambd].to(LENGTH),
+                        observatory.telescope.diameter.to(LENGTH),
+                    )
 
                     # If planet is within the boundaries of the observatory.coronagraph
                     # simulation and hard IWA/OWA cutoffs...
                     if (
-                        (ix >= 0)
-                        and (ix < observatory.coronagraph.npix)
-                        and (iy >= 0)
-                        and (iy < observatory.coronagraph.npix)
-                        #                        and (sp_lod > observatory.coronagraph.minimum_IWA)
-                        #                        and (sp_lod < observatory.coronagraph.maximum_OWA)
+                        (ix >= 0)  # check that x pixel is positive
+                        and (
+                            ix < observatory.coronagraph.npix
+                        )  # check that it is less than the maximum pixel number
+                        and (iy >= 0)  # check that the y pixel is positive
+                        and (
+                            iy < observatory.coronagraph.npix
+                        )  # check that it is less than the maximum pixel number
+                        and (
+                            sp_lod > observatory.coronagraph.minimum_IWA
+                        )  # check that the separation in l/D is more than the minimum allowed IWA
+                        and (
+                            sp_lod < observatory.coronagraph.maximum_OWA
+                        )  # check that the separation in l/D is less than the maximum allowed OWA
                     ):
 
                         for iratio in np.arange(observatory.coronagraph.npsfratios):
@@ -1008,11 +1157,12 @@ def calculate_exposure_time(
 
                                 # Calculate CRbd
                                 t_photon_count = calculate_t_photon_count(
-                                    lod_arcsec,
                                     observatory.detector.pixscale_mas,
                                     observatory.detector.npix_multiplier[ilambd],
                                     det_omega_lod,
                                     det_CR,
+                                    observation.lambd[ilambd],
+                                    observatory.telescope.diameter,
                                 )
 
                                 CRbd = calculate_CRbd(
@@ -1027,15 +1177,14 @@ def calculate_exposure_time(
                                 )
 
                                 CRbth = calculate_CRbth(
-                                    observation.lambd[
-                                        ilambd
-                                    ]*u.um,  ### this is the wavelength of observation; is this the right variable name??
-                                        area_cm2*u.cm**2,
-                                        deltalambda_nm*u.nm,
-                                        observatory.telescope.temperature*u.K,  # temperature (should be a variable eventually)
-                                        lod_arcsec * u.arcsec,
-                                        observatory.epswarmTrcold[ilambd], # emissivity, should be variable eventually
-                                    )
+                                    observation.lambd[ilambd],
+                                    area_cm2,
+                                    deltalambda_nm,
+                                    observatory.telescope.temperature,
+                                    lod_rad,
+                                    observatory.epswarmTrcold[ilambd],
+                                    observatory.detector.QE[ilambd,],
+                                )
 
                                 # TOTAL BACKGROUND NOISE
                                 CRb = (
@@ -1043,6 +1192,7 @@ def calculate_exposure_time(
                                 ) * observatory.coronagraph.omega_lod[
                                     int(np.floor(iy)), int(np.floor(ix)), iratio
                                 ]
+
                                 # Add detector noise
                                 CRb += CRbd
 
@@ -1050,9 +1200,11 @@ def calculate_exposure_time(
                                 # count rate term
                                 # NOTE this includes the systematic noise floor
                                 # term a la Bijan Nemati
-                                cp = (CRp + observation.CRb_multiplier * CRb) / (
-                                    CRp * CRp - CRnf * CRnf
-                                )
+                                cp = (
+                                    (CRp + observation.CRb_multiplier * CRb)
+                                    / (CRp * CRp - CRnf * CRnf)
+                                    * u.electron
+                                )  # TODO CHECK UNITS
 
                                 # Calculate Exposure time
                                 observation.exptime[istar, ilambd] = (
@@ -1441,11 +1593,12 @@ def calculate_signal_to_noise(
 
                                 # Calculate CRbd
                                 t_photon_count = calculate_t_photon_count(
-                                    lod_arcsec,
                                     observatory.detector.pixscale_mas,
                                     observatory.detector.npix_multiplier[ilambd],
                                     det_omega_lod,
                                     det_CR,
+                                    observation.lambd[ilambd],
+                                    observatory.telescope["diameter"],
                                 )
 
                                 CRbd = calculate_CRbd(

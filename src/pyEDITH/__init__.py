@@ -1,3 +1,5 @@
+# src/pyEDITH/__init__.py
+
 # Import main classes
 from .astrophysical_scene import AstrophysicalScene
 from .observation import Observation
@@ -7,14 +9,11 @@ from .components.coronagraphs import Coronagraph
 from .components.telescopes import Telescope
 from .components.detectors import Detector
 
-
 # Import main functions
 from .exposure_time_calculator import calculate_exposure_time, calculate_signal_to_noise
 from .components.coronagraphs import generate_radii
 from . import parse_input
-
-# Import instrument-specific classes and functions
-
+from .units import *
 
 # Import CLI functions
 from .cli import main, calculate_texp, calculate_snr
@@ -24,7 +23,8 @@ __all__ = [
     "AstrophysicalScene",
     "Observation",
     "Observatory",
-    "ObservatoryBuilder" "Telescope",
+    "ObservatoryBuilder",
+    "Telescope",
     "Coronagraph",
     "Detector",
     "calculate_exposure_time",
