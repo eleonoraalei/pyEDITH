@@ -62,6 +62,12 @@ class Observatory(ABC):  # abstract class
                 * self.coronagraph.coronagraph_throughput
             )
 
+        if parameters["observing_mode"] == "IFS":
+             # multiply by the IFS efficiency if in spectroscopy mode
+            self.optics_throughput *= parameters["IFS_eff"]
+        else:
+            pass
+
     def calculate_warmemissivity_coldtransmission(self, parameters):
         """
         This function calculates the warm emissivity*cold transmission factor
