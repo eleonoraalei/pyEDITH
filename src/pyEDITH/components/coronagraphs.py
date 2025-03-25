@@ -338,6 +338,119 @@ class ToyModelCoronagraph(Coronagraph):
             self.noisefloor[:, :, z] = n_floor
 
 
+class CoronagraphYIP(Coronagraph):
+    """
+    A coronagraph class that uses a Yield Input Package (YIP) for calculating 
+    coronagraph transmission, stellar intensity, and off-axis PSFs
+
+    There are two components to this coronagraph simulation:
+    1) the coronagraph optical throughput that comes from the HWO yaml files
+    2) the coronagraph response that comes from the YIP
+
+    """
+
+
+    def load_configuration(self, parameters, mediator):
+        """
+        Load configuration parameters for the simulation from a dictionary.
+
+        Parameters
+        ----------
+        parameters : dict
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
+        observation: Observation
+            An instance of the observation class.
+        ALL OF THE CLASSES
+        Returns
+        -------
+        None
+        """
+
+        from eacy import load_instrument
+
+        # ***** Set the bandwith *****
+        setattr(
+            self,
+            "bandwidth",
+            parameters.get("bandwidth", self.DEFAULT_CONFIG["bandwidth"]),
+        )
+
+        # ****** Update Default Config when necessary ******
+        wavelength_range = [
+            mediator.get_observation_parameter("lambd") * (1 - 0.5 * self.bandwidth),
+            mediator.get_observation_parameter("lambd") * (1 + 0.5 * self.bandwidth),
+        ]
+        instrument_params = load_instrument("CI").__dict__
+
+        instrument_params = parse_input.average_over_bandpass(
+            instrument_params, wavelength_range
+        )
+
+        self.DEFAULT_CONFIG["coronagraph_throughput"] = instrument_params[
+            "total_inst_refl"
+        ]  # Optical throughput (nlambd array)
+
+        # ***** Load parameters, use defaults if not provided *****
+        for key, default_value in self.DEFAULT_CONFIG.items():
+            setattr(self, key, parameters.get(key, default_value))
+
+        # ***** Convert to numpy array when appropriate *****
+        array_params = ["psf_trunc_ratio", "angdiams", "coronagraph_throughput"]
+        for param in array_params:
+            setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
+
+
+        # ***** Load the YIP using yippy *****
+        # TODO: this needs to be a parameter in the input file
+        YIP_dir = "/Users/mhcurrie/science/packages/yippy/yips/usort_offaxis_ovc" 
+
+        yippy_obj = yippycoro(YIP_dir)
+
+        # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****
+        self.pixscale = yippy_obj.header.pixscale.value # has units of lam/D / pix
+        self.npix = yippy_obj.header.naxis1
+        self.xcenter = yippy_obj.header.xcenter
+        self.ycenter = yippy_obj.header.ycenter
+
+        # Sky transmission map for extended sources
+        self.skytrans = yippy_obj.sky_trans()
+
+        # Off axis throughput map: photap_frac
+        self.r = (
+            generate_radii(self.npix, self.npix) * self.pixscale
+        )  # create an array of circumstellar separations in units of lambd/D centered on star
+
+        self.photap_frac = np.empty((self.npix, self.npix, len(self.psf_trunc_ratio)))
+        for n in len(self.psf_trunc_ratio):
+            sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(aperture_radius_lod=self.psf_trunc_ratio[n], oversample=2, plot=False) # changed from aperture_radius_lod=0.7
+            offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
+            for i in range(self.npix):
+                for j in range(self.npix):
+                        # get the off axis throughput at each separation
+                        self.photap_frac[i,j,n] = offax_tput_func(self.r[i,j])
+
+        # On-axis intensity map with a stellar diameter
+        self.Istar = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        for i_diam, angdiam in enumerate(self.angdiams):
+            # TODO: is angdiam in units of arcsec or lod? needs to be in units of lod.
+            Istar = yippy_obj.stellar_intens(angdiam)
+            self.Istar[:,:,i_diam] = Istar
+
+        # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
+        # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
+        # currently I do not have a YIP with a second Istar realization, so I cannot develop this part yet.
+        self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        
+        # self.noisefloor = (
+        #     self.noisefloor_factor * self.contrast
+        # )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
+        # n_floor = np.full((self.npix, self.npix), self.noisefloor * self.PSFpeak)
+        # n_floor = 
+        # self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        # for z in range(len(self.angdiams)):
+        #     self.noisefloor[:, :, z] = n_floor
+
 # class EAC1Coronagraph(Coronagraph):
 #     """
 #     A toy model coronagraph class that extends the base Coronagraph class.
