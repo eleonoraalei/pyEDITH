@@ -775,11 +775,12 @@ def measure_coronagraph_performance(
     return det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
 
 
-def calculate_exposure_time(
+def calculate_exposure_time_or_snr(
     observation: Observation,
     scene: AstrophysicalScene,
     observatory: Observatory,
     verbose: bool,
+    mode: str = "exposure_time",
 ) -> None:
     """
     Calculate the exposure time for each target and wavelength.
@@ -909,10 +910,13 @@ def calculate_exposure_time(
             # Detector noise from signal itself (we budget for 10x
             # the planet count rate for the minimum detectable planet)
 
+            min_Fp = (
+                10 ** (-0.4 * scene.min_deltamag[istar].value) * DIMENSIONLESS
+            )  # factor multiplierd by F0 later
             det_CRp = calculate_CRp(
                 scene.F0[ilambd],
                 Fstar,
-                10 * 10 ** (-0.4 * scene.min_deltamag[istar].value),
+                10 * min_Fp.value,
                 area_cm2,
                 det_photap_frac,
                 observatory.total_throughput[ilambd],
@@ -1041,37 +1045,68 @@ def calculate_exposure_time(
                             )
 
                             # NOISE FLOOR CRNF
-                            CRnf = calculate_CRnf(
-                                scene.F0[ilambd],
-                                Fstar,
-                                area_cm2,
-                                observatory.coronagraph.pixscale,
-                                observatory.total_throughput[ilambd],
-                                deltalambda_nm,
-                                observatory.coronagraph.nchannels,
-                                observation.SNR[ilambd],
-                                noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
-                            )
+                            if mode == "exposure_time":
+                                # NOISE FLOOR CRNF
+                                CRnf = calculate_CRnf(
+                                    scene.F0[ilambd],
+                                    Fstar,
+                                    area_cm2,
+                                    observatory.coronagraph.pixscale,
+                                    observatory.total_throughput[ilambd],
+                                    deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
+                                    observation.SNR[ilambd],
+                                    noisefloor_interp[
+                                        int(np.floor(iy)), int(np.floor(ix))
+                                    ],
+                                )
+
+                            elif mode == "signal_to_noise":
+                                #  NOTE THIS TIME THIS IS JUST THE NOISE
+                                # FACTOR RATIO (i.e. we assume SNR =1 so
+                                # that we can use it for the snr calculation later)
+
+                                CRnf = calculate_CRnf(
+                                    scene.F0[ilambd],
+                                    Fstar,
+                                    area_cm2,
+                                    observatory.coronagraph.pixscale,
+                                    observatory.total_throughput[ilambd],
+                                    deltalambda_nm,
+                                    observatory.coronagraph.nchannels,
+                                    1,
+                                    noisefloor_interp[
+                                        int(np.floor(iy)), int(np.floor(ix))
+                                    ],
+                                )
+
+                            else:
+                                raise ValueError(
+                                    "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
+                                )
 
                             # multiply by omega at that point
                             CRnf *= observatory.coronagraph.omega_lod[
                                 int(np.floor(iy)), int(np.floor(ix)), iratio
                             ]
+
                             # NOTE: noisefloor_interp: technically the Y axis
                             # is rows and the X axis is columns,
                             # that is why they are inverted
                             # NOTE: Evaluate if int(round(iy)) is better than
                             # np.floor. Kept np.floor for consistency
 
-                            # Check if it's above the noise floor and
-                            # calculate exposure time if conditions are met
+                            # Check if photometric aperture is large enough:
                             if (
-                                CRp > CRnf
-                                and observatory.coronagraph.omega_lod[
+                                observatory.coronagraph.omega_lod[
                                     int(np.floor(iy)), int(np.floor(ix)), iratio
                                 ]
                                 > detpixscale_lod**2
                             ):
+                                # (for exposure time mode) Check if it's above the noise floor
+                                if mode == "exposure_time" and CRp <= CRnf:
+                                    observation.exptime[istar, ilambd] = np.inf
+                                    continue  # Skip to next iteration
 
                                 # Calculate the rest of the background noise
 
@@ -1171,51 +1206,123 @@ def calculate_exposure_time(
                                 CRb += CRbd
 
                                 # EXPOSURE TIME
-                                # count rate term
-                                # NOTE this includes the systematic noise floor
-                                # term a la Bijan Nemati
-                                cp = (
-                                    (CRp + observation.CRb_multiplier * CRb)
-                                    / (CRp * CRp - CRnf * CRnf)
-                                    * u.electron
-                                )  # TODO CHECK UNITS
+                                if mode == "exposure_time":
+                                    # count rate term
+                                    # NOTE this includes the systematic noise floor
+                                    # term a la Bijan Nemati
+                                    cp = (
+                                        (CRp + observation.CRb_multiplier * CRb)
+                                        / (CRp * CRp - CRnf * CRnf)
+                                        * u.electron
+                                    )  # TODO CHECK UNITS
 
-                                # Calculate Exposure time
-                                observation.exptime[istar, ilambd] = (
-                                    observation.SNR[ilambd]
-                                    * observation.SNR[ilambd]
-                                    * cp
-                                    * observatory.telescope.toverhead_multi
-                                    + observatory.telescope.toverhead_fixed
-                                )  # record exposure time with overheads
+                                    # UNITS:
+                                    # ([electron/s]+[electron/s])/([electron/s]^2+[electron/s]^2) =
+                                    # [s/electron]
 
-                                if observation.exptime[istar, ilambd] < 0:
-                                    # time is past the systematic
-                                    # noise floor limit
-                                    observation.exptime[istar, ilambd] = np.inf
+                                    # Calculate Exposure time
+                                    observation.exptime[istar, ilambd] = (
+                                        observation.SNR[ilambd]
+                                        * observation.SNR[ilambd]
+                                        * cp
+                                        * observatory.telescope.toverhead_multi
+                                        + observatory.telescope.toverhead_fixed
+                                    )  # record exposure time with overheads
 
-                                if (
-                                    observation.exptime[istar, ilambd]
-                                    > observation.td_limit
-                                ):
-                                    # treat as unobservable
-                                    # if beyond exposure time limit
-                                    observation.exptime[istar, ilambd] = np.inf
+                                    # UNITS:
+                                    # []^2*[s/electron]*[]+[s] == [s]
+                                    if observation.exptime[istar, ilambd] < 0:
+                                        # time is past the systematic
+                                        # noise floor limit
+                                        observation.exptime[istar, ilambd] = np.inf
 
-                                if observatory.coronagraph.nrolls != 1:
-                                    # multiply by number of required rolls to
-                                    # achieve 360 deg coverage
-                                    # (after tlimit enforcement)
-                                    observation.exptime[
-                                        istar, ilambd
-                                    ] *= observatory.coronagraph.nrolls
+                                    if (
+                                        observation.exptime[istar, ilambd]
+                                        > observation.td_limit
+                                    ):
+                                        # treat as unobservable
+                                        # if beyond exposure time limit
+                                        observation.exptime[istar, ilambd] = np.inf
+
+                                    if observatory.coronagraph.nrolls != 1:
+                                        # multiply by number of required rolls to
+                                        # achieve 360 deg coverage
+                                        # (after tlimit enforcement)
+                                        observation.exptime[
+                                            istar, ilambd
+                                        ] *= observatory.coronagraph.nrolls
+                                elif mode == "signal_to_noise":
+                                    # SIGNAL-TO-NOISE
+                                    # time term
+                                    time_factors = (
+                                        observation.obstime
+                                        * observatory.coronagraph.nrolls
+                                        - observatory.telescope.toverhead_fixed
+                                    ) / (
+                                        observatory.telescope.toverhead_multi
+                                        * ((CRp + observation.CRb_multiplier * CRb))
+                                    )  # TODO check units
+
+                                    # UNITS:
+                                    # ([s]*[]-[s])/([electron/s]+[]*[electron/s])
+                                    # [s]/[electron/s]=[s^2/electron]
+
+                                    # Signal-to-noise
+                                    observation.fullsnr[istar, ilambd] = (
+                                        np.sqrt(
+                                            (time_factors * CRp**2)
+                                            / (1 * ELECTRON + time_factors * CRnf**2)
+                                        )
+                                        * DIMENSIONLESS
+                                    )
+
+                                    # UNITS:
+                                    # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
+                                    # [electron]/[electron] = []
+
+                                    if observation.fullsnr[istar, ilambd] < 0:
+                                        # time is past the systematic noise
+                                        # floor limit
+                                        observation.fullsnr[istar, ilambd] = (
+                                            0 * DIMENSIONLESS
+                                        )
+                                    if observation.fullsnr[istar, ilambd] > 100:
+                                        # treat as unobservable if beyond
+                                        # exposure time limit
+                                        observation.fullsnr[istar, ilambd] = (
+                                            100 * DIMENSIONLESS
+                                        )
+                                else:
+                                    raise ValueError(
+                                        "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
+                                    )
+
                             else:
-                                # It's below the systematic noise floor...
-                                observation.exptime[istar, ilambd] = np.inf
+                                print(
+                                    "WARNING: Photometric aperture is not large enough. Hardcoded infinity results."
+                                )
+                                if mode == "exposure_time":
+                                    observation.exptime[istar, ilambd] = np.inf
+                                elif mode == "signal_to_noise":
+                                    observation.fullsnr[istar, ilambd] = np.inf
+                                else:
+                                    raise ValueError(
+                                        "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
+                                    )
+
                     else:
-                        # outside of the input contrast map or hard
-                        # IWA/OWA cutoffs
-                        observation.exptime[istar, ilambd] = np.inf
+                        print(
+                            "WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results."
+                        )
+                        if mode == "exposure_time":
+                            observation.exptime[istar, ilambd] = np.inf
+                        elif mode == "signal_to_noise":
+                            observation.fullsnr[istar, ilambd] = np.inf
+                        else:
+                            raise ValueError(
+                                "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
+                            )
+
                 if verbose:
                     print_all_variables(
                         observation,
@@ -1266,371 +1373,6 @@ def calculate_exposure_time(
         # exptime matrix.
         # This is not a problem right now since these are "fake" loops as of
         # now (nmeananom, norbits, npsfratios all are 1).
-        # But this might change in the future.
-        return
-
-
-def calculate_signal_to_noise(
-    observation: Observation,
-    scene: AstrophysicalScene,
-    observatory: Observatory,
-) -> None:
-    """
-    Calculate the signal-to-noise ratio for each target and wavelength.
-
-    Parameters
-    ----------
-    observation : Observation
-        Object containing observation parameters.
-    scene : AstrophysicalScene
-        Object containing scene parameters.
-    observatory: Observatory
-        Object containing observatory parameters.
-
-    Returns
-    -------
-    None
-        Results are stored in the observation object.
-
-    Notes
-    -----
-    This function calculates the signal-to-noise ratio for each target star and wavelength,
-    taking into account various noise sources and coronagraph performance metrics.
-    It iterates through targets, wavelengths, orbits, and phases to compute
-    the achieved signal-to-noise ratio for planet detection given a fixed observation time.
-    """
-
-    for istar in range(scene.ntargs):  # set to 1
-        for ilambd in range(observation.nlambd):  # set to 1
-
-            # Calculate useful quantities
-            Fstar = 10 ** (-0.4 * scene.mag[istar, ilambd])
-
-            # Take the lesser of the desired bandwidth and what
-            # coronagraph allows
-            deltalambda_nm = np.min(
-                [
-                    (observation.lambd[ilambd] * 1000.0) / observation.SR[ilambd],
-                    observatory.coronagraph.bandwidth
-                    * (observation.lambd[ilambd] * 1000.0),
-                ]
-            )
-            lod_arcsec = (
-                observation.lambd[ilambd] * 1e-6 / observatory.telescope.diameter
-            ) * 206264.806
-            area_cm2 = observatory.telescope.Area * 100 * 100
-            stellar_diam_lod = scene.angdiam_arcsec[istar] / lod_arcsec
-            detpixscale_lod = observatory.detector.pixscale_mas / (lod_arcsec * 1000.0)
-
-            # Interpolate Istar, noisefloor based on angular diameter
-            # of the star (depends on the target). It reduces dimensionality
-            # from 3D arrays [npix,npix,angdiam] to 2D arrays [npix,npix].
-            # The interpolation is done based on the value of
-            # stellar_diam_lod (dependence on istar)
-
-            Istar_interp, noisefloor_interp = interpolate_arrays(
-                observatory.coronagraph.Istar,
-                observatory.coronagraph.noisefloor,
-                observatory.coronagraph.npix,
-                observatory.coronagraph.ndiams,
-                stellar_diam_lod,
-                observatory.coronagraph.angdiams,
-            )
-
-            # Measure observatory.coronagraph performance at each IWA
-            pixscale_rad = observatory.coronagraph.pixscale * (
-                observation.lambd[ilambd] * 1e-6 / observatory.telescope.diameter
-            )
-            oneopixscale_arcsec = 1.0 / (pixscale_rad * 206264.806)
-
-            # Measure observatory.coronagraph performance at each IWA
-            (
-                det_sep_pix,
-                det_sep,
-                det_Istar,
-                det_skytrans,
-                det_photap_frac,
-                det_omega_lod,
-            ) = measure_coronagraph_performance(
-                observatory.coronagraph.psf_trunc_ratio,
-                observatory.coronagraph.photap_frac,
-                Istar_interp,
-                observatory.coronagraph.skytrans,
-                observatory.coronagraph.omega_lod,
-                observatory.coronagraph.npix,
-                observatory.coronagraph.xcenter,
-                observatory.coronagraph.ycenter,
-                oneopixscale_arcsec,
-            )
-
-            # Here we calculate detector noise, as it may depend on count rates
-            # We don't know the count rates yet, so we make estimates based on
-            # values near the IWA
-
-            # Detector noise from signal itself (we budget for 10x the planet
-            # count rate for the minimum detectable planet)
-            det_CRp = calculate_CRp(
-                scene.F0[ilambd],
-                Fstar,
-                10 * 10 ** (-0.4 * scene.min_deltamag[istar]),
-                area_cm2,
-                det_photap_frac,
-                observatory.total_throughput[ilambd],
-                deltalambda_nm,
-            )
-
-            det_CRbs = calculate_CRbs(
-                scene.F0[ilambd],
-                Fstar,
-                det_Istar,
-                area_cm2,
-                observatory.coronagraph.pixscale,
-                observatory.total_throughput[ilambd],
-                deltalambda_nm,
-                observatory.coronagraph.nchannels,
-            )
-
-            det_CRbz = calculate_CRbz(
-                scene.F0[ilambd],
-                scene.Fzodi_list[istar, ilambd],
-                lod_arcsec,
-                det_skytrans,
-                area_cm2,
-                observatory.total_throughput[ilambd],
-                deltalambda_nm,
-                observatory.coronagraph.nchannels,
-            )
-
-            det_CRbez = calculate_CRbez(
-                scene.F0[ilambd],
-                scene.Fexozodi_list[istar, ilambd],
-                lod_arcsec,
-                det_skytrans,
-                area_cm2,
-                observatory.total_throughput[ilambd],
-                deltalambda_nm,
-                observatory.coronagraph.nchannels,
-                scene.dist[istar],
-                det_sep,
-            )
-            det_CRbbin = calculate_CRbbin(
-                scene.F0[ilambd],
-                scene.Fbinary_list[istar, ilambd],
-                det_skytrans,
-                area_cm2,
-                observatory.total_throughput[ilambd],
-                deltalambda_nm,
-                observatory.coronagraph.nchannels,
-            )
-
-            det_CR = det_CRp + det_CRbs + det_CRbz + det_CRbez + det_CRbbin
-            # TODO ADD QE MULTIPLICATIVELY TO DET_CR
-            for iorbit in np.arange(observation.norbits):
-                for iphase in np.arange(observation.nmeananom):
-
-                    # Calculate position of the planet in the image
-                    # (from l/D to pixel)
-                    ix = (
-                        scene.xp[iphase, iorbit, istar] * oneopixscale_arcsec
-                        + observatory.coronagraph.xcenter
-                    )
-                    iy = (
-                        scene.yp[iphase, iorbit, istar] * oneopixscale_arcsec
-                        + observatory.coronagraph.ycenter
-                    )
-                    # Calculate separation in arcsec
-                    sp_lod = scene.sp[iphase, iorbit, istar] / lod_arcsec
-
-                    # if planet is within the boundaries of the observatory.coronagraph
-                    # simulation and hard IWA/OWA cutoffs...
-                    if (
-                        (ix >= 0)
-                        and (ix < observatory.coronagraph.npix)
-                        and (iy >= 0)
-                        and (iy < observatory.coronagraph.npix)
-                        #                        and (sp_lod > observatory.coronagraph.minimum_IWA)
-                        #                        and (sp_lod < observatory.coronagraph.maximum_OWA)
-                    ):
-
-                        for iratio in np.arange(observatory.coronagraph.npsfratios):
-                            # First we just calculate CRp and CRnoisefloor to
-                            # see if CRp > CRnoisefloor
-
-                            # PLANET COUNT RATE CRP
-                            CRp = calculate_CRp(
-                                scene.F0[ilambd],
-                                Fstar,
-                                scene.Fp0[iphase, iorbit, istar],
-                                area_cm2,
-                                observatory.coronagraph.photap_frac[
-                                    int(np.floor(iy)), int(np.floor(ix)), iratio
-                                ],
-                                observatory.total_throughput[ilambd],
-                                deltalambda_nm,
-                            )
-
-                            # NOISE FLOOR CRNF
-                            #  NOTE THIS TIME THIS IS JUST THE NOISE
-                            # FACTOR RATIO (i.e. we assume SNR =1 so
-                            # that we can use it for the snr calculation later)
-
-                            CRnf_factor = calculate_CRnf(
-                                scene.F0[ilambd],
-                                Fstar,
-                                area_cm2,
-                                observatory.coronagraph.pixscale,
-                                observatory.total_throughput[ilambd],
-                                deltalambda_nm,
-                                observatory.coronagraph.nchannels,
-                                1,
-                                noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
-                            )
-
-                            # multiply by omega at that point
-                            CRnf_factor *= observatory.coronagraph.omega_lod[
-                                int(np.floor(iy)), int(np.floor(ix)), iratio
-                            ]
-                            # NOTE: noisefloor_interp: technically the Y axis
-                            # is rows and the X axis is columns,
-                            # that is why they are inverted
-                            # NOTE: Evaluate if int(round(iy) is better than
-                            # np.floor. Kept np.floor for consistency
-
-                            # Check and calculate exposure time if
-                            # conditions are met
-                            if (
-                                observatory.coronagraph.omega_lod[
-                                    int(np.floor(iy)), int(np.floor(ix)), iratio
-                                ]
-                                > detpixscale_lod**2
-                            ):
-                                # CALCULATE THE REST OF THE BACKGROUND NOISE
-
-                                # ## WHEN CALCULATING THE COUNT RATES, WE NEED
-                                # TO MULTIPLY BY OMEGA_LOD i.e.
-                                # # THE SOLID ANGLE OF THE PHOTOMETRIC APERTURE
-                                # Calculate CRbs
-                                CRbs = calculate_CRbs(
-                                    scene.F0[ilambd],
-                                    Fstar,
-                                    Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
-                                    area_cm2,
-                                    observatory.coronagraph.pixscale,
-                                    observatory.total_throughput[ilambd],
-                                    deltalambda_nm,
-                                    observatory.coronagraph.nchannels,
-                                )
-
-                                # Calculate CRbz
-                                CRbz = calculate_CRbz(
-                                    scene.F0[ilambd],
-                                    scene.Fzodi_list[istar, ilambd],
-                                    lod_arcsec,
-                                    observatory.coronagraph.skytrans[
-                                        int(np.floor(iy)), int(np.floor(ix))
-                                    ],
-                                    area_cm2,
-                                    observatory.total_throughput[ilambd],
-                                    deltalambda_nm,
-                                    observatory.coronagraph.nchannels,
-                                )
-
-                                # Calculate CRbez
-                                CRbez = calculate_CRbez(
-                                    scene.F0[ilambd],
-                                    scene.Fexozodi_list[istar, ilambd],
-                                    lod_arcsec,
-                                    observatory.coronagraph.skytrans[
-                                        int(np.floor(iy)), int(np.floor(ix))
-                                    ],
-                                    area_cm2,
-                                    observatory.total_throughput[ilambd],
-                                    deltalambda_nm,
-                                    observatory.coronagraph.nchannels,
-                                    scene.dist[istar],
-                                    scene.sp[iphase, iorbit, istar],
-                                )
-
-                                # Calculate CRbbin
-                                CRbbin = calculate_CRbbin(
-                                    scene.F0[ilambd],
-                                    scene.Fbinary_list[istar, ilambd],
-                                    observatory.coronagraph.skytrans[
-                                        int(np.floor(iy)), int(np.floor(ix))
-                                    ],
-                                    area_cm2,
-                                    observatory.total_throughput[ilambd],
-                                    deltalambda_nm,
-                                    observatory.coronagraph.nchannels,
-                                )
-
-                                # Calculate CRbd
-                                t_photon_count = calculate_t_photon_count(
-                                    observatory.detector.pixscale_mas,
-                                    observatory.detector.npix_multiplier[ilambd],
-                                    det_omega_lod,
-                                    det_CR,
-                                    observation.lambd[ilambd],
-                                    observatory.telescope["diameter"],
-                                )
-
-                                CRbd = calculate_CRbd(
-                                    observatory.detector.npix_multiplier[ilambd],
-                                    observatory.detector.DC[ilambd],
-                                    observatory.detector.RN[ilambd],
-                                    observatory.detector.tread[ilambd],
-                                    observatory.detector.CIC[ilambd],
-                                    t_photon_count,
-                                    det_omega_lod,
-                                    detpixscale_lod,
-                                )
-
-                                # TOTAL BACKGROUND NOISE
-                                CRb = (
-                                    CRbs + CRbz + CRbez + CRbbin
-                                ) * observatory.coronagraph.omega_lod[
-                                    int(np.floor(iy)), int(np.floor(ix)), iratio
-                                ]
-                                # Add detector noise
-                                CRb += CRbd
-
-                                # SIGNAL-TO-NOISE
-                                # time term
-                                time_factors = (
-                                    observation.obstime * observatory.coronagraph.nrolls
-                                    - observatory.telescope.toverhead_fixed
-                                ) / (
-                                    observatory.telescope.toverhead_multi
-                                    * ((CRp + 2 * CRb))
-                                )
-
-                                # Signal-to-noise
-                                observation.fullsnr[istar, ilambd] = np.sqrt(
-                                    (time_factors * CRp**2)
-                                    / (1 + time_factors * CRnf_factor**2)
-                                )
-
-                                if observation.fullsnr[istar, ilambd] < 0:
-                                    # time is past the systematic noise
-                                    # floor limit
-                                    observation.fullsnr[istar, ilambd] = 0
-                                if observation.fullsnr[istar, ilambd] > 100:
-                                    # treat as unobservable if beyond
-                                    # exposure time limit
-                                    observation.fullsnr[istar, ilambd] = 100
-
-                            else:
-                                # It's below the systematic noise floor...
-                                observation.fullsnr[istar, ilambd] = np.inf
-                    else:
-                        # outside of the input contrast map or hard
-                        # IWA/OWA cutoffs
-                        observation.fullsnr[istar, ilambd] = np.inf
-
-        # NOTE FOR FUTURE DEVELOPMENT
-        # The nmeananom, norbits, npsfratios loops are not stored in the
-        # fullsnr matrix. This is not a problem right now since these are
-        # "fake" loops as of now (nmeananom, norbits, npsfratios all are 1).
         # But this might change in the future.
         return
 
@@ -2009,3 +1751,4 @@ def print_all_variables(
 
             file.write("\n7. Final Result:\n")
             print_array_info(file, "observation.exptime", observation.exptime, mode)
+            print_array_info(file, "observation.fullsnr", observation.fullsnr, mode)

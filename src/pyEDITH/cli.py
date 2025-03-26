@@ -1,5 +1,5 @@
 from pyEDITH import AstrophysicalScene, Observation, ObservatoryBuilder
-from pyEDITH import calculate_exposure_time, calculate_signal_to_noise, parse_input
+from pyEDITH import calculate_exposure_time_or_snr, parse_input
 from argparse import ArgumentParser
 import numpy as np
 import sys
@@ -8,7 +8,7 @@ import os
 
 # Declare the environment variable
 # TODO: this should go in your zshrc file as an export statement
-#os.environ["SCI_ENG_DIR"] = "/Users/ealei/Coding/pyEDITH/Sci-Eng-Interface/hwo_sci_eng"
+# os.environ["SCI_ENG_DIR"] = "/Users/ealei/Coding/pyEDITH/Sci-Eng-Interface/hwo_sci_eng"
 
 # Print the value of the environment variable
 print(os.environ["SCI_ENG_DIR"])
@@ -89,7 +89,7 @@ def main():
             sys.exit(1)
         parameters, _ = parse_input.read_configuration(args.edith)
         texp = args.time
-        snr = calculate_snr(parameters, texp)
+        snr = calculate_snr(parameters, texp, args.verbose)
         print(snr)
 
     elif args.subfunction == "etc2snr":
@@ -113,11 +113,11 @@ def main():
 
         print("Calculating texp from primary lambda")
         print(parameters.keys())
-        texp = calculate_texp(parameters)
+        texp = calculate_texp(parameters, args.verbose)
         print("Reference exposure time: ", texp)
         if np.isfinite(texp).all():
             print("Calculating snr on secondary lambda")
-            snr = calculate_snr(secondary_parameters, texp)
+            snr = calculate_snr(secondary_parameters, texp, args.verbose)
             print("SNR at the secondary lambda: ", snr)
         else:
             raise ValueError("Returned exposure time is infinity.")
@@ -200,12 +200,14 @@ def calculate_texp(parameters: dict, verbose) -> np.array:
     observatory.validate_configuration()
 
     # EXPOSURE TIME CALCULATION
-    calculate_exposure_time(observation, scene, observatory, verbose)
+    calculate_exposure_time_or_snr(
+        observation, scene, observatory, verbose, mode="exposure_time"
+    )
 
     return observation.exptime
 
 
-def calculate_snr(parameters, reference_texp):
+def calculate_snr(parameters, reference_texp, verbose):
     """
     Calculates the signal-to-noise ratio (SNR) for a given exposure time.
 
@@ -251,7 +253,9 @@ def calculate_snr(parameters, reference_texp):
 
     # SNR CALCULATION
     observation.obstime = reference_texp
-    calculate_signal_to_noise(observation, scene, observatory)
+    calculate_exposure_time_or_snr(
+        observation, scene, observatory, verbose, mode="signal_to_noise"
+    )
     # print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
 
     return observation.fullsnr
