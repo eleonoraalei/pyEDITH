@@ -348,8 +348,8 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
         if key != "lam":
             params[key] = np.mean(
                 params[key][
-                    (params["lam"].value >= wavelength_range[0])
-                    & (params["lam"].value <= wavelength_range[1])
+                    (params["lam"].value >= wavelength_range[0].value)
+                    & (params["lam"].value <= wavelength_range[1].value)
                 ]
             )
     return params

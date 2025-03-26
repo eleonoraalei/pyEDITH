@@ -206,7 +206,7 @@ class EAC1Detector(Detector):
             mediator.get_observation_parameter("lambd")
             * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
         ]
-        detector_params = load_detector("IMAGER").__dict__
+        detector_params = load_detector(parameters["observing_mode"]).__dict__
         detector_params = parse_input.average_over_bandpass(
             detector_params, wavelength_range
         )

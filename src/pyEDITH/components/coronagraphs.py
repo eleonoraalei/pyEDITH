@@ -3,9 +3,9 @@ import numpy as np
 from .. import parse_input
 from astropy import units as u
 from ..units import *
-
-# from yippy import Coronagraph as yippycoro
-# from lod_unit import lod
+from scipy.interpolate import interp1d
+from yippy import Coronagraph as yippycoro
+#from lod_unit import lod
 
 
 def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
@@ -349,7 +349,23 @@ class CoronagraphYIP(Coronagraph):
 
     """
 
-
+    DEFAULT_CONFIG = { # TODO: do we need this DEFAULT_CONFIG? everything we need is in the YIP or params
+        "pixscale": 0.25,  # lambd/D
+        #"angdiams": [0.0, 10.0], # NOTE: why is this an array and everywhere else in the code there is not an array for this? commenting out for now
+        "angdiam": 0.01, # NOTE: added this to match angdiam elsewhere in code
+        "minimum_IWA": 2.0,  # smallest WA to allow (lambda/D) (scalar)
+        "maximum_OWA": 100.0,  # largest WA to allow (lambda/D) (scalar)
+        "contrast": 1.05e-13,  # contrast of coronagraph (uniform over dark hole and unitless)
+        "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
+        "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
+        "Tcore": 0.2968371,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
+        "TLyot": 0.65,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
+        "nrolls": 1,  # number of rolls
+        "psf_trunc_ratio": [0.3],  # nlambda array
+        "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
+        "coronagraph_throughput": None,
+     }
+    
     def load_configuration(self, parameters, mediator):
         """
         Load configuration parameters for the simulation from a dictionary.
@@ -366,8 +382,10 @@ class CoronagraphYIP(Coronagraph):
         -------
         None
         """
+        
 
-        from eacy import load_instrument
+        from eacy import load_instrument, load_telescope
+        
 
         # ***** Set the bandwith *****
         setattr(
@@ -396,16 +414,18 @@ class CoronagraphYIP(Coronagraph):
             setattr(self, key, parameters.get(key, default_value))
 
         # ***** Convert to numpy array when appropriate *****
-        array_params = ["psf_trunc_ratio", "angdiams", "coronagraph_throughput"]
+        array_params = ["psf_trunc_ratio", "angdiam", "coronagraph_throughput"]
         for param in array_params:
             setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
 
 
         # ***** Load the YIP using yippy *****
         # TODO: this needs to be a parameter in the input file
+        
         YIP_dir = "/Users/mhcurrie/science/packages/yippy/yips/usort_offaxis_ovc" 
 
         yippy_obj = yippycoro(YIP_dir)
+        #yippy_obj = yippycoro(parameters["YIP_dir"]) # TODO: this is the correct way to do it, but we need to add this to the input file
 
         # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****
         self.pixscale = yippy_obj.header.pixscale.value # has units of lam/D / pix
@@ -422,20 +442,33 @@ class CoronagraphYIP(Coronagraph):
         )  # create an array of circumstellar separations in units of lambd/D centered on star
 
         self.photap_frac = np.empty((self.npix, self.npix, len(self.psf_trunc_ratio)))
-        for n in len(self.psf_trunc_ratio):
-            sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(aperture_radius_lod=self.psf_trunc_ratio[n], oversample=2, plot=False) # changed from aperture_radius_lod=0.7
-            offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
-            for i in range(self.npix):
-                for j in range(self.npix):
-                        # get the off axis throughput at each separation
-                        self.photap_frac[i,j,n] = offax_tput_func(self.r[i,j])
+        sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(aperture_radius_lod=self.psf_trunc_ratio, oversample=2, plot=False) # changed from aperture_radius_lod=0.7
+        offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
+        for i in range(self.npix):
+            for j in range(self.npix):
+                    # get the off axis throughput at each separation
+                    self.photap_frac[i,j,0] = offax_tput_func(self.r[i,j])
 
         # On-axis intensity map with a stellar diameter
-        self.Istar = np.zeros((self.npix, self.npix, len(self.angdiams)))
-        for i_diam, angdiam in enumerate(self.angdiams):
-            # TODO: is angdiam in units of arcsec or lod? needs to be in units of lod.
-            Istar = yippy_obj.stellar_intens(angdiam)
-            self.Istar[:,:,i_diam] = Istar
+        self.Istar = np.zeros((self.npix, self.npix, 1)) # TODO: should self.angdiam be an array??
+        # for i_diam, angdiam in enumerate(self.angdiam):
+        #     Istar = yippy_obj.stellar_intens(angdiam)
+        #     self.Istar[:,:,i_diam] = Istar
+
+        angdiam_arcsec = mediator.get_scene_parameter("angdiam_arcsec")
+        lam = mediator.get_observation_parameter("lambd")
+        telescope_params = load_telescope("EAC1").__dict__
+        tele_diam = telescope_params["diam_circ"] * LENGTH
+        #tele_diam = mediator.get_telescope_parameter("diameter") # NOTE: this doesn't work because the telescope object is not initialized yet
+        
+        print(angdiam_arcsec, lam, tele_diam)
+        angdiam_lod = arcsec_to_lambda_d(angdiam_arcsec, lam, tele_diam)
+        print(angdiam_lod)
+        assert False
+
+        Istar = yippy_obj.stellar_intens(self.angdiam*ARCSEC) # TODO: angdiam needs to be in units of lod  
+        self.Istar[:,:,0] = Istar
+        
 
         # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
         # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP

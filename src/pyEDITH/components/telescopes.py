@@ -94,7 +94,6 @@ class ToyModelTelescope(Telescope):
         -------
         None
         """
-
         # Load parameters, use defaults if not provided
         for key, default_value in self.DEFAULT_CONFIG.items():
             if key in parameters:
@@ -145,9 +144,9 @@ class EAC1Telescope(Telescope):
 
     This class represents a simplified telescope model for use in simulations.
     """
-
+    
     DEFAULT_CONFIG = {
-        "diameter": None,  # circumscribed diameter of aperture (m, scalar)
+        "diameter": 7.87*LENGTH,  # circumscribed diameter of aperture (m, scalar)
         "unobscured_area": 1.0,  # unobscured area (percentage,scalar) ### NOTE default for now
         "toverhead_fixed": 8.25e3
         * TIME,  # fixed overhead time (seconds,scalar) ### NOTE default for now
@@ -171,15 +170,14 @@ class EAC1Telescope(Telescope):
         -------
         None
         """
-
         from eacy import load_telescope
 
         # ****** Update Default Config when necessary ******
         wavelength_range = [
             mediator.get_observation_parameter("lambd")
-            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth").value),
             mediator.get_observation_parameter("lambd")
-            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth").value),
         ] * WAVELENGTH
         telescope_params = load_telescope("EAC1").__dict__
 
