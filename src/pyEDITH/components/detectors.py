@@ -174,7 +174,7 @@ class EAC1Detector(Detector):
         "tread": [1000] * READ_TIME,  # Read time (s, nlambd array) # TO ADD TO YAML
         "CIC": [
             0
-        ],  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
+        ] * CIC,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
         "QE": None,  # Quantum efficiency of detector
         "dQE": None,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
@@ -211,25 +211,25 @@ class EAC1Detector(Detector):
             detector_params, wavelength_range
         )
 
-        self.DEFAULT_CONFIG["DC"] = [
+        self.DEFAULT_CONFIG["DC"] = np.array([
             (
-                detector_params["dc_vis"]
-                if mediator.get_observation_parameter("lambd") < 1
-                else detector_params["dc_nir"]
+                float(detector_params["dc_vis"])
+                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
+                else float(detector_params["dc_nir"])
             )
-        ] * DARK_CURRENT
+        ]) * DARK_CURRENT
         # Dark current (counts pix^-1 s^-1, nlambd array)
         self.DEFAULT_CONFIG["RN"] = [
             (
                 detector_params["rn_vis"]
-                if mediator.get_observation_parameter("lambd") < 1
+                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
                 else detector_params["rn_nir"]
             )
         ] * READ_NOISE
         self.DEFAULT_CONFIG["QE"] = [
             (
                 detector_params["qe_vis"]
-                if mediator.get_observation_parameter("lambd") < 1
+                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
                 else detector_params["qe_nir"]
             )
         ] * DIMENSIONLESS

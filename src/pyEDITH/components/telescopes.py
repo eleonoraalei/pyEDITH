@@ -153,6 +153,8 @@ class EAC1Telescope(Telescope):
         "toverhead_multi": 1.1
         * DIMENSIONLESS,  # multiplicative overhead time (scalar) ### NOTE default for now
         "telescope_throughput": None,  # Optical throughput (nlambd array)
+        "Tcontam" : 1. * DIMENSIONLESS,  # Effective throughput factor to budget for contamination; NOTE: missing from YAML files
+        "temperature": 290 * TEMPERATURE,  # Temperature of the warm optics; NOTE: missing from YAML files
     }
 
     def load_configuration(self, parameters, mediator) -> None:
@@ -173,16 +175,18 @@ class EAC1Telescope(Telescope):
         from eacy import load_telescope
 
         # ****** Update Default Config when necessary ******
+        # TODO: wavelength_range probably should not depend on the coronagraph bandwidth; let's discuss
+        # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
         wavelength_range = [
             mediator.get_observation_parameter("lambd")
-            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth").value),
+            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             mediator.get_observation_parameter("lambd")
-            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth").value),
-        ] * WAVELENGTH
+            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+        ] * WAVELENGTH 
         telescope_params = load_telescope("EAC1").__dict__
 
         telescope_params = parse_input.average_over_bandpass(
-            telescope_params, wavelength_range.value
+            telescope_params, wavelength_range
         )
 
         self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
