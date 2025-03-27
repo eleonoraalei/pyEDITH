@@ -36,6 +36,7 @@ delta_mag = 25.5          ;   difference in mag between planet and host star
 delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
 
 observatory_preset = ToyModel
+observing_mode =  imaging
 
 ;--- TELESCOPE PARAMETERS ---
 diameter = 7.87              ;   circumscribed diameter of aperture (m)

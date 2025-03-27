@@ -13,7 +13,7 @@ class ObservatoryBuilder:
         },
         "EAC1": {
             "telescope": "EAC1Telescope",
-            "coronagraph": "EAC1Coronagraph",
+            "coronagraph": "CoronagraphYIP",
             "detector": "EAC1Detector",
         },
     }
@@ -44,16 +44,14 @@ class ObservatoryBuilder:
                 "Config must be either a string (preset name) or a dictionary (custom configuration)"
             )
 
-        print(config)
         # Initialize the components, or pick the ToyModel versions if not available.
+        
+        telescope = ObservatoryBuilder._create_component(
+            config.get("telescope", "ToyModelTelescope"), telescopes
+        )  
         coronagraph = ObservatoryBuilder._create_component(
             config.get("coronagraph", "ToyModelCoronagraph"), coronagraphs
         )
-
-        telescope = ObservatoryBuilder._create_component(
-            config.get("telescope", "ToyModelTelescope"), telescopes
-        )
-
         detector = ObservatoryBuilder._create_component(
             config.get("detector", "ToyModelDetector"), detectors
         )

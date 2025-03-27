@@ -3,6 +3,7 @@ from pathlib import Path
 import eacy
 import astropy.units as u
 import numpy as np
+from .units import *
 
 
 def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
@@ -169,6 +170,7 @@ def parse_parameters(parameters: dict) -> dict:
         "cic",
         "QE",
         "dQE",
+        "IFS_eff"
     ]
 
     parsed_params.update(
@@ -245,6 +247,7 @@ def parse_parameters(parameters: dict) -> dict:
         "telescope_type",
         "coronagraph_type",
         "detector_type",
+        "observing_mode"
     ]:
 
         if key in parameters.keys():
@@ -282,10 +285,13 @@ def read_configuration(
 
     parameters, secondary_parameters = parse_input_file(input_file, secondary_flag)
     parsed_parameters = parse_parameters(parameters)
+
     if secondary_flag:
+        # Parse secondary parameters
         parsed_secondary_parameters = parse_parameters(secondary_parameters)
     else:
         parsed_secondary_parameters = {}
+
     return parsed_parameters, parsed_secondary_parameters
 
 
@@ -342,8 +348,8 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
         if key != "lam":
             params[key] = np.mean(
                 params[key][
-                    (params["lam"].value >= wavelength_range[0])
-                    & (params["lam"].value <= wavelength_range[1])
+                    (params["lam"].value >= wavelength_range[0].value)
+                    & (params["lam"].value <= wavelength_range[1].value)
                 ]
             )
     return params

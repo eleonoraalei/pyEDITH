@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
+from .units import *
 
 
 class Observatory(ABC):  # abstract class
@@ -53,13 +54,19 @@ class Observatory(ABC):  # abstract class
         """
         if "Toptical" in parameters.keys():
             print("Calculating optics_throughput from input...")
-            self.optics_throughput = np.array(parameters["Toptical"], dtype=np.float64)
+            self.optics_throughput = parameters["Toptical"] * DIMENSIONLESS
         else:
             print("Calculating optics throughput from preset...")
             self.optics_throughput = (
                 self.telescope.telescope_throughput
                 * self.coronagraph.coronagraph_throughput
             )
+
+        if parameters["observing_mode"] == "IFS":
+             # multiply by the IFS efficiency if in spectroscopy mode
+            self.optics_throughput *= parameters["IFS_eff"]
+        else:
+            pass
 
     def calculate_warmemissivity_coldtransmission(self, parameters):
         """
@@ -69,12 +76,10 @@ class Observatory(ABC):  # abstract class
         """
         if "epswarmTrcold" in parameters.keys():
             print("Calculating epswarmTrcold from input...")
-            self.epswarmTrcold = np.array(parameters["epswarmTrcold"], dtype=np.float64)
+            self.epswarmTrcold = parameters["epswarmTrcold"] * DIMENSIONLESS
         else:
             print("Calculating epswarmTrcold as 1 - optics throughput...")
-            self.epswarmTrcold = np.array(
-                [1 - toptical for toptical in self.optics_throughput]
-            )
+            self.epswarmTrcold = 1 - self.optics_throughput
 
     def calculate_total_throughput(self):
         """
@@ -94,7 +99,7 @@ class Observatory(ABC):  # abstract class
 
         # Creates a mediator that picks selected variables from other classes
         mediator = ObservatoryMediator(self, observation, scene)
-
+        
         self.coronagraph.load_configuration(parameters, mediator)
         self.telescope.load_configuration(parameters, mediator)
         self.detector.load_configuration(parameters, mediator)
@@ -110,17 +115,20 @@ class Observatory(ABC):  # abstract class
 
         # Observatory-related args
         expected_args = {
-            "total_throughput": np.ndarray,
-            "optics_throughput": np.ndarray,
-            "epswarmTrcold": np.ndarray,
+            "total_throughput": QE,
+            "optics_throughput": DIMENSIONLESS,
+            "epswarmTrcold": DIMENSIONLESS,
         }
 
-        for arg, expected_type in expected_args.items():
+        for arg, expected_unit in expected_args.items():
             if not hasattr(self, arg):
                 raise AttributeError(f"Observatory is missing attribute: {arg}")
-            if not isinstance(getattr(self, arg), expected_type):
-                raise TypeError(
-                    f"Observatory attribute {arg} should be of type {expected_type}, but is {type(getattr(self, arg))}"
+            value = getattr(self, arg)
+            if not isinstance(value, u.Quantity):
+                raise TypeError(f"Observatory attribute {arg} should be a Quantity")
+            if not value.unit.is_equivalent(expected_unit):
+                raise ValueError(
+                    f"Observatory attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
                 )
 
 

@@ -1,4 +1,5 @@
 import numpy as np
+from .units import *
 
 
 class Observation:
@@ -49,7 +50,7 @@ class Observation:
         Initialize the default parameters of the Observation class.
         """
         # Misc parameters that probably don't need to be changed
-        self.td_limit = 1e20  # limit placed on exposure times # scalar
+        self.td_limit = 1e20 * TIME  # limit placed on exposure times # scalar
         self.nooptimize = (
             0  # do not attempt to optimize exposure times for this code # scalar
         )
@@ -81,18 +82,20 @@ class Observation:
 
         # -------- INPUTS ---------
         # Observational parameters
-        self.lambd = np.array(
-            parameters["lambd"], dtype=np.float64
+
+        self.lambd = (
+            parameters["lambd"] * WAVELENGTH
         )  # wavelength # nlambd array #unit: micron
-        self.nlambd = len(self.lambd)
-        self.SR = np.array(
-            parameters["resolution"], dtype=np.float64
-        )  # spec res # nlambd array
-        self.SNR = np.array(
-            parameters["snr"], dtype=np.float64
-        )  # signal to noise # nlambd array
-        self.photap_rad = parameters["photap_rad"]  # (lambd/D) # scalar
+
+        self.SR = parameters["resolution"] * DIMENSIONLESS  # spec res # nlambd array
+
+        self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
+
+        self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
+
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
+
+        self.nlambd = len(self.lambd)
 
     def set_output_arrays(self):
         """
@@ -106,14 +109,14 @@ class Observation:
             Signal-to-noise ratio for each target and wavelength.
         """
         # Initialize some arrays needed for outputs...
-        self.tp = np.array([[[0.0]]], dtype=np.float64)  # exposure time of every planet
+        self.tp = np.array([[[0.0]]]) * TIME  # exposure time of every planet
         # (nmeananom x norbits x ntargs array), used in c function
         # [NOTE: nmeananom = nphases in C code]
         # NOTE: ntargs fixed to 1.
-        self.exptime = np.full((1, self.nlambd), 0.0)
+        self.exptime = np.full((1, self.nlambd), 0.0) * TIME
 
         # only used for snr calculation
-        self.fullsnr = np.full((1, self.nlambd), 0.0)
+        self.fullsnr = np.full((1, self.nlambd), 0.0) * DIMENSIONLESS
 
     def validate_configuration(self):
         """
@@ -121,18 +124,38 @@ class Observation:
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "lambd": np.ndarray,
-            "nlambd": (int, np.integer),
-            "SR": np.ndarray,
-            "SNR": np.ndarray,
-            "photap_rad": (float, np.floating),
-            "CRb_multiplier": (float, np.floating),
+            "lambd": WAVELENGTH,
+            "nlambd": int,
+            "SR": DIMENSIONLESS,
+            "SNR": DIMENSIONLESS,
+            "photap_rad": LAMBDA_D,
+            "CRb_multiplier": float,
         }
 
         for arg, expected_type in expected_args.items():
             if not hasattr(self, arg):
                 raise AttributeError(f"Observation is missing attribute: {arg}")
-            if not isinstance(getattr(self, arg), expected_type):
-                raise TypeError(
-                    f"Observation attribute {arg} should be of type {expected_type}, but is {type(getattr(self, arg))}"
-                )
+            value = getattr(self, arg)
+
+            if expected_type is int:
+                if not isinstance(value, (int, np.integer)):
+                    raise TypeError(f"Observation attribute {arg} should be an integer")
+            elif expected_type is float:
+                if not isinstance(value, (float, np.floating)):
+                    raise TypeError(f"Observation attribute {arg} should be a float")
+            elif expected_type in ALL_UNITS:
+                if not isinstance(value, u.Quantity):
+                    raise TypeError(f"Observation attribute {arg} should be a Quantity")
+                if not value.unit.is_equivalent(expected_type):
+                    raise ValueError(f"Observation attribute {arg} has incorrect units")
+            else:
+                raise ValueError(f"Unexpected type specification for {arg}")
+
+            # Additional check for numerical values
+            if isinstance(value, u.Quantity):
+                if not np.issubdtype(value.value.dtype, np.number):
+                    raise TypeError(
+                        f"Observation attribute {arg} should contain numerical values"
+                    )
+            elif not np.issubdtype(type(value), np.number):
+                raise TypeError(f"Observation attribute {arg} should be a number")

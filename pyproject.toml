@@ -28,6 +28,6 @@ package-dir = {"" = "src"}
 packages = ["pyEDITH","pyEDITH.components"]
 
 [tool.setuptools.package-data]
-edith = ["*.so"]
+pyedith = ["*.so"]
 [project.scripts]
-edith = "pyEDITH.cli:main"
+pyedith = "pyEDITH.cli:main"
