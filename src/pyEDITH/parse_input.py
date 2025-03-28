@@ -170,7 +170,7 @@ def parse_parameters(parameters: dict) -> dict:
         "cic",
         "QE",
         "dQE",
-        "IFS_eff"
+        "IFS_eff",
     ]
 
     parsed_params.update(
@@ -247,7 +247,7 @@ def parse_parameters(parameters: dict) -> dict:
         "telescope_type",
         "coronagraph_type",
         "detector_type",
-        "observing_mode"
+        "observing_mode",
     ]:
 
         if key in parameters.keys():
@@ -304,18 +304,15 @@ def get_observatory_config(parameters: Dict[str, str]) -> Union[str, Dict[str, s
     if "observatory_preset" in parameters:
         config = parameters["observatory_preset"]
     else:
-        telescope_type = parameters.get("telescope_type", "toymodel")
-        coronagraph_type = parameters.get("coronagraph_type", "toymodel")
-        detector_type = parameters.get("detector_type", "toymodel")
+        config = {}
+        for component in ["telescope", "coronagraph", "detector"]:
+            component_type = parameters.get(f"{component}_type")
+            if component_type is None:
+                raise ValueError(
+                    f"{component.capitalize()} type not specified. Please provide a '{component}_type' parameter or use a preset."
+                )
+            config[component] = component_type
 
-        if telescope_type == coronagraph_type == detector_type:
-            config = telescope_type
-        else:
-            config = {
-                "telescope": f"{telescope_type}Telescope",
-                "coronagraph": f"{coronagraph_type}Coronagraph",
-                "detector": f"{detector_type}Detector",
-            }
     print_observatory_config(config)
     return config
 

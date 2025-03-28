@@ -79,6 +79,10 @@ class ToyModelTelescope(Telescope):
         "Tcontam": 0.95 * DIMENSIONLESS,
     }
 
+    def __init__(self, path=None, keyword=None):
+        self.path = path
+        self.keyword = keyword
+
     def load_configuration(self, parameters, mediator) -> None:
         """
         Load configuration parameters for the simulation from a dictionary of
@@ -138,24 +142,30 @@ class ToyModelTelescope(Telescope):
         self.Area = np.single(np.pi) / 4.0 * self.diameter**2.0 * self.unobscured_area
 
 
-class EAC1Telescope(Telescope):
+class EACTelescope(Telescope):
     """
     A toy model telescope class that extends the base Telescope class.
 
     This class represents a simplified telescope model for use in simulations.
     """
-    
+
     DEFAULT_CONFIG = {
-        "diameter": 7.87*LENGTH,  # circumscribed diameter of aperture (m, scalar)
+        "diameter": 7.87 * LENGTH,  # circumscribed diameter of aperture (m, scalar)
         "unobscured_area": 1.0,  # unobscured area (percentage,scalar) ### NOTE default for now
         "toverhead_fixed": 8.25e3
         * TIME,  # fixed overhead time (seconds,scalar) ### NOTE default for now
         "toverhead_multi": 1.1
         * DIMENSIONLESS,  # multiplicative overhead time (scalar) ### NOTE default for now
         "telescope_throughput": None,  # Optical throughput (nlambd array)
-        "Tcontam" : 1. * DIMENSIONLESS,  # Effective throughput factor to budget for contamination; NOTE: missing from YAML files
-        "temperature": 290 * TEMPERATURE,  # Temperature of the warm optics; NOTE: missing from YAML files
+        "Tcontam": 1.0
+        * DIMENSIONLESS,  # Effective throughput factor to budget for contamination; NOTE: missing from YAML files
+        "temperature": 290
+        * TEMPERATURE,  # Temperature of the warm optics; NOTE: missing from YAML files
     }
+
+    def __init__(self, path=None, keyword=None):
+        self.path = path
+        self.keyword = keyword
 
     def load_configuration(self, parameters, mediator) -> None:
         """
@@ -182,8 +192,8 @@ class EAC1Telescope(Telescope):
             * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             mediator.get_observation_parameter("lambd")
             * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-        ] * WAVELENGTH 
-        telescope_params = load_telescope("EAC1").__dict__
+        ] * WAVELENGTH
+        telescope_params = load_telescope(self.keyword).__dict__
 
         telescope_params = parse_input.average_over_bandpass(
             telescope_params, wavelength_range

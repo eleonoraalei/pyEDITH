@@ -1,3 +1,5 @@
+import json, os
+
 from pyEDITH.observatory import Observatory
 from pyEDITH.components import telescopes, coronagraphs, detectors
 
@@ -7,16 +9,64 @@ class ObservatoryBuilder:
     # Default presents for the currently implemented concepts
     PRESETS = {
         "ToyModel": {
-            "telescope": "ToyModelTelescope",
-            "coronagraph": "ToyModelCoronagraph",
-            "detector": "ToyModelDetector",
+            "telescope": "ToyModel",
+            "coronagraph": "ToyModel",
+            "detector": "ToyModel",
         },
         "EAC1": {
-            "telescope": "EAC1Telescope",
-            "coronagraph": "CoronagraphYIP",
-            "detector": "EAC1Detector",
+            "telescope": "EAC1",
+            "coronagraph": "LUVOIR",
+            "detector": "EAC1",
+        },
+        "EAC2": {
+            "telescope": "EAC2",
+            "coronagraph": "LUVOIR",
+            "detector": "EAC2",
+        },
+        "EAC3": {
+            "telescope": "EAC3",
+            "coronagraph": "LUVOIR",
+            "detector": "EAC3",
         },
     }
+
+    # Hardcoded registry for ToyModel since we do not expect it to be used much
+    TOY_MODEL_COMPONENTS = {
+        "telescopes": {"class": "ToyModelTelescope", "path": None},
+        "coronagraphs": {"class": "ToyModelCoronagraph", "path": None},
+        "detectors": {"class": "ToyModelDetector", "path": None},
+    }
+
+    @staticmethod
+    def load_registry():
+        registry_path = os.path.join(
+            os.path.dirname(__file__), "components/registry.json"
+        )
+        with open(registry_path, "r") as f:
+            registry = json.load(f)
+
+        # Add ToyModel components to the registry
+        for (
+            component_type,
+            toy_component,
+        ) in ObservatoryBuilder.TOY_MODEL_COMPONENTS.items():
+            registry[component_type]["ToyModel"] = toy_component
+        return registry
+
+    @staticmethod
+    def build_component_path(component_type, keyword):
+        if component_type == "telescopes" or component_type == "detectors":
+            base_dir = os.environ.get("SCI_ENG_DIR")
+            if not base_dir:
+                raise EnvironmentError("SCI_ENG_DIR environment variable not set")
+        elif component_type == "coronagraphs":
+            base_dir = os.environ.get("YIP_CORO_DIR")
+            if not base_dir:
+                raise EnvironmentError("YIP_CORO_DIR environment variable not set")
+        else:
+            raise ValueError(f"Unknown component type: {component_type}")
+
+        return os.path.join(base_dir, keyword)
 
     @staticmethod
     def create_observatory(config):
@@ -33,28 +83,37 @@ class ObservatoryBuilder:
         ValueError: If the config is invalid or a component is not found.
         """
 
+        registry = ObservatoryBuilder.load_registry()
+        print(registry)
         # Check that the config is either a string with a valid keyword...
         if isinstance(config, str):
-            config = ObservatoryBuilder.PRESETS.get(config)
-            if config is None:
+            if config not in ObservatoryBuilder.PRESETS:
                 raise ValueError(f"Unknown preset observatory: {config}")
-        # Or a dictionary that sets up the configuration
-        elif not isinstance(config, dict):
-            raise ValueError(
-                "Config must be either a string (preset name) or a dictionary (custom configuration)"
+            preset_config = ObservatoryBuilder.PRESETS[config]
+            telescope = ObservatoryBuilder._create_component(
+                "telescopes", preset_config["telescope"], registry
             )
 
-        # Initialize the components, or pick the ToyModel versions if not available.
-        
-        telescope = ObservatoryBuilder._create_component(
-            config.get("telescope", "ToyModelTelescope"), telescopes
-        )  
-        coronagraph = ObservatoryBuilder._create_component(
-            config.get("coronagraph", "ToyModelCoronagraph"), coronagraphs
-        )
-        detector = ObservatoryBuilder._create_component(
-            config.get("detector", "ToyModelDetector"), detectors
-        )
+            coronagraph = ObservatoryBuilder._create_component(
+                "coronagraphs", preset_config["coronagraph"], registry
+            )
+
+            detector = ObservatoryBuilder._create_component(
+                "detectors", preset_config["detector"], registry
+            )
+
+        elif isinstance(config, dict):
+            telescope = ObservatoryBuilder._create_component(
+                "telescopes", config["telescope"], registry
+            )
+            coronagraph = ObservatoryBuilder._create_component(
+                "coronagraphs", config["coronagraph"], registry
+            )
+            detector = ObservatoryBuilder._create_component(
+                "detectors", config["detector"], registry
+            )
+        else:
+            raise ValueError("Invalid configuration type")
 
         observatory = Observatory()
         observatory.telescope = telescope
@@ -64,27 +123,25 @@ class ObservatoryBuilder:
         return observatory
 
     @staticmethod
-    def _create_component(component_name, module):
-        """
-        Create a component instance based on its name and module.
+    def _create_component(component_type, keyword, registry):
+        component_info = registry[component_type].get(keyword)
+        if not component_info:
+            raise ValueError(f"Unknown {component_type} keyword: {keyword}")
+        if component_info["path"] is not None:
+            path = ObservatoryBuilder.build_component_path(
+                component_type, component_info["path"]
+            )
+        else:
+            path = None
 
-        Parameters:
-        component_name (str): Name of the component class.
-        module: Module containing the component class.
+        module = globals()[component_type]
 
-        Returns:
-        object: An instance of the specified component.
-
-        Raises:
-        ValueError: If the component is not found in the module.
-        """
-        # Search for the class that has the required name in the desired module (like doing module.component_name)
-        # If it finds that, creates instance, otherwise fails.
+        # Initalize the component (by specifying the path)
         try:
-            component_class = getattr(module, component_name)
-            return component_class()
+            component_class = getattr(module, component_info["class"])
+            return component_class(path, keyword)
         except AttributeError:
-            raise ValueError(f"Unknown component: {component_name}")
+            raise ValueError(f"Unknown component class: {component_info['class']}")
 
     @staticmethod
     def configure_observatory(observatory, config, observation, scene):
@@ -100,6 +157,19 @@ class ObservatoryBuilder:
         """
         observatory.load_configuration(config, observation, scene)
         return observatory
+
+    # TODO we can use this to have the user add more components from command line
+    #  @staticmethod
+    # def add_component(component_type, keyword, class_name, path=None):
+    #     if keyword.lower() == "toymodel":
+    #         raise ValueError("Cannot modify ToyModel components")
+
+    #     registry = ObservatoryBuilder.load_registry()
+    #     registry[component_type][keyword] = {"class": class_name, "path": path}
+    #     registry_path = os.path.join(os.path.dirname(__file__), 'registry.json')
+    #     with open(registry_path, 'w') as f:
+    #         json.dump(registry, f, indent=4)
+    #     print(f"Added {component_type} '{keyword}' to the registry.")
 
     @classmethod
     def add_preset(cls, preset_name, config):

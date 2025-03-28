@@ -85,6 +85,10 @@ class ToyModelDetector(Detector):
         * DIMENSIONLESS,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
 
+    def __init__(self, path=None, keyword=None):
+        self.path = path
+        self.keyword = keyword
+
     def load_configuration(self, parameters, mediator) -> None:
         """
         Load configuration parameters for the simulation from a dictionary.
@@ -158,7 +162,7 @@ class ToyModelDetector(Detector):
                 setattr(self, param, np.array(attr_value, dtype=np.float64))
 
 
-class EAC1Detector(Detector):
+class EACDetector(Detector):
     """
     A toy model detector class that extends the base Detector class.
 
@@ -172,12 +176,15 @@ class EAC1Detector(Detector):
         "DC": None,  # Dark current (counts pix^-1 s^-1, nlambd array)
         "RN": None,  # Read noise (counts pix^-1 read^-1, nlambd array)
         "tread": [1000] * READ_TIME,  # Read time (s, nlambd array) # TO ADD TO YAML
-        "CIC": [
-            0
-        ] * CIC,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
+        "CIC": [0]
+        * CIC,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
         "QE": None,  # Quantum efficiency of detector
         "dQE": None,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
+
+    def __init__(self, path=None, keyword=None):
+        self.path = path
+        self.keyword = keyword
 
     def load_configuration(self, parameters, mediator) -> None:
         """
@@ -211,31 +218,36 @@ class EAC1Detector(Detector):
             detector_params, wavelength_range
         )
 
-        self.DEFAULT_CONFIG["DC"] = np.array([
-            (
-                float(detector_params["dc_vis"])
-                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
-                else float(detector_params["dc_nir"])
+        self.DEFAULT_CONFIG["DC"] = (
+            np.array(
+                [
+                    (
+                        float(detector_params["dc_vis"])
+                        if mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
+                        else float(detector_params["dc_nir"])
+                    )
+                ]
             )
-        ]) * DARK_CURRENT
+            * DARK_CURRENT
+        )
         # Dark current (counts pix^-1 s^-1, nlambd array)
         self.DEFAULT_CONFIG["RN"] = [
             (
                 detector_params["rn_vis"]
-                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
+                if mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
                 else detector_params["rn_nir"]
             )
         ] * READ_NOISE
         self.DEFAULT_CONFIG["QE"] = [
             (
                 detector_params["qe_vis"]
-                if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
+                if mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
                 else detector_params["qe_nir"]
             )
         ] * QE
         self.DEFAULT_CONFIG["dQE"] = [
             0.75
-        ]  * DIMENSIONLESS # Effective QE due to degradation, cosmic ray effects, readout inefficiencies ## TO ADD TO YAML
+        ] * DIMENSIONLESS  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies ## TO ADD TO YAML
 
         # Calculate default detector pixel scale based on telescope
         self.DEFAULT_CONFIG["pixscale_mas"] = (

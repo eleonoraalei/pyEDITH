@@ -638,7 +638,7 @@ class AstrophysicalScene:
         )  # calculate absolute V band mag of target
 
         self.Fzodi_list = calc_zodi_flux(self.dec, self.ra, observation.lambd, self.F0)
-        print(self.Fzodi_list)
+
         self.Fexozodi_list = calc_exozodi_flux(
             self.M_V,
             self.vmag,

@@ -1,6 +1,7 @@
 from typing import Tuple
 import numpy as np
 from pyEDITH import AstrophysicalScene, Observation, Observatory
+from pyEDITH.components.coronagraphs import CoronagraphYIP, ToyModelCoronagraph
 import astropy.constants as c
 import astropy.units as u
 from astropy.modeling import models
@@ -855,12 +856,12 @@ def calculate_exposure_time_or_snr(
 
             # only need to run this interpolation routine if we are using ToyModel coronagraph
             # otherwise, yippy does this interpolation automatically and we can set Istar_interp = Istar.
-            if observatory.coronagraph.coro_type == "YIP":
+            if isinstance(observatory.coronagraph, CoronagraphYIP):
                 # For YIP coronagraph, use the existing arrays. They have already been interpolated with yippy
                 Istar_interp = observatory.coronagraph.Istar
                 noisefloor_interp = observatory.coronagraph.noisefloor
-            
-            elif observatory.coronagraph.coro_type == "ToyModel":
+
+            elif isinstance(observatory.coronagraph, ToyModelCoronagraph):
                 # For ToyModel coronagraph, we need to interpolate the Istar and noisefloor arrays
                 Istar_interp, noisefloor_interp = interpolate_arrays(
                     observatory.coronagraph.Istar,
@@ -871,7 +872,9 @@ def calculate_exposure_time_or_snr(
                     observatory.coronagraph.angdiams,
                 )
             else:
-                assert False, "coronagraph type not recognized. Options: YIP, ToyModel"
+                raise ValueError(
+                    f"Unknown coronagraph type: {type(observatory.coronagraph)}"
+                )
 
             # Measure coronagraph performance at each IWA
             pixscale_rad = observatory.coronagraph.pixscale * lambda_d_to_radians(

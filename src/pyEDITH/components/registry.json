@@ -1,0 +1,24 @@
+{
+    "telescopes": {
+        "EAC1": {
+            "class": "EACTelescope",
+            "path": ""
+        }
+    },
+    "coronagraphs": {
+        "AAVC": {
+            "class": "CoronagraphYIP",
+            "path": "AAVC_coronagraph"
+        },
+        "LUVOIR": {
+            "class": "CoronagraphYIP",
+            "path": "usort_offaxis_ovc"
+        }
+    },
+    "detectors": {
+        "EAC1": {
+            "class": "EACDetector",
+            "path": ""
+        }
+    }
+}
