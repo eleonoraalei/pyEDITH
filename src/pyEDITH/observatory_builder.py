@@ -84,7 +84,7 @@ class ObservatoryBuilder:
         """
 
         registry = ObservatoryBuilder.load_registry()
-        print(registry)
+
         # Check that the config is either a string with a valid keyword...
         if isinstance(config, str):
             if config not in ObservatoryBuilder.PRESETS:

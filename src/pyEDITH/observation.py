@@ -109,14 +109,14 @@ class Observation:
             Signal-to-noise ratio for each target and wavelength.
         """
         # Initialize some arrays needed for outputs...
-        self.tp = np.array([[[0.0]]]) * TIME  # exposure time of every planet
+        self.tp = 0.0 * TIME  # exposure time of every planet
         # (nmeananom x norbits x ntargs array), used in c function
         # [NOTE: nmeananom = nphases in C code]
         # NOTE: ntargs fixed to 1.
-        self.exptime = np.full((1, self.nlambd), 0.0) * TIME
+        self.exptime = np.full((self.nlambd), 0.0) * TIME
 
         # only used for snr calculation
-        self.fullsnr = np.full((1, self.nlambd), 0.0) * DIMENSIONLESS
+        self.fullsnr = np.full((self.nlambd), 0.0) * DIMENSIONLESS
 
     def validate_configuration(self):
         """

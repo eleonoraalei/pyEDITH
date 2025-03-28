@@ -148,7 +148,7 @@ def calc_exozodi_flux(
     lambd : Quantity
         Wavelength in microns (vector of length nlambd).
     lambdmag : Quantity
-        Apparent magnitude of stars at each lambd (array nstars x nlambd).
+        Apparent magnitude of stars at each lambd (array nlambd).
     F0lambd : Quantity
         Flux zero point at wavelength lambd (vector of length nlambd).
 
@@ -194,18 +194,17 @@ def calc_exozodi_flux(
     """
     # Now, multiply by the ratio of the star's counts received at lambd to those
     # received at V band
-    nstars = len(vmag)
     nlambd = len(lambd)
 
-    flux_exozodi_lambd = np.zeros((nlambd, nstars)) * DIMENSIONLESS  # modulo factor F0
+    flux_exozodi_lambd = np.zeros((nlambd)) * DIMENSIONLESS  # modulo factor F0
 
     # Adjust flux for each wavelength
     for ilambd in range(nlambd):
-        flux_exozodi_lambd[ilambd, :] = (
+        flux_exozodi_lambd[ilambd] = (
             nexozodis
             * vflux_1zodi
             * 10.0 ** (-0.4 * (M_V - M_V_sun).value)
-            * 10.0 ** (-0.4 * (lambdmag[ilambd, :] - vmag).value)
+            * 10.0 ** (-0.4 * (lambdmag[ilambd] - vmag).value)
         )
     """
     I simplified the equation. It was originally this:
@@ -448,11 +447,10 @@ def calc_zodi_flux(
     I90fabsfco = I90fabsfco / F0
 
     # Calculate final zodi flux
-    nstars = len(ra)
     nlambd = len(lambd)
-    flux_zodi = u.Quantity(np.zeros((nlambd, nstars)), unit=I90fabsfco.unit)
+    flux_zodi = u.Quantity(np.zeros((nlambd)), unit=I90fabsfco.unit)
     for ilambd in range(nlambd):
-        flux_zodi[ilambd, :] = f * I90fabsfco[ilambd]
+        flux_zodi[ilambd] = f * I90fabsfco[ilambd]
 
     return flux_zodi  # 1/arcsec^2 (UNITS OF SPECTRAL RADIANCE)
 
@@ -550,28 +548,28 @@ class AstrophysicalScene:
         # Target star parameters
         self.ntargs = 1
 
-        # luminosity of star (solar luminosities) (ntargs array)
+        # luminosity of star (solar luminosities) # used to be (ntargs array) now scalar
         self.Lstar = parameters["Lstar"] * LUMINOSITY
 
-        # distance to star (pc) (ntargs array)
+        # distance to star (pc) # used to be (ntargs array) now scalar
         self.dist = parameters["distance"] * DISTANCE
 
-        # stellar mag at V band (ntargs array)
+        # stellar mag at V band # used to be (ntargs array) now scalar
         self.vmag = parameters["magV"] * MAGNITUDE
 
-        # stellar mag at desired lambd (nlambd x ntargs array)
+        # stellar mag at desired lambd # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
         self.mag = parameters["mag"] * MAGNITUDE
 
-        # angular diameter of star (arcsec) (ntargs array)
+        # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
         self.angdiam_arcsec = parameters["angdiam"] * ARCSEC
 
-        # amount of exozodi around target star ("zodis") (ntargs array)
+        # amount of exozodi around target star ("zodis") # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
         self.nzodis = parameters["nzodis"] * ZODI
 
-        # right ascension of target star used to estimate zodi (deg) (ntargs array)
+        # right ascension of target star used to estimate zodi (deg) # used to be (ntargs array) now scalar
         self.ra = parameters["ra"] * DEG
 
-        # declination of target star used to estimate zodi (deg) (ntargs array)
+        # declination of target star used to estimate zodi (deg) # used to be (ntargs array) now scalar
         self.dec = parameters["dec"] * DEG
 
         # Planet parameters
@@ -584,10 +582,14 @@ class AstrophysicalScene:
 
         # difference in mag between planet and host star
         # (nmeananom x norbits x ntargs array)
-        self.deltamag = parameters["delta_mag"] * MAGNITUDE
+        self.deltamag = (
+            parameters["delta_mag"] * MAGNITUDE
+        )  # TODO maybe this will become [nlambda] for IFS?
         # brightest planet to resolve w/ photon counting detector evaluated at
         # the IWA, sets the time between counts (ntargs array)
-        self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
+        self.min_deltamag = (
+            parameters["delta_mag_min"] * MAGNITUDE
+        )  # TODO maybe this will become [nlambda] for IFS?
 
     def calculate_zodi_exozodi(self, observation: object) -> None:
         """
@@ -629,7 +631,7 @@ class AstrophysicalScene:
         self.F0 = (
             calc_flux_zero_point(
                 lambd=observation.lambd, output_unit="pcgs", perlambd=True
-            )
+            )  # [nlambda]
         ).to(PHOTON_FLUX_DENSITY, equivalencies=u.spectral_density(observation.lambd))
         # convert to photons cm^-2 nm^-1 s^-1
 
@@ -637,7 +639,9 @@ class AstrophysicalScene:
             self.vmag - 5.0 * np.log10(self.dist.value) * MAGNITUDE + 5.0 * MAGNITUDE
         )  # calculate absolute V band mag of target
 
-        self.Fzodi_list = calc_zodi_flux(self.dec, self.ra, observation.lambd, self.F0)
+        self.Fzodi_list = calc_zodi_flux(
+            self.dec, self.ra, observation.lambd, self.F0
+        )  # [nlambda]
 
         self.Fexozodi_list = calc_exozodi_flux(
             self.M_V,
@@ -645,11 +649,11 @@ class AstrophysicalScene:
             self.nzodis,
             observation.lambd,
             self.mag,
-        )  # scalar
+        )  # [nlambda]
 
         self.Fbinary_list = (
-            np.full((observation.nlambd, self.ntargs), 0.0) * DIMENSIONLESS
-        )  # this code ignores stray light from binaries
+            np.full((observation.nlambd), 0.0) * DIMENSIONLESS
+        )  # this code ignores stray light from binaries # [nlambda]
 
         # flux of planet (dimensionless factor, will be multiplied by F0 internally which gives it flux units)
         self.Fp0 = (10.0 ** (-0.4 * self.deltamag.value)) * DIMENSIONLESS

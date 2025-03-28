@@ -124,9 +124,6 @@ def parse_parameters(parameters: dict) -> dict:
     dict
         A dictionary of parsed and processed parameters, including:
         - Arrays of length nlambda (wavelength-dependent parameters)
-        - Arrays of length ntargs (target-specific parameters)
-        - Arrays of length ntargs x nlambda
-        - Arrays of length nmeananom x norbits x ntargs
         - Scalar parameters
         - Coronagraph specifications
 
@@ -171,6 +168,7 @@ def parse_parameters(parameters: dict) -> dict:
         "QE",
         "dQE",
         "IFS_eff",
+        "mag",  # used to be [ntargs x nlambda], now just [nlambda]
     ]
 
     parsed_params.update(
@@ -180,41 +178,25 @@ def parse_parameters(parameters: dict) -> dict:
         }
     )
 
-    # ------ ARRAYS OF LENGTH NTARGS ------
+    # ------ SCALARS (USED TO BE ARRAYS IN v. 0.2 and earlier) ------
     target_params = [
-        "Lstar",
-        "distance",
-        "magV",
-        "angdiam",
-        "nzodis",
-        "ra",
-        "dec",
-        "delta_mag_min",
+        "Lstar",  # used to be [ntargs]
+        "distance",  # used to be [ntargs]
+        "magV",  # used to be [ntargs]
+        "angdiam",  # used to be [ntargs]
+        "nzodis",  # used to be [ntargs]
+        "ra",  # used to be [ntargs]
+        "dec",  # used to be [ntargs]
+        "delta_mag_min",  # used to be [ntargs]
+        "delta_mag",  # used to be [nmeananom x norbits x ntargs]
     ]
 
-    parsed_params.update(
-        {
-            key: parse_list_param(key, parsed_params["ntargs"])
-            for key in list(set(target_params) & set(parameters.keys()))
-        }
-    )
+    for key in list(set(target_params) & set(parameters.keys())):
+        parsed_params[key] = float(parameters[key])
 
-    # ----- ARRAYS OF LENGTH NLAMBDA x NTARGS ----
-    if "mag" in parameters.keys():
-        parsed_params["mag"] = [
-            parse_list_param("mag", parsed_params["nlambda"])
-            for targs in range(parsed_params["ntargs"])
-        ]
-        parsed_params["mag"] = list(map(list, zip(*parsed_params["mag"])))
-    # ---- ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1)
+    # ---- MORE SCALARS (used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1)
     if "separation" in parameters.keys():
-        parsed_params["sp"] = [
-            [parse_list_param("separation", parsed_params["ntargs"])]
-        ]
-    if "delta_mag" in parameters.keys():
-        parsed_params["delta_mag"] = [
-            [parse_list_param("delta_mag", parsed_params["ntargs"])]
-        ]
+        parsed_params["sp"] = float(parameters["separation"])
 
     # ----- SCALARS ----
     scalar_params = [
