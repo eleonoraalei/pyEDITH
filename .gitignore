@@ -4,3 +4,4 @@ src/build
 src/pyEDITH.egg-info
 src/pyEDITH/__pycache__
 build
+src/pyEDITH/components/__pycache__

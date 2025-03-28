@@ -521,15 +521,11 @@ def calculate_CRbd(
     +++ THEN: CRb += CRbd; +++
 
     """
-    print(det_DC, det_RN * det_RN / det_tread, det_CIC / t_photon_count)
-    print("THIS DOES NOT WORK. I WILL HARDCODE THE VALUES FOR NOW")
+    # Using the variance of the read noise but keeping the same units as det_RN alone.
+    # TODO verify
+    read_noise_variance = det_RN * det_RN.value
     return (
-        det_DC
-        + det_RN.value
-        * det_RN.value
-        / det_tread.value
-        * DARK_CURRENT  ## TODO Somehow fix this
-        + det_CIC / t_photon_count
+        det_DC + read_noise_variance / det_tread + det_CIC / t_photon_count
     ) * det_npix
 
 
