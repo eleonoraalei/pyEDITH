@@ -64,7 +64,7 @@ class Observatory(ABC):  # abstract class
 
         if parameters["observing_mode"] == "IFS":
             # multiply by the IFS efficiency if in spectroscopy mode
-            self.optics_throughput *= parameters["IFS_eff"]
+            self.optics_throughput *= parameters["IFS_eff"] # NOTE: this is a placeholder for now. Not yet included in YAML files. Name will probably change.
         else:
             pass
 
