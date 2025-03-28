@@ -5,3 +5,6 @@ src/pyEDITH.egg-info
 src/pyEDITH/__pycache__
 build
 src/pyEDITH/components/__pycache__
+src/pyEDITH/components/__pycache__/coronagraphs.cpython-312.pyc
+src/pyEDITH/components/__pycache__/telescopes.cpython-312.pyc
+src/pyEDITH/components/__pycache__/detectors.cpython-312.pyc
