@@ -232,10 +232,10 @@ class EAC1Detector(Detector):
                 if mediator.get_observation_parameter("lambd") < 1*WAVELENGTH
                 else detector_params["qe_nir"]
             )
-        ] * DIMENSIONLESS
+        ] * QE
         self.DEFAULT_CONFIG["dQE"] = [
             0.75
-        ] * DIMENSIONLESS  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies ## TO ADD TO YAML
+        ]  * DIMENSIONLESS # Effective QE due to degradation, cosmic ray effects, readout inefficiencies ## TO ADD TO YAML
 
         # Calculate default detector pixel scale based on telescope
         self.DEFAULT_CONFIG["pixscale_mas"] = (

@@ -224,6 +224,8 @@ class ToyModelCoronagraph(Coronagraph):
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
         "coronagraph_throughput": 0.44
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
+        "coro_type" : "ToyModel" # type of coronagraph to indicate this is a YIP coronagraph
+
     }
 
     def load_configuration(self, parameters, mediator):
@@ -365,7 +367,7 @@ class CoronagraphYIP(Coronagraph):
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
         "coronagraph_throughput": None,
         "nchannels": 2,  # number of channels
-
+        "coro_type" : "YIP" # type of coronagraph to indicate this is a YIP coronagraph
      }
     
     def load_configuration(self, parameters, mediator):
