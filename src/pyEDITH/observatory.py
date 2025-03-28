@@ -63,7 +63,7 @@ class Observatory(ABC):  # abstract class
             )
 
         if parameters["observing_mode"] == "IFS":
-             # multiply by the IFS efficiency if in spectroscopy mode
+            # multiply by the IFS efficiency if in spectroscopy mode
             self.optics_throughput *= parameters["IFS_eff"]
         else:
             pass
@@ -99,7 +99,7 @@ class Observatory(ABC):  # abstract class
 
         # Creates a mediator that picks selected variables from other classes
         mediator = ObservatoryMediator(self, observation, scene)
-        
+
         self.coronagraph.load_configuration(parameters, mediator)
         self.telescope.load_configuration(parameters, mediator)
         self.detector.load_configuration(parameters, mediator)
@@ -115,7 +115,7 @@ class Observatory(ABC):  # abstract class
 
         # Observatory-related args
         expected_args = {
-            "total_throughput": DIMENSIONLESS,
+            "total_throughput": QE,
             "optics_throughput": DIMENSIONLESS,
             "epswarmTrcold": DIMENSIONLESS,
         }

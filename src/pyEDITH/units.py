@@ -69,7 +69,7 @@ DARK_CURRENT = ELECTRON / (PIXEL * TIME)
 READ_NOISE = ELECTRON / (PIXEL * READ)
 READ_TIME = TIME / READ
 CIC = ELECTRON / (PIXEL * FRAME)  # from Chris 2019 paper
-QE = DIMENSIONLESS # qe has no dimension; we can treat it like a throughput term. ELECTRON / PHOTON_COUNT
+QE = ELECTRON / PHOTON_COUNT
 
 
 def lambda_d_to_radians(
