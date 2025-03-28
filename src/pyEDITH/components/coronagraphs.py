@@ -5,7 +5,7 @@ from astropy import units as u
 from ..units import *
 from scipy.interpolate import interp1d
 from yippy import Coronagraph as yippycoro
-#from lod_unit import lod
+from lod_unit import lod
 
 
 def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
@@ -351,19 +351,21 @@ class CoronagraphYIP(Coronagraph):
 
     DEFAULT_CONFIG = { # TODO: do we need this DEFAULT_CONFIG? everything we need is in the YIP or params
         "pixscale": 0.25,  # lambd/D
-        #"angdiams": [0.0, 10.0], # NOTE: why is this an array and everywhere else in the code there is not an array for this? commenting out for now
+        "angdiams": [0.0, 10.0]* LAMBDA_D, # NOTE: I don't fully understand this vs. the angdiam parameter elsewhere
         "angdiam": 0.01, # NOTE: added this to match angdiam elsewhere in code
-        "minimum_IWA": 2.0,  # smallest WA to allow (lambda/D) (scalar)
-        "maximum_OWA": 100.0,  # largest WA to allow (lambda/D) (scalar)
+        "minimum_IWA": 2.0* LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
+        "maximum_OWA": 100.0* LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         "contrast": 1.05e-13,  # contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "Tcore": 0.2968371,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
         "TLyot": 0.65,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "nrolls": 1,  # number of rolls
-        "psf_trunc_ratio": [0.3],  # nlambda array
+        "psf_trunc_ratio": [0.3] * DIMENSIONLESS,  # nlambda array
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
         "coronagraph_throughput": None,
+        "nchannels": 2,  # number of channels
+
      }
     
     def load_configuration(self, parameters, mediator):
@@ -418,7 +420,10 @@ class CoronagraphYIP(Coronagraph):
         for param in array_params:
             setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
 
-
+        self.psf_trunc_ratio*=DIMENSIONLESS
+        self.minimum_IWA*=LAMBDA_D
+        self.maximum_OWA*=LAMBDA_D
+        self.coronagraph_throughput*=DIMENSIONLESS
         # ***** Load the YIP using yippy *****
         # TODO: this needs to be a parameter in the input file
         
@@ -428,20 +433,26 @@ class CoronagraphYIP(Coronagraph):
         #yippy_obj = yippycoro(parameters["YIP_dir"]) # TODO: this is the correct way to do it, but we need to add this to the input file
 
         # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****
-        self.pixscale = yippy_obj.header.pixscale.value # has units of lam/D / pix
+        self.pixscale = yippy_obj.header.pixscale.value * LAMBDA_D # has units of lam/D / pix
         self.npix = yippy_obj.header.naxis1
-        self.xcenter = yippy_obj.header.xcenter
-        self.ycenter = yippy_obj.header.ycenter
+        self.xcenter = yippy_obj.header.xcenter * PIXEL
+        self.ycenter = yippy_obj.header.ycenter * PIXEL
+        self.ndiams = len(self.angdiams)
+
 
         # Sky transmission map for extended sources
-        self.skytrans = yippy_obj.sky_trans()
+        self.skytrans = yippy_obj.sky_trans() * DIMENSIONLESS
 
         # Off axis throughput map: photap_frac
         self.r = (
             generate_radii(self.npix, self.npix) * self.pixscale
         )  # create an array of circumstellar separations in units of lambd/D centered on star
+        self.omega_lod = np.full(
+            (self.npix, self.npix, len(self.psf_trunc_ratio)),
+            float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
+        ) * DIMENSIONLESS # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
-        self.photap_frac = np.empty((self.npix, self.npix, len(self.psf_trunc_ratio)))
+        self.photap_frac = np.empty((self.npix, self.npix, len(self.psf_trunc_ratio))) * DIMENSIONLESS
         sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(aperture_radius_lod=self.psf_trunc_ratio, oversample=2, plot=False) # changed from aperture_radius_lod=0.7
         offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
         for i in range(self.npix):
@@ -450,7 +461,7 @@ class CoronagraphYIP(Coronagraph):
                     self.photap_frac[i,j,0] = offax_tput_func(self.r[i,j])
 
         # On-axis intensity map with a stellar diameter
-        self.Istar = np.zeros((self.npix, self.npix, 1)) # TODO: should self.angdiam be an array??
+        self.Istar = np.zeros((self.npix, self.npix, 1)) * DIMENSIONLESS # TODO: should self.angdiam be an array??
         # for i_diam, angdiam in enumerate(self.angdiam):
         #     Istar = yippy_obj.stellar_intens(angdiam)
         #     self.Istar[:,:,i_diam] = Istar
@@ -461,19 +472,16 @@ class CoronagraphYIP(Coronagraph):
         tele_diam = telescope_params["diam_circ"] * LENGTH
         #tele_diam = mediator.get_telescope_parameter("diameter") # NOTE: this doesn't work because the telescope object is not initialized yet
         
-        print(angdiam_arcsec, lam, tele_diam)
         angdiam_lod = arcsec_to_lambda_d(angdiam_arcsec, lam, tele_diam)
-        print(angdiam_lod)
-        assert False
 
-        Istar = yippy_obj.stellar_intens(self.angdiam*ARCSEC) # TODO: angdiam needs to be in units of lod  
+        Istar = yippy_obj.stellar_intens(angdiam_lod.value*lod) 
         self.Istar[:,:,0] = Istar
         
 
         # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
         # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
         # currently I do not have a YIP with a second Istar realization, so I cannot develop this part yet.
-        self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
+        self.noisefloor = np.zeros((self.npix, self.npix, 1)) * DIMENSIONLESS
         
         # self.noisefloor = (
         #     self.noisefloor_factor * self.contrast
