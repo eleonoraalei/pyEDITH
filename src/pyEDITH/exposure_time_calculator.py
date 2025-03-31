@@ -6,7 +6,7 @@ import astropy.constants as c
 import astropy.units as u
 from astropy.modeling import models
 from .units import *
-
+import pickle
 
 def calculate_CRp(
     F0: u.Quantity,
@@ -797,24 +797,53 @@ def calculate_exposure_time_or_snr(
     verbose : boolean
         Verbose flag.
     """
-    for ilambd in range(observation.nlambd):
+    photon_counts = {"CRp": np.empty(observation.nlambd), 
+                     "CRbs": np.empty(observation.nlambd), 
+                     "CRbz": np.empty(observation.nlambd), 
+                     "CRbez": np.empty(observation.nlambd), 
+                     "CRbbin": np.empty(observation.nlambd), 
+                     "CRbth": np.empty(observation.nlambd), 
+                     "CRbd" : np.empty(observation.nlambd), 
+                     "CRnf": np.empty(observation.nlambd), 
+                     "CRb": np.empty(observation.nlambd)}
 
+    
+    for ilambd in range(observation.nlambd):
         # Calculate Fstar factor (dimensionless, will be multiplied by F0
         # that gives it dimensions)
         Fstar = 10 ** (-0.4 * scene.mag[ilambd].value) * DIMENSIONLESS
 
         # Take the lesser of the desired bandwidth
         # and what coronagraph allows
-        deltalambda_nm = (
-            np.min(
-                [
-                    (observation.lambd[ilambd].to(u.nm).value) / observation.SR[ilambd],
-                    observatory.coronagraph.bandwidth
-                    * (observation.lambd[ilambd].to(u.nm).value),
-                ]
+        if observatory.observing_mode == "IMAGER":
+            deltalambda_nm = (
+                np.min(
+                    [
+                        (observation.lambd[ilambd].to(u.nm).value) / observation.SR[ilambd],
+                        observatory.coronagraph.bandwidth
+                        * (observation.lambd[ilambd].to(u.nm).value),
+                    ]
+                )
+                * u.nm
+            )  # nanometers
+        elif observatory.observing_mode == "IFS":
+            # NOTE: the IFS mode disregards the user-provided SR. This is necessary because of the definition of R.
+            # Instead, we calculate the spectral resolution from the provided wavelength grid.
+            # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid. 
+            # For now, we assume the user is providing their own wavelength grid. 
+            IFS_resolution = observation.lambd / np.gradient(observation.lambd) # calculate the resolution from the wavelength grid
+            dlam_um = np.gradient(observation.lambd)
+            if ~np.isfinite(IFS_resolution).any():
+                print("WARNING: Wavelength grid is not valid. Using default spectral resolution of 140.")
+                IFS_resolution = 140*np.ones_like(observation.lambd) # default resolution
+                dlam_um = observation.lambd / IFS_resolution * WAVELENGTH
+            #assert observation.SR[ilambd] == calculated_SR[ilambd], "Provided SR does not match the calculated SR from the wavelength grid."
+            
+            deltalambda_nm = dlam_um.to(u.nm)[ilambd]
+        else:
+            raise ValueError(
+                "Invalid observation mode. Choose 'IMAGER' or 'IFS'."
             )
-            * u.nm
-        )  # nanometers
 
         # Calculate λ/D (dimensionless)
         lod = 1 * LAMBDA_D
@@ -1044,6 +1073,7 @@ def calculate_exposure_time_or_snr(
                     deltalambda_nm,
                     observatory.coronagraph.nchannels,
                 )
+                photon_counts["CRp"][ilambd] = CRp.value
 
                 # NOISE FLOOR CRNF
                 if mode == "exposure_time":
@@ -1076,6 +1106,7 @@ def calculate_exposure_time_or_snr(
                         1,
                         noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
                     )
+                    
 
                 else:
                     raise ValueError(
@@ -1086,6 +1117,7 @@ def calculate_exposure_time_or_snr(
                 CRnf *= observatory.coronagraph.omega_lod[
                     int(np.floor(iy)), int(np.floor(ix)), iratio
                 ]
+                photon_counts["CRnf"][ilambd] = CRnf.value
 
                 # NOTE: noisefloor_interp: technically the Y axis
                 # is rows and the X axis is columns,
@@ -1102,7 +1134,7 @@ def calculate_exposure_time_or_snr(
                 ):
                     # (for exposure time mode) Check if it's above the noise floor
                     if mode == "exposure_time" and CRp <= CRnf:
-                        observation.exptime = np.inf
+                        observation.exptime[ilambd] = np.inf
                         continue  # Skip to next iteration
 
                     # Calculate the rest of the background noise
@@ -1122,6 +1154,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
+                    photon_counts["CRbs"][ilambd] = CRbs.value
 
                     # Calculate CRbz
                     CRbz = calculate_CRbz(
@@ -1136,6 +1169,8 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
+                    photon_counts["CRbz"][ilambd] = CRbz.value
+
 
                     # Calculate CRbez
                     CRbez = calculate_CRbez(
@@ -1152,6 +1187,7 @@ def calculate_exposure_time_or_snr(
                         scene.dist,
                         scene.sp,
                     )
+                    photon_counts["CRbez"][ilambd] = CRbez.value
 
                     # Calculate CRbbin
                     CRbbin = calculate_CRbbin(
@@ -1165,6 +1201,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
+                    photon_counts["CRbbin"][ilambd] = CRbbin.value
 
                     # Calculate CRbd
                     t_photon_count = calculate_t_photon_count(
@@ -1180,6 +1217,7 @@ def calculate_exposure_time_or_snr(
                         observatory.detector.CIC[ilambd],
                         t_photon_count,
                     )
+                    photon_counts["CRbd"][ilambd] = CRbd.value
 
                     CRbth = calculate_CRbth(
                         observation.lambd[ilambd],
@@ -1191,6 +1229,7 @@ def calculate_exposure_time_or_snr(
                         observatory.detector.QE[ilambd,],
                         observatory.detector.dQE[ilambd,],
                     )
+                    photon_counts["CRbth"][ilambd]  = CRbth.value
 
                     # TOTAL BACKGROUND NOISE
                     CRb = (
@@ -1198,6 +1237,7 @@ def calculate_exposure_time_or_snr(
                     ) * observatory.coronagraph.omega_lod[
                         int(np.floor(iy)), int(np.floor(ix)), iratio
                     ]
+                    photon_counts["CRb"][ilambd] = CRb.value
 
                     # Add detector noise
                     CRb += CRbd
@@ -1218,7 +1258,7 @@ def calculate_exposure_time_or_snr(
                         # [s/electron]
 
                         # Calculate Exposure time
-                        observation.exptime = (
+                        observation.exptime[ilambd] = (
                             observation.SNR[ilambd]
                             * observation.SNR[ilambd]
                             * cp
@@ -1228,21 +1268,21 @@ def calculate_exposure_time_or_snr(
 
                         # UNITS:
                         # []^2*[s/electron]*[]+[s] == [s]
-                        if observation.exptime < 0:
+                        if observation.exptime[ilambd] < 0:
                             # time is past the systematic
                             # noise floor limit
-                            observation.exptime = np.inf
+                            observation.exptime[ilambd] = np.inf
 
-                        if observation.exptime > observation.td_limit:
+                        if observation.exptime[ilambd] > observation.td_limit:
                             # treat as unobservable
                             # if beyond exposure time limit
-                            observation.exptime = np.inf
+                            observation.exptime[ilambd] = np.inf
 
                         if observatory.coronagraph.nrolls != 1:
                             # multiply by number of required rolls to
                             # achieve 360 deg coverage
                             # (after tlimit enforcement)
-                            observation.exptime *= observatory.coronagraph.nrolls
+                            observation.exptime[ilambd] *= observatory.coronagraph.nrolls
                     elif mode == "signal_to_noise":
                         # SIGNAL-TO-NOISE
                         # time term
@@ -1289,7 +1329,7 @@ def calculate_exposure_time_or_snr(
                         "WARNING: Photometric aperture is not large enough. Hardcoded infinity results."
                     )
                     if mode == "exposure_time":
-                        observation.exptime = np.inf
+                        observation.exptime[ilambd] = np.inf
                     elif mode == "signal_to_noise":
                         observation.fullsnr[ilambd] = np.inf
                     else:
@@ -1302,7 +1342,7 @@ def calculate_exposure_time_or_snr(
                 "WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results."
             )
             if mode == "exposure_time":
-                observation.exptime = np.inf
+                observation.exptime[ilambd] = np.inf
             elif mode == "signal_to_noise":
                 observation.fullsnr[ilambd] = np.inf
             else:
@@ -1355,6 +1395,8 @@ def calculate_exposure_time_or_snr(
                 CRb,
                 cp,
             )
+    # Save the photon counts for later analysis
+    pickle.dump(photon_counts, open("photon_counts.pk", "wb"))
     # NOTE FOR FUTURE DEVELOPMENT
     # The nmeananom, norbits, npsfratios loops are not stored in the
     # exptime matrix.

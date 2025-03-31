@@ -4,6 +4,8 @@ import eacy
 import astropy.units as u
 import numpy as np
 from .units import *
+from scipy.interpolate import interp1d
+
 
 
 def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
@@ -332,3 +334,16 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
                 ]
             )
     return params
+
+def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
+    # take the average within the specified wavelength range
+    numpy_array_variables = {
+        key: value for key, value in params.items() if isinstance(value, np.ndarray)
+    }
+    for key, value in numpy_array_variables.items():
+        if key != "lam":
+            interp_func = interp1d(params["lam"], params[key])
+            ynew =  interp_func(wavelengths) # interpolates the CG throughput values onto native wl grid
+            params[key] = ynew
+    return params
+

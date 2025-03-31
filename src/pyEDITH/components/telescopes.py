@@ -187,17 +187,30 @@ class EACTelescope(Telescope):
         # ****** Update Default Config when necessary ******
         # TODO: wavelength_range probably should not depend on the coronagraph bandwidth; let's discuss
         # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
-        wavelength_range = [
+        
+        telescope_params = load_telescope(self.keyword).__dict__
+
+        if parameters["observing_mode"] == "IMAGER":
+            wavelength_range = [
             mediator.get_observation_parameter("lambd")
             * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             mediator.get_observation_parameter("lambd")
             * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-        ] * WAVELENGTH
-        telescope_params = load_telescope(self.keyword).__dict__
+            ] * WAVELENGTH
+            
+            telescope_params = parse_input.average_over_bandpass(
+                telescope_params, wavelength_range
+            )
 
-        telescope_params = parse_input.average_over_bandpass(
-            telescope_params, wavelength_range
-        )
+        elif parameters["observing_mode"] == "IFS":
+            # interpolate telescope throughput onto native wavelength grid
+            telescope_params = parse_input.interpolate_over_bandpass(
+                telescope_params, mediator.get_coronagraph_parameter("bandwidth")
+            )
+        else:
+            raise ValueError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
 
         self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
         self.DEFAULT_CONFIG["telescope_throughput"] = (

@@ -64,7 +64,9 @@ class Observatory(ABC):  # abstract class
 
         if parameters["observing_mode"] == "IFS":
             # multiply by the IFS efficiency if in spectroscopy mode
-            self.optics_throughput *= parameters["IFS_eff"] # NOTE: this is a placeholder for now. Not yet included in YAML files. Name will probably change.
+            # NOTE: this is a placeholder for now. Not yet included in YAML files. Name will probably change.
+            # may also move to elsewhere in code.
+            self.optics_throughput *= parameters["IFS_eff"] 
         else:
             pass
 
@@ -103,6 +105,7 @@ class Observatory(ABC):  # abstract class
         self.coronagraph.load_configuration(parameters, mediator)
         self.telescope.load_configuration(parameters, mediator)
         self.detector.load_configuration(parameters, mediator)
+        self.observing_mode = parameters["observing_mode"] # IFS or IMAGER
 
         self.calculate_optics_throughput(parameters)
         self.calculate_warmemissivity_coldtransmission(parameters)

@@ -401,15 +401,26 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # ****** Update Default Config when necessary ******
-        wavelength_range = [
-            mediator.get_observation_parameter("lambd") * (1 - 0.5 * self.bandwidth),
-            mediator.get_observation_parameter("lambd") * (1 + 0.5 * self.bandwidth),
-        ]
+
         instrument_params = load_instrument("CI").__dict__
 
-        instrument_params = parse_input.average_over_bandpass(
-            instrument_params, wavelength_range
-        )
+        # averaging over bandpass is only required for imaging mode. 
+        if parameters["observing_mode"] == "IMAGER":
+            wavelength_range = [
+                mediator.get_observation_parameter("lambd") * (1 - 0.5 * self.bandwidth),
+                mediator.get_observation_parameter("lambd") * (1 + 0.5 * self.bandwidth),
+            ]
+            
+
+            instrument_params = parse_input.average_over_bandpass(
+                instrument_params, wavelength_range
+            )
+        elif parameters["observing_mode"] == "IFS":
+            instrument_params = parse_input.interpolate_over_bandpass(
+                instrument_params, mediator.get_observation_parameter("lambd")
+            )
+        else:
+            raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
         self.DEFAULT_CONFIG["coronagraph_throughput"] = instrument_params[
             "total_inst_refl"
@@ -468,11 +479,11 @@ class CoronagraphYIP(Coronagraph):
         for i in range(self.npix):
             for j in range(self.npix):
                 # get the off axis throughput at each separation
-                self.photap_frac[i, j, 0] = offax_tput_func(self.r[i, j])
+                self.photap_frac[i, j] = offax_tput_func(self.r[i, j])
 
         # On-axis intensity map with a stellar diameter
         self.Istar = (
-            np.zeros((self.npix, self.npix, 1)) * DIMENSIONLESS
+            np.zeros((self.npix, self.npix)) * DIMENSIONLESS
         )  # TODO: should self.angdiam be an array??
         # for i_diam, angdiam in enumerate(self.angdiam):
         #     Istar = yippy_obj.stellar_intens(angdiam)
@@ -482,12 +493,11 @@ class CoronagraphYIP(Coronagraph):
         lam = mediator.get_observation_parameter("lambd")
         telescope_params = load_telescope("EAC1").__dict__
         tele_diam = telescope_params["diam_circ"] * LENGTH
-        # tele_diam = mediator.get_telescope_parameter("diameter") # NOTE: this doesn't work because the telescope object is not initialized yet
 
-        angdiam_lod = arcsec_to_lambda_d(angdiam_arcsec, lam, tele_diam)
+        angdiam_lod = arcsec_to_lambda_d(angdiam_arcsec, 0.5*WAVELENGTH, tele_diam) # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
         Istar = yippy_obj.stellar_intens(angdiam_lod.value * lod)
-        self.Istar[:, :, 0] = Istar
+        self.Istar[:, :] = Istar
 
         # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
         # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
