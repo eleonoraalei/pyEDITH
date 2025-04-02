@@ -7,7 +7,6 @@ from .units import *
 from scipy.interpolate import interp1d
 
 
-
 def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
     """
     Parses an input file and extracts variables and secondary variables.
@@ -171,6 +170,11 @@ def parse_parameters(parameters: dict) -> dict:
         "dQE",
         "IFS_eff",
         "mag",  # used to be [ntargs x nlambda], now just [nlambda]
+        "Fstar",
+        "Fp",
+        "delta_mag_min",  # used to be [ntargs]
+        "delta_mag",  # used to be [nmeananom x norbits x ntargs]
+        "Fp_min",
     ]
 
     parsed_params.update(
@@ -189,8 +193,6 @@ def parse_parameters(parameters: dict) -> dict:
         "nzodis",  # used to be [ntargs]
         "ra",  # used to be [ntargs]
         "dec",  # used to be [ntargs]
-        "delta_mag_min",  # used to be [ntargs]
-        "delta_mag",  # used to be [nmeananom x norbits x ntargs]
     ]
 
     for key in list(set(target_params) & set(parameters.keys())):
@@ -335,6 +337,7 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
             )
     return params
 
+
 def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     # take the average within the specified wavelength range
     numpy_array_variables = {
@@ -343,7 +346,8 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     for key, value in numpy_array_variables.items():
         if key != "lam":
             interp_func = interp1d(params["lam"], params[key])
-            ynew =  interp_func(wavelengths) # interpolates the CG throughput values onto native wl grid
+            ynew = interp_func(
+                wavelengths
+            )  # interpolates the CG throughput values onto native wl grid
             params[key] = ynew
     return params
-

@@ -519,8 +519,16 @@ class AstrophysicalScene:
         """
         Initialize the AstrophysicalScene object with default values for output arrays.
         """
-        pass
-        # there are no default values, TODO it should fail if not provided
+        # Constants
+        # Zero Point Flux in the V Band
+        self.F0V = (
+            calc_flux_zero_point(
+                lambd=0.55 * WAVELENGTH, output_unit="pcgs", perlambd=True
+            )
+        ).to(
+            PHOTON_FLUX_DENSITY, equivalencies=u.spectral_density(0.55 * WAVELENGTH)
+        )  # convert to photons cm^-2 nm^-1 s^-1
+        return
 
     def load_configuration(self, parameters: dict) -> None:
         """
@@ -554,11 +562,64 @@ class AstrophysicalScene:
         # distance to star (pc) # used to be (ntargs array) now scalar
         self.dist = parameters["distance"] * DISTANCE
 
-        # stellar mag at V band # used to be (ntargs array) now scalar
-        self.vmag = parameters["magV"] * MAGNITUDE
+        # Calculate zero point flux at lambda
+        self.F0 = calc_flux_zero_point(
+            lambd=parameters["lambd"] * WAVELENGTH, output_unit="pcgs", perlambd=True
+        ).to(
+            PHOTON_FLUX_DENSITY,
+            equivalencies=u.spectral_density(parameters["lambd"] * WAVELENGTH),
+        )  # [nlambda]
 
-        # stellar mag at desired lambd # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
-        self.mag = parameters["mag"] * MAGNITUDE
+        # Determine if user provided magnitudes or fluxes
+
+        if all(
+            param in parameters
+            for param in ["magV", "mag", "delta_mag", "delta_mag_min"]
+        ):
+            # User provided magnitudes
+            # stellar mag (not absolute mag!!) at V band # used to be (ntargs array) now scalar
+            self.vmag = parameters["magV"] * MAGNITUDE
+
+            # stellar mag at desired lambd # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
+            self.mag = parameters["mag"] * MAGNITUDE
+
+            # difference in mag between planet and host star
+            # (nmeananom x norbits x ntargs array)
+            self.deltamag = (
+                parameters["delta_mag"] * MAGNITUDE
+            )  # TODO maybe this will become [nlambda] for IFS?
+
+            # brightest planet to resolve w/ photon counting detector evaluated at
+            # the IWA, sets the time between counts (ntargs array)
+            self.min_deltamag = (
+                parameters["delta_mag_min"] * MAGNITUDE
+            )  # TODO maybe this will become [nlambda] for IFS?
+
+            # Convert magnitudes to RELATIVE fluxes (modulo F0)
+            self.Fstar = 10 ** (-0.4 * self.mag.value) * u.dimensionless_unscaled
+            self.Fp0 = 10 ** (-0.4 * self.deltamag.value) * u.dimensionless_unscaled
+            self.Fp0_min = (
+                10 ** (-0.4 * self.min_deltamag.value) * u.dimensionless_unscaled
+            )
+
+        elif all(param in parameters for param in ["Fstar", "Fp", "Fp_min"]):
+            # Load fluxes
+            Fstar_absolute = parameters["Fstar"] * PHOTON_FLUX_DENSITY
+            Fp_absolute = parameters["Fp"] * PHOTON_FLUX_DENSITY
+            Fpmin_absolute = parameters["Fp_min"] * PHOTON_FLUX_DENSITY
+
+            # Convert to relative fluxes (used internally)
+            self.Fstar = (Fstar_absolute / self.F0).to(u.dimensionless_unscaled)
+            self.Fp0 = (Fp_absolute / self.F0).to(u.dimensionless_unscaled)
+            self.Fp0_min = (Fpmin_absolute / self.F0).to(u.dimensionless_unscaled)
+
+            # Calculate vmag (needed for zodi)
+            self.vmag = -2.5 * np.log10(Fstar_absolute / self.F0V) * MAGNITUDE
+            self.mag = -2.5 * np.log10(Fstar_absolute / self.F0) * MAGNITUDE
+        else:
+            raise ValueError(
+                "Must provide either magnitudes (magV, mag, delta_mag, delta_mag_min), or fluxes (Fstar, Fp)"
+            )
 
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
         self.angdiam_arcsec = parameters["angdiam"] * ARCSEC
@@ -579,17 +640,6 @@ class AstrophysicalScene:
         self.sp = parameters["sp"] * ARCSEC
         self.xp = self.sp.copy()
         self.yp = self.sp.copy() * 0.0
-
-        # difference in mag between planet and host star
-        # (nmeananom x norbits x ntargs array)
-        self.deltamag = (
-            parameters["delta_mag"] * MAGNITUDE
-        )  # TODO maybe this will become [nlambda] for IFS?
-        # brightest planet to resolve w/ photon counting detector evaluated at
-        # the IWA, sets the time between counts (ntargs array)
-        self.min_deltamag = (
-            parameters["delta_mag_min"] * MAGNITUDE
-        )  # TODO maybe this will become [nlambda] for IFS?
 
     def calculate_zodi_exozodi(self, observation: object) -> None:
         """
@@ -620,21 +670,6 @@ class AstrophysicalScene:
         # TODO done now to preserve the output of calc_flux_zero_point compared
         # to Chris's code. Consider converting to the right units directly.
 
-        self.F0V = (
-            calc_flux_zero_point(
-                lambd=0.55 * WAVELENGTH, output_unit="pcgs", perlambd=True
-            )
-        ).to(
-            PHOTON_FLUX_DENSITY, equivalencies=u.spectral_density(0.55 * WAVELENGTH)
-        )  # convert to photons cm^-2 nm^-1 s^-1
-
-        self.F0 = (
-            calc_flux_zero_point(
-                lambd=observation.lambd, output_unit="pcgs", perlambd=True
-            )  # [nlambda]
-        ).to(PHOTON_FLUX_DENSITY, equivalencies=u.spectral_density(observation.lambd))
-        # convert to photons cm^-2 nm^-1 s^-1
-
         self.M_V = (
             self.vmag - 5.0 * np.log10(self.dist.value) * MAGNITUDE + 5.0 * MAGNITUDE
         )  # calculate absolute V band mag of target
@@ -655,9 +690,6 @@ class AstrophysicalScene:
             np.full((observation.nlambd), 0.0) * DIMENSIONLESS
         )  # this code ignores stray light from binaries # [nlambda]
 
-        # flux of planet (dimensionless factor, will be multiplied by F0 internally which gives it flux units)
-        self.Fp0 = (10.0 ** (-0.4 * self.deltamag.value)) * DIMENSIONLESS
-
         ### TODO deltamag --> Fp/Fs
 
     def validate_configuration(self):
@@ -669,8 +701,8 @@ class AstrophysicalScene:
             "ntargs": int,
             "Lstar": LUMINOSITY,
             "dist": DISTANCE,
-            "vmag": MAGNITUDE,
-            "mag": MAGNITUDE,
+            # "vmag": MAGNITUDE,
+            # "mag": MAGNITUDE,
             "angdiam_arcsec": ARCSEC,
             "nzodis": ZODI,
             "ra": DEG,
@@ -678,15 +710,16 @@ class AstrophysicalScene:
             "sp": ARCSEC,
             "xp": ARCSEC,
             "yp": ARCSEC,
-            "deltamag": MAGNITUDE,
-            "min_deltamag": MAGNITUDE,
+            # "deltamag": MAGNITUDE,
+            # "min_deltamag": MAGNITUDE,
             "F0V": PHOTON_FLUX_DENSITY,
             "F0": PHOTON_FLUX_DENSITY,
-            "M_V": MAGNITUDE,
+            # "M_V": MAGNITUDE,
             "Fzodi_list": INV_SQUARE_ARCSEC,
             "Fexozodi_list": INV_SQUARE_ARCSEC,
             "Fbinary_list": DIMENSIONLESS,
             "Fp0": DIMENSIONLESS,
+            "Fstar": DIMENSIONLESS,
         }
 
         for arg, expected_type in expected_args.items():

@@ -8,6 +8,7 @@ from astropy.modeling import models
 from .units import *
 import pickle
 
+
 def calculate_CRp(
     F0: u.Quantity,
     Fstar: u.Quantity,
@@ -63,7 +64,10 @@ def calculate_CRp(
     tempCRpfactor = Fp0[iplanetpistartnp] * CRpfactor
     CRp = tempCRpfactor * photap_frac[index2]
     """
-    return F0 * Fstar * Fp0 * area * Upsilon * throughput * dlambda * nchannels
+    return (F0 * Fstar * Fp0 * area * Upsilon * throughput * dlambda * nchannels).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
+    )
 
 
 def calculate_CRbs(
@@ -126,7 +130,12 @@ def calculate_CRbs(
        +++ NOTE: Later added add together into tempCRbfactor+++
        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
-    return F0 * Fstar * Istar * area * throughput * dlambda * nchannels / (pixscale**2)
+    return (
+        F0 * Fstar * Istar * area * throughput * dlambda * nchannels / (pixscale**2)
+    ).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
+    )
 
 
 def calculate_CRbz(
@@ -188,6 +197,9 @@ def calculate_CRbz(
 
     return (
         F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
+    ).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
     )
 
 
@@ -332,7 +344,10 @@ def calculate_CRbbin(
 
     """
 
-    return F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels
+    return (F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
+    )
 
 
 def calculate_CRbth(
@@ -526,8 +541,11 @@ def calculate_CRbd(
     # TODO verify
     read_noise_variance = det_RN * det_RN.value
     return (
-        det_DC + read_noise_variance / det_tread + det_CIC / t_photon_count
-    ) * det_npix
+        (det_DC + read_noise_variance / det_tread + det_CIC / t_photon_count) * det_npix
+    ).to(
+        u.electron / (u.s),
+        equivalencies=u.equivalencies.dimensionless_angles(),
+    )
 
 
 def calculate_CRnf(
@@ -797,21 +815,19 @@ def calculate_exposure_time_or_snr(
     verbose : boolean
         Verbose flag.
     """
-    photon_counts = {"CRp": np.empty(observation.nlambd), 
-                     "CRbs": np.empty(observation.nlambd), 
-                     "CRbz": np.empty(observation.nlambd), 
-                     "CRbez": np.empty(observation.nlambd), 
-                     "CRbbin": np.empty(observation.nlambd), 
-                     "CRbth": np.empty(observation.nlambd), 
-                     "CRbd" : np.empty(observation.nlambd), 
-                     "CRnf": np.empty(observation.nlambd), 
-                     "CRb": np.empty(observation.nlambd)}
+    photon_counts = {
+        "CRp": np.empty(observation.nlambd),
+        "CRbs": np.empty(observation.nlambd),
+        "CRbz": np.empty(observation.nlambd),
+        "CRbez": np.empty(observation.nlambd),
+        "CRbbin": np.empty(observation.nlambd),
+        "CRbth": np.empty(observation.nlambd),
+        "CRbd": np.empty(observation.nlambd),
+        "CRnf": np.empty(observation.nlambd),
+        "CRb": np.empty(observation.nlambd),
+    }
 
-    
     for ilambd in range(observation.nlambd):
-        # Calculate Fstar factor (dimensionless, will be multiplied by F0
-        # that gives it dimensions)
-        Fstar = 10 ** (-0.4 * scene.mag[ilambd].value) * DIMENSIONLESS
 
         # Take the lesser of the desired bandwidth
         # and what coronagraph allows
@@ -819,7 +835,8 @@ def calculate_exposure_time_or_snr(
             deltalambda_nm = (
                 np.min(
                     [
-                        (observation.lambd[ilambd].to(u.nm).value) / observation.SR[ilambd],
+                        (observation.lambd[ilambd].to(u.nm).value)
+                        / observation.SR[ilambd],
                         observatory.coronagraph.bandwidth
                         * (observation.lambd[ilambd].to(u.nm).value),
                     ]
@@ -829,21 +846,25 @@ def calculate_exposure_time_or_snr(
         elif observatory.observing_mode == "IFS":
             # NOTE: the IFS mode disregards the user-provided SR. This is necessary because of the definition of R.
             # Instead, we calculate the spectral resolution from the provided wavelength grid.
-            # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid. 
-            # For now, we assume the user is providing their own wavelength grid. 
-            IFS_resolution = observation.lambd / np.gradient(observation.lambd) # calculate the resolution from the wavelength grid
+            # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid.
+            # For now, we assume the user is providing their own wavelength grid.
+            IFS_resolution = observation.lambd / np.gradient(
+                observation.lambd
+            )  # calculate the resolution from the wavelength grid
             dlam_um = np.gradient(observation.lambd)
             if ~np.isfinite(IFS_resolution).any():
-                print("WARNING: Wavelength grid is not valid. Using default spectral resolution of 140.")
-                IFS_resolution = 140*np.ones_like(observation.lambd) # default resolution
+                print(
+                    "WARNING: Wavelength grid is not valid. Using default spectral resolution of 140."
+                )
+                IFS_resolution = 140 * np.ones_like(
+                    observation.lambd
+                )  # default resolution
                 dlam_um = observation.lambd / IFS_resolution * WAVELENGTH
-            #assert observation.SR[ilambd] == calculated_SR[ilambd], "Provided SR does not match the calculated SR from the wavelength grid."
-            
+            # assert observation.SR[ilambd] == calculated_SR[ilambd], "Provided SR does not match the calculated SR from the wavelength grid."
+
             deltalambda_nm = dlam_um.to(u.nm)[ilambd]
         else:
-            raise ValueError(
-                "Invalid observation mode. Choose 'IMAGER' or 'IFS'."
-            )
+            raise ValueError("Invalid observation mode. Choose 'IMAGER' or 'IFS'.")
 
         # Calculate λ/D (dimensionless)
         lod = 1 * LAMBDA_D
@@ -946,13 +967,10 @@ def calculate_exposure_time_or_snr(
         # Detector noise from signal itself (we budget for 10x
         # the planet count rate for the minimum detectable planet)
 
-        min_Fp = (
-            10 ** (-0.4 * scene.min_deltamag.value) * DIMENSIONLESS
-        )  # factor multiplierd by F0 later
         det_CRp = calculate_CRp(
             scene.F0[ilambd],
-            Fstar,
-            10 * min_Fp.value,
+            scene.Fstar[ilambd],
+            10 * scene.Fp0_min[ilambd],
             area_cm2,
             det_photap_frac,
             observatory.total_throughput[ilambd],
@@ -962,7 +980,7 @@ def calculate_exposure_time_or_snr(
 
         det_CRbs = calculate_CRbs(
             scene.F0[ilambd],
-            Fstar,
+            scene.Fstar[ilambd],
             det_Istar,
             area_cm2,
             observatory.coronagraph.pixscale,
@@ -1063,8 +1081,8 @@ def calculate_exposure_time_or_snr(
                 # PLANET COUNT RATE CRP
                 CRp = calculate_CRp(
                     scene.F0[ilambd],
-                    Fstar,
-                    scene.Fp0,
+                    scene.Fstar[ilambd],
+                    scene.Fp0[ilambd],
                     area_cm2,
                     observatory.coronagraph.photap_frac[
                         int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1080,7 +1098,7 @@ def calculate_exposure_time_or_snr(
                     # NOISE FLOOR CRNF
                     CRnf = calculate_CRnf(
                         scene.F0[ilambd],
-                        Fstar,
+                        scene.Fstar[ilambd],
                         area_cm2,
                         observatory.coronagraph.pixscale,
                         observatory.total_throughput[ilambd],
@@ -1097,7 +1115,7 @@ def calculate_exposure_time_or_snr(
 
                     CRnf = calculate_CRnf(
                         scene.F0[ilambd],
-                        Fstar,
+                        scene.Fstar[ilambd],
                         area_cm2,
                         observatory.coronagraph.pixscale,
                         observatory.total_throughput[ilambd],
@@ -1106,7 +1124,6 @@ def calculate_exposure_time_or_snr(
                         1,
                         noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
                     )
-                    
 
                 else:
                     raise ValueError(
@@ -1146,7 +1163,7 @@ def calculate_exposure_time_or_snr(
                     # Calculate CRbs
                     CRbs = calculate_CRbs(
                         scene.F0[ilambd],
-                        Fstar,
+                        scene.Fstar[ilambd],
                         Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
                         area_cm2,
                         observatory.coronagraph.pixscale,
@@ -1154,7 +1171,12 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbs"][ilambd] = CRbs.value
+                    photon_counts["CRbs"][ilambd] = (
+                        CRbs.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value
+                    )
 
                     # Calculate CRbz
                     CRbz = calculate_CRbz(
@@ -1169,8 +1191,12 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbz"][ilambd] = CRbz.value
-
+                    photon_counts["CRbz"][ilambd] = (
+                        CRbz.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value
+                    )
 
                     # Calculate CRbez
                     CRbez = calculate_CRbez(
@@ -1187,7 +1213,12 @@ def calculate_exposure_time_or_snr(
                         scene.dist,
                         scene.sp,
                     )
-                    photon_counts["CRbez"][ilambd] = CRbez.value
+                    photon_counts["CRbez"][ilambd] = (
+                        CRbez.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value
+                    )
 
                     # Calculate CRbbin
                     CRbbin = calculate_CRbbin(
@@ -1201,7 +1232,12 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbbin"][ilambd] = CRbbin.value
+                    photon_counts["CRbbin"][ilambd] = (
+                        CRbbin.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value
+                    )
 
                     # Calculate CRbd
                     t_photon_count = calculate_t_photon_count(
@@ -1217,6 +1253,7 @@ def calculate_exposure_time_or_snr(
                         observatory.detector.CIC[ilambd],
                         t_photon_count,
                     )
+
                     photon_counts["CRbd"][ilambd] = CRbd.value
 
                     CRbth = calculate_CRbth(
@@ -1229,7 +1266,12 @@ def calculate_exposure_time_or_snr(
                         observatory.detector.QE[ilambd,],
                         observatory.detector.dQE[ilambd,],
                     )
-                    photon_counts["CRbth"][ilambd]  = CRbth.value
+                    photon_counts["CRbth"][ilambd] = (
+                        CRbth.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value
+                    )
 
                     # TOTAL BACKGROUND NOISE
                     CRb = (
@@ -1282,7 +1324,9 @@ def calculate_exposure_time_or_snr(
                             # multiply by number of required rolls to
                             # achieve 360 deg coverage
                             # (after tlimit enforcement)
-                            observation.exptime[ilambd] *= observatory.coronagraph.nrolls
+                            observation.exptime[
+                                ilambd
+                            ] *= observatory.coronagraph.nrolls
                     elif mode == "signal_to_noise":
                         # SIGNAL-TO-NOISE
                         # time term
@@ -1355,7 +1399,6 @@ def calculate_exposure_time_or_snr(
                 observation,
                 scene,
                 observatory,
-                Fstar,
                 deltalambda_nm,
                 lod,
                 lod_rad,
@@ -1393,7 +1436,7 @@ def calculate_exposure_time_or_snr(
                 CRbd,
                 CRbth,
                 CRb,
-                cp,
+                # cp,
             )
     # Save the photon counts for later analysis
     pickle.dump(photon_counts, open("photon_counts.pk", "wb"))
@@ -1488,7 +1531,6 @@ def print_all_variables(
     observation,
     scene,
     observatory,
-    Fstar,
     deltalambda_nm,
     lod,
     lod_rad,
@@ -1526,7 +1568,7 @@ def print_all_variables(
     CRbd,
     CRbth,
     CRb,
-    cp,
+    # cp,
 ):
     for mode in ["validation", "full_info"]:
         with open("pyedith_" + mode + ".txt", "w") as file:
@@ -1728,7 +1770,7 @@ def print_all_variables(
 
             file.write("\nCalculated Variables:\n")
             file.write("\n1. Initial Calculations:\n")
-            print_array_info(file, "Fstar", Fstar, mode)
+            print_array_info(file, "Fstar", scene.Fstar, mode)
             print_array_info(file, "deltalambda_nm", deltalambda_nm, mode)
             print_array_info(file, "lod", lod, mode)
             print_array_info(file, "lod_rad", lod_rad, mode)
@@ -1776,7 +1818,7 @@ def print_all_variables(
             print_array_info(file, "CRbd", CRbd, mode)
             print_array_info(file, "CRbth", CRbth, mode)
             print_array_info(file, "CRb", CRb, mode)
-            print_array_info(file, "cp", cp, mode)
+            # print_array_info(file, "cp", cp, mode)
 
             file.write("\n7. Final Result:\n")
             print_array_info(file, "observation.exptime", observation.exptime, mode)
