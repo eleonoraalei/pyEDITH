@@ -172,9 +172,7 @@ def parse_parameters(parameters: dict) -> dict:
         "mag",  # used to be [ntargs x nlambda], now just [nlambda]
         "Fstar",
         "Fp/Fs",
-        "delta_mag_min",  # used to be [ntargs]
         "delta_mag",  # used to be [nmeananom x norbits x ntargs]
-        "Fp_min/Fs",
     ]
 
     parsed_params.update(
@@ -189,10 +187,13 @@ def parse_parameters(parameters: dict) -> dict:
         "Lstar",  # used to be [ntargs]
         "distance",  # used to be [ntargs]
         "magV",  # used to be [ntargs]
+        "FstarV",
         "angdiam",  # used to be [ntargs]
         "nzodis",  # used to be [ntargs]
         "ra",  # used to be [ntargs]
         "dec",  # used to be [ntargs]
+        "delta_mag_min",  # used to be [ntargs]
+        "Fp_min/Fs",
     ]
 
     for key in list(set(target_params) & set(parameters.keys())):

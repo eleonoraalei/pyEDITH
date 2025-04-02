@@ -970,7 +970,7 @@ def calculate_exposure_time_or_snr(
         det_CRp = calculate_CRp(
             scene.F0[ilambd],
             scene.Fstar[ilambd],
-            10 * scene.Fp0_min[ilambd],
+            10 * scene.Fp0_min,
             area_cm2,
             det_photap_frac,
             observatory.total_throughput[ilambd],
