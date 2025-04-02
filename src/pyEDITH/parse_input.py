@@ -171,10 +171,10 @@ def parse_parameters(parameters: dict) -> dict:
         "IFS_eff",
         "mag",  # used to be [ntargs x nlambda], now just [nlambda]
         "Fstar",
-        "Fp",
+        "Fp/Fs",
         "delta_mag_min",  # used to be [ntargs]
         "delta_mag",  # used to be [nmeananom x norbits x ntargs]
-        "Fp_min",
+        "Fp_min/Fs",
     ]
 
     parsed_params.update(

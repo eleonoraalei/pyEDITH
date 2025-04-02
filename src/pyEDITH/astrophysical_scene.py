@@ -602,20 +602,21 @@ class AstrophysicalScene:
                 10 ** (-0.4 * self.min_deltamag.value) * u.dimensionless_unscaled
             )
 
-        elif all(param in parameters for param in ["Fstar", "Fp", "Fp_min"]):
+        elif all(param in parameters for param in ["Fstar", "Fp/Fs", "Fp_min/Fs"]):
             # Load fluxes
             Fstar_absolute = parameters["Fstar"] * PHOTON_FLUX_DENSITY
-            Fp_absolute = parameters["Fp"] * PHOTON_FLUX_DENSITY
-            Fpmin_absolute = parameters["Fp_min"] * PHOTON_FLUX_DENSITY
-
+            self.Fp0 = parameters["Fp/Fs"] * DIMENSIONLESS
+            self.Fp0_min = parameters["Fp_min/Fs"] * DIMENSIONLESS
             # Convert to relative fluxes (used internally)
             self.Fstar = (Fstar_absolute / self.F0).to(u.dimensionless_unscaled)
-            self.Fp0 = (Fp_absolute / self.F0).to(u.dimensionless_unscaled)
-            self.Fp0_min = (Fpmin_absolute / self.F0).to(u.dimensionless_unscaled)
 
             # Calculate vmag (needed for zodi)
             self.vmag = -2.5 * np.log10(Fstar_absolute / self.F0V) * MAGNITUDE
             self.mag = -2.5 * np.log10(Fstar_absolute / self.F0) * MAGNITUDE
+
+            # Calculate deltamag and min_deltamag (used only to validate)
+            self.deltamag = -2.5 * np.log10(self.Fp0) * MAGNITUDE
+            self.min_deltamag = -2.5 * np.log10(self.Fp0_min) * MAGNITUDE
         else:
             raise ValueError(
                 "Must provide either magnitudes (magV, mag, delta_mag, delta_mag_min), or fluxes (Fstar, Fp)"
