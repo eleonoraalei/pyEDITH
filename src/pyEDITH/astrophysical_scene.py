@@ -710,8 +710,6 @@ class AstrophysicalScene:
             np.full((observation.nlambd), 0.0) * DIMENSIONLESS
         )  # this code ignores stray light from binaries # [nlambda]
 
-        ### TODO deltamag --> Fp/Fs
-
     def validate_configuration(self):
         """
         Check that mandatory variables are there and have the right format.

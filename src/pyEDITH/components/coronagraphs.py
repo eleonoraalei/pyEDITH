@@ -210,7 +210,7 @@ class ToyModelCoronagraph(Coronagraph):
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         "contrast": 1.05e-13
-        * DIMENSIONLESS,  # contrast of coronagraph (uniform over dark hole and unitless)
+        * DIMENSIONLESS,  # noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03
         * DIMENSIONLESS,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
@@ -360,7 +360,7 @@ class CoronagraphYIP(Coronagraph):
         "angdiam": 0.01,  # NOTE: added this to match angdiam elsewhere in code
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
-        "contrast": 1.05e-13,  # contrast of coronagraph (uniform over dark hole and unitless)
+        "contrast": 1.05e-13,  # noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
@@ -368,6 +368,8 @@ class CoronagraphYIP(Coronagraph):
         "npsfratios": 1,  # NOTE UNUSED FOR NOW. Is it len(psf_trunc_ratio)?
         "coronagraph_throughput": None,
         "nchannels": 2,  # number of channels
+        "TLyot": 0.65
+        * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
     }
 
     def __init__(self, path=None, keyword=None):
@@ -393,6 +395,7 @@ class CoronagraphYIP(Coronagraph):
 
         from eacy import load_instrument, load_telescope
 
+        # **** UPDATE DEFAULT CONFIG BY USING YIPPY/EACy ****
         # ***** Set the bandwith *****
         setattr(
             self,
@@ -400,17 +403,17 @@ class CoronagraphYIP(Coronagraph):
             parameters.get("bandwidth", self.DEFAULT_CONFIG["bandwidth"]),
         )
 
-        # ****** Update Default Config when necessary ******
-
+        # ***** Load the YAML using EACy *****
         instrument_params = load_instrument("CI").__dict__
 
-        # averaging over bandpass is only required for imaging mode. 
+        # averaging over bandpass is only required for imaging mode.
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
-                mediator.get_observation_parameter("lambd") * (1 - 0.5 * self.bandwidth),
-                mediator.get_observation_parameter("lambd") * (1 + 0.5 * self.bandwidth),
+                mediator.get_observation_parameter("lambd")
+                * (1 - 0.5 * self.bandwidth),
+                mediator.get_observation_parameter("lambd")
+                * (1 + 0.5 * self.bandwidth),
             ]
-            
 
             instrument_params = parse_input.average_over_bandpass(
                 instrument_params, wavelength_range
@@ -422,93 +425,152 @@ class CoronagraphYIP(Coronagraph):
         else:
             raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
-        self.DEFAULT_CONFIG["coronagraph_throughput"] = instrument_params[
-            "total_inst_refl"
-        ]  # Optical throughput (nlambd array)
+        # Ensure coronagraph_throughput has dimensions nlambda
+        if np.isscalar(instrument_params["total_inst_refl"]):
+            self.DEFAULT_CONFIG["coronagraph_throughput"] = (
+                np.array([instrument_params["total_inst_refl"]]) * DIMENSIONLESS
+            )
+        else:
+            self.DEFAULT_CONFIG["coronagraph_throughput"] = (
+                np.array(instrument_params["total_inst_refl"]) * DIMENSIONLESS
+            )
 
-        # ***** Load parameters, use defaults if not provided *****
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            setattr(self, key, parameters.get(key, default_value))
-
-        # ***** Convert to numpy array when appropriate *****
-        array_params = ["psf_trunc_ratio", "angdiam", "coronagraph_throughput"]
-        for param in array_params:
-            setattr(self, param, np.array(getattr(self, param), dtype=np.float64))
-
-        self.psf_trunc_ratio *= DIMENSIONLESS
-        self.minimum_IWA *= LAMBDA_D
-        self.maximum_OWA *= LAMBDA_D
-        self.coronagraph_throughput *= DIMENSIONLESS
         # ***** Load the YIP using yippy *****
-        # TODO: this needs to be a parameter in the input file
-
         yippy_obj = yippycoro(self.path)
         # yippy_obj = yippycoro(parameters["YIP_dir"]) # TODO: this is the correct way to do it, but we need to add this to the input file
 
         # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****
-        self.pixscale = (
+        self.DEFAULT_CONFIG["pixscale"] = (
             yippy_obj.header.pixscale.value * LAMBDA_D
         )  # has units of lam/D / pix
-        self.npix = yippy_obj.header.naxis1
-        self.xcenter = yippy_obj.header.xcenter * PIXEL
-        self.ycenter = yippy_obj.header.ycenter * PIXEL
-        self.ndiams = len(self.angdiams)
+        self.DEFAULT_CONFIG["npix"] = yippy_obj.header.naxis1
+        self.DEFAULT_CONFIG["xcenter"] = yippy_obj.header.xcenter * PIXEL
+        self.DEFAULT_CONFIG["ycenter"] = yippy_obj.header.ycenter * PIXEL
+        self.DEFAULT_CONFIG["ndiams"] = len(self.DEFAULT_CONFIG["angdiams"])
 
         # Sky transmission map for extended sources
-        self.skytrans = yippy_obj.sky_trans() * DIMENSIONLESS
+        self.DEFAULT_CONFIG["skytrans"] = yippy_obj.sky_trans() * DIMENSIONLESS
 
         # Off axis throughput map: photap_frac
-        self.r = (
-            generate_radii(self.npix, self.npix) * self.pixscale
+        self.DEFAULT_CONFIG["r"] = (
+            generate_radii(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
+            * self.DEFAULT_CONFIG["pixscale"]
         )  # create an array of circumstellar separations in units of lambd/D centered on star
-        self.omega_lod = (
+        self.DEFAULT_CONFIG["omega_lod"] = (
             np.full(
-                (self.npix, self.npix, len(self.psf_trunc_ratio)),
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    len(self.DEFAULT_CONFIG["psf_trunc_ratio"]),
+                ),
                 float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
             )
             * DIMENSIONLESS
         )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
-        self.photap_frac = (
-            np.empty((self.npix, self.npix, len(self.psf_trunc_ratio))) * DIMENSIONLESS
+        self.DEFAULT_CONFIG["photap_frac"] = (
+            np.empty(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    len(self.DEFAULT_CONFIG["psf_trunc_ratio"]),
+                )
+            )
+            * DIMENSIONLESS
         )
         sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(
-            aperture_radius_lod=self.psf_trunc_ratio, oversample=2, plot=False
+            aperture_radius_lod=self.DEFAULT_CONFIG["psf_trunc_ratio"],
+            oversample=2,
+            plot=False,
         )  # changed from aperture_radius_lod=0.7
         offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
-        for i in range(self.npix):
-            for j in range(self.npix):
+        for i in range(self.DEFAULT_CONFIG["npix"]):
+            for j in range(self.DEFAULT_CONFIG["npix"]):
                 # get the off axis throughput at each separation
-                self.photap_frac[i, j] = offax_tput_func(self.r[i, j])
+                self.DEFAULT_CONFIG["photap_frac"][i, j] = offax_tput_func(
+                    self.DEFAULT_CONFIG["r"][i, j]
+                )
 
+        angdiam_arcsec = mediator.get_scene_parameter("angdiam_arcsec")
+        lam = mediator.get_observation_parameter("lambd")
+
+        # TODO how to behave when tele_diam has been overwritten by the user?
+        telescope_params = load_telescope("EAC1").__dict__
+        tele_diam = telescope_params["diam_circ"] * LENGTH
+
+        angdiam_lod = arcsec_to_lambda_d(
+            angdiam_arcsec, lam, tele_diam
+        )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
+
+        # Calculate Istar to be used later
+        Istar = yippy_obj.stellar_intens(angdiam_lod.value * lod)
+
+        # NOTE: Yippy already interpolates for the correct angdiam. The ETC will attempt to do another interpolation,
+        # so here we create a larger matrix that contains all the same values so that it gives the same result.
         # On-axis intensity map with a stellar diameter
-        self.Istar = (
-            np.zeros((self.npix, self.npix)) * DIMENSIONLESS
+        self.DEFAULT_CONFIG["Istar"] = (
+            np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    len(self.DEFAULT_CONFIG["angdiams"]),
+                )
+            )
+            * DIMENSIONLESS
         )  # TODO: should self.angdiam be an array??
         # for i_diam, angdiam in enumerate(self.angdiam):
         #     Istar = yippy_obj.stellar_intens(angdiam)
         #     self.Istar[:,:,i_diam] = Istar
 
-        angdiam_arcsec = mediator.get_scene_parameter("angdiam_arcsec")
-        lam = mediator.get_observation_parameter("lambd")
-        telescope_params = load_telescope("EAC1").__dict__
-        tele_diam = telescope_params["diam_circ"] * LENGTH
-
-        angdiam_lod = arcsec_to_lambda_d(angdiam_arcsec, 0.5*WAVELENGTH, tele_diam) # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
-
-        Istar = yippy_obj.stellar_intens(angdiam_lod.value * lod)
-        self.Istar[:, :] = Istar
+        for z in range(len(self.DEFAULT_CONFIG["angdiams"])):
+            self.DEFAULT_CONFIG["Istar"][:, :, z] = Istar
 
         # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
         # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
         # currently I do not have a YIP with a second Istar realization, so I cannot develop this part yet.
-        self.noisefloor = np.zeros((self.npix, self.npix, 1)) * DIMENSIONLESS
+        #
+        # WE KEEP IT AS IN THE TOYMODEL FOR NOW
+        self.DEFAULT_CONFIG["PSFpeak"] = (
+            0.025 * self.DEFAULT_CONFIG["TLyot"]
+        )  # this is an approximation based on PAPLC results
 
-        # self.noisefloor = (
-        #     self.noisefloor_factor * self.contrast
-        # )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
-        # n_floor = np.full((self.npix, self.npix), self.noisefloor * self.PSFpeak)
-        # n_floor =
-        # self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
-        # for z in range(len(self.angdiams)):
-        #     self.noisefloor[:, :, z] = n_floor
+        self.DEFAULT_CONFIG["noisefloor"] = (
+            self.DEFAULT_CONFIG["noisefloor_factor"] * self.DEFAULT_CONFIG["contrast"]
+        )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
+        n_floor = np.full(
+            (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"]),
+            self.DEFAULT_CONFIG["noisefloor"] * self.DEFAULT_CONFIG["PSFpeak"],
+        )
+        self.DEFAULT_CONFIG["noisefloor"] = (
+            np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    len(self.DEFAULT_CONFIG["angdiams"]),
+                )
+            )
+            * DIMENSIONLESS
+        )
+        for z in range(len(self.DEFAULT_CONFIG["angdiams"])):
+            self.DEFAULT_CONFIG["noisefloor"][:, :, z] = n_floor
+
+        # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES ****
+        # TODO for coronagraph, allow replacement only in terms of scaling factors?
+        # NOTE what should be allowed to be replaced?
+        # Load parameters, use defaults if not provided
+        for key, default_value in self.DEFAULT_CONFIG.items():
+            if key in parameters:
+                # User provided a value
+                user_value = parameters[key]
+                if isinstance(default_value, u.Quantity):
+                    # Ensure the user value has the same unit as the default
+                    if isinstance(user_value, u.Quantity):
+                        setattr(self, key, user_value.to(default_value.unit))
+                    else:
+                        setattr(self, key, u.Quantity(user_value, default_value.unit))
+                else:
+                    # For non-Quantity values (like integers), use as is
+                    setattr(self, key, user_value)
+            else:
+                # Use default value
+                setattr(self, key, default_value)

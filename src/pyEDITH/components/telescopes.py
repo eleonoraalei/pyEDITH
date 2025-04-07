@@ -150,7 +150,7 @@ class EACTelescope(Telescope):
     """
 
     DEFAULT_CONFIG = {
-        "diameter": 7.87 * LENGTH,  # circumscribed diameter of aperture (m, scalar)
+        "diameter": None,  # circumscribed diameter of aperture (m, scalar)
         "unobscured_area": 1.0,  # unobscured area (percentage,scalar) ### NOTE default for now
         "toverhead_fixed": 8.25e3
         * TIME,  # fixed overhead time (seconds,scalar) ### NOTE default for now
@@ -184,20 +184,19 @@ class EACTelescope(Telescope):
         """
         from eacy import load_telescope
 
-        # ****** Update Default Config when necessary ******
-        # TODO: wavelength_range probably should not depend on the coronagraph bandwidth; let's discuss
-        # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
-        
+        # **** LOAD DEFAULTS FROM EAC YAML FILES AND UPDATE DEFAULT CONFIG ****
+
+        # Load parameters from YAML files
         telescope_params = load_telescope(self.keyword).__dict__
 
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
-            mediator.get_observation_parameter("lambd")
-            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-            mediator.get_observation_parameter("lambd")
-            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+                mediator.get_observation_parameter("lambd")
+                * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+                mediator.get_observation_parameter("lambd")
+                * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             ] * WAVELENGTH
-            
+
             telescope_params = parse_input.average_over_bandpass(
                 telescope_params, wavelength_range
             )
@@ -211,11 +210,21 @@ class EACTelescope(Telescope):
             raise ValueError(
                 f"Unsupported observing mode: {parameters['observing_mode']}"
             )
-
+        # Load parameters that you need from the YAML files
         self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
-        self.DEFAULT_CONFIG["telescope_throughput"] = (
-            telescope_params["total_tele_refl"] * DIMENSIONLESS
-        )  # Optical throughput (nlambd array)
+
+        # Ensure telescope_throughput has dimensions nlambda
+        if np.isscalar(telescope_params["total_tele_refl"]):
+            self.DEFAULT_CONFIG["telescope_throughput"] = (
+                np.array([telescope_params["total_tele_refl"]]) * DIMENSIONLESS
+            )
+        else:
+            self.DEFAULT_CONFIG["telescope_throughput"] = (
+                np.array(telescope_params["total_tele_refl"]) * DIMENSIONLESS
+            )
+        # ****** Update Default Config when necessary ******
+        # TODO: wavelength_range probably should not depend on the coronagraph bandwidth; let's discuss
+        # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
 
         # Load parameters, use defaults if not provided
         for key, default_value in self.DEFAULT_CONFIG.items():
@@ -234,25 +243,6 @@ class EACTelescope(Telescope):
             else:
                 # Use default value
                 setattr(self, key, default_value)
-
-        # ***** Convert to numpy array when appropriate *****
-        array_params = [
-            "telescope_throughput",
-        ]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar

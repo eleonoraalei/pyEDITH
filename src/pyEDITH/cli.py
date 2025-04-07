@@ -76,7 +76,7 @@ def main():
             parser_a.print_help(sys.stderr)
             sys.exit(1)
         parameters, _ = parse_input.read_configuration(args.edith)
-        texp = calculate_texp(parameters, args.verbose)
+        texp, _ = calculate_texp(parameters, args.verbose)
         print(texp)
 
     elif args.subfunction == "snr":
@@ -89,7 +89,7 @@ def main():
             sys.exit(1)
         parameters, _ = parse_input.read_configuration(args.edith)
         texp = args.time
-        snr = calculate_snr(parameters, texp, args.verbose)
+        snr, _ = calculate_snr(parameters, texp, args.verbose)
         print(snr)
 
     elif args.subfunction == "etc2snr":
@@ -113,42 +113,16 @@ def main():
 
         print("Calculating texp from primary lambda")
         print(parameters.keys())
-        texp = calculate_texp(parameters, args.verbose)
+        texp, _ = calculate_texp(parameters, args.verbose)
         print("Reference exposure time: ", texp)
         if np.isfinite(texp).all():
             print("Calculating snr on secondary lambda")
-            snr = calculate_snr(secondary_parameters, texp, args.verbose)
+            snr, _ = calculate_snr(secondary_parameters, texp, args.verbose)
             print("SNR at the secondary lambda: ", snr)
         else:
             raise ValueError("Returned exposure time is infinity.")
     else:
         parser.print_help()
-
-
-# def input(args):
-
-
-#     ### CHECK COMMAND LINE INPUTS
-#     # check input file was provided
-
-#     if not Path(args.ayo).exists():
-#         raise ValueError('Cannot find this .ayo file. Please check that the \
-#                           path/name is correct.')
-
-#     if not Path(args.coro).exists():
-#         raise ValueError('Cannot find this .coro file. Please check that the \
-#                            path/name is correct.')
-
-#     if not Path(args.targets).exists():
-#         raise ValueError('Cannot find this .csv file. Please check that the \
-#                            path/name is correct.')
-
-#     ### CONVERT COMMAND LINE INPUTS INTO SINGLE DICT
-#     #----- FILE READING -----
-#     # with open(self.input_file,'r') as f:
-#     #     parameters=yaml.safe_load(f)
-#     parameters=parse_input.parse_input_file(args.input_file)
-#     return parameters
 
 
 def calculate_texp(parameters: dict, verbose) -> np.array:
@@ -204,7 +178,7 @@ def calculate_texp(parameters: dict, verbose) -> np.array:
         observation, scene, observatory, verbose, mode="exposure_time"
     )
 
-    return observation.exptime
+    return observation.exptime, observation.validation_variables
 
 
 def calculate_snr(parameters, reference_texp, verbose):
@@ -258,4 +232,4 @@ def calculate_snr(parameters, reference_texp, verbose):
     )
     # print(istar, coronagraph.type,  edith.exptime[istar][ilambd])
 
-    return observation.fullsnr
+    return observation.fullsnr, observation.validation_variables

@@ -815,7 +815,9 @@ def calculate_exposure_time_or_snr(
     verbose : boolean
         Verbose flag.
     """
-    photon_counts = {
+
+    observation.validation_variables = {}
+    observation.photon_counts = {
         "CRp": np.empty(observation.nlambd),
         "CRbs": np.empty(observation.nlambd),
         "CRbz": np.empty(observation.nlambd),
@@ -901,27 +903,14 @@ def calculate_exposure_time_or_snr(
         # The interpolation is done based on the value of
         # stellar_diam_lod (dependence on istar)
 
-        # only need to run this interpolation routine if we are using ToyModel coronagraph
-        # otherwise, yippy does this interpolation automatically and we can set Istar_interp = Istar.
-        if isinstance(observatory.coronagraph, CoronagraphYIP):
-            # For YIP coronagraph, use the existing arrays. They have already been interpolated with yippy
-            Istar_interp = observatory.coronagraph.Istar
-            noisefloor_interp = observatory.coronagraph.noisefloor
-
-        elif isinstance(observatory.coronagraph, ToyModelCoronagraph):
-            # For ToyModel coronagraph, we need to interpolate the Istar and noisefloor arrays
-            Istar_interp, noisefloor_interp = interpolate_arrays(
-                observatory.coronagraph.Istar,
-                observatory.coronagraph.noisefloor,
-                observatory.coronagraph.npix,
-                observatory.coronagraph.ndiams,
-                stellar_diam_lod,
-                observatory.coronagraph.angdiams,
-            )
-        else:
-            raise ValueError(
-                f"Unknown coronagraph type: {type(observatory.coronagraph)}"
-            )
+        Istar_interp, noisefloor_interp = interpolate_arrays(
+            observatory.coronagraph.Istar,
+            observatory.coronagraph.noisefloor,
+            observatory.coronagraph.npix,
+            observatory.coronagraph.ndiams,
+            stellar_diam_lod,
+            observatory.coronagraph.angdiams,
+        )
 
         # Measure coronagraph performance at each IWA
         pixscale_rad = observatory.coronagraph.pixscale * lambda_d_to_radians(
@@ -1091,7 +1080,7 @@ def calculate_exposure_time_or_snr(
                     deltalambda_nm,
                     observatory.coronagraph.nchannels,
                 )
-                photon_counts["CRp"][ilambd] = CRp.value
+                observation.photon_counts["CRp"][ilambd] = CRp.value
 
                 # NOISE FLOOR CRNF
                 if mode == "exposure_time":
@@ -1134,7 +1123,7 @@ def calculate_exposure_time_or_snr(
                 CRnf *= observatory.coronagraph.omega_lod[
                     int(np.floor(iy)), int(np.floor(ix)), iratio
                 ]
-                photon_counts["CRnf"][ilambd] = CRnf.value
+                observation.photon_counts["CRnf"][ilambd] = CRnf.value
 
                 # NOTE: noisefloor_interp: technically the Y axis
                 # is rows and the X axis is columns,
@@ -1171,7 +1160,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbs"][ilambd] = (
+                    observation.photon_counts["CRbs"][ilambd] = (
                         CRbs.value
                         * observatory.coronagraph.omega_lod[
                             int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1191,7 +1180,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbz"][ilambd] = (
+                    observation.photon_counts["CRbz"][ilambd] = (
                         CRbz.value
                         * observatory.coronagraph.omega_lod[
                             int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1213,7 +1202,7 @@ def calculate_exposure_time_or_snr(
                         scene.dist,
                         scene.sp,
                     )
-                    photon_counts["CRbez"][ilambd] = (
+                    observation.photon_counts["CRbez"][ilambd] = (
                         CRbez.value
                         * observatory.coronagraph.omega_lod[
                             int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1232,7 +1221,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                     )
-                    photon_counts["CRbbin"][ilambd] = (
+                    observation.photon_counts["CRbbin"][ilambd] = (
                         CRbbin.value
                         * observatory.coronagraph.omega_lod[
                             int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1254,7 +1243,7 @@ def calculate_exposure_time_or_snr(
                         t_photon_count,
                     )
 
-                    photon_counts["CRbd"][ilambd] = CRbd.value
+                    observation.photon_counts["CRbd"][ilambd] = CRbd.value
 
                     CRbth = calculate_CRbth(
                         observation.lambd[ilambd],
@@ -1266,7 +1255,7 @@ def calculate_exposure_time_or_snr(
                         observatory.detector.QE[ilambd,],
                         observatory.detector.dQE[ilambd,],
                     )
-                    photon_counts["CRbth"][ilambd] = (
+                    observation.photon_counts["CRbth"][ilambd] = (
                         CRbth.value
                         * observatory.coronagraph.omega_lod[
                             int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1279,7 +1268,7 @@ def calculate_exposure_time_or_snr(
                     ) * observatory.coronagraph.omega_lod[
                         int(np.floor(iy)), int(np.floor(ix)), iratio
                     ]
-                    photon_counts["CRb"][ilambd] = CRb.value
+                    observation.photon_counts["CRb"][ilambd] = CRb.value
 
                     # Add detector noise
                     CRb += CRbd
@@ -1394,6 +1383,86 @@ def calculate_exposure_time_or_snr(
                     "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
                 )
 
+        # Store the variables of interest
+        observation.validation_variables[ilambd] = {
+            "F0": scene.F0[ilambd],
+            "magstar": scene.mag,
+            "Lstar": scene.Lstar,
+            "dist": scene.dist,
+            "D": observatory.telescope.diameter,
+            "A_cm": area_cm2,
+            "lambda": observation.lambd[ilambd].to(u.nm),
+            "deltalambda_nm": deltalambda_nm,
+            "snr": observation.SNR[ilambd],
+            "nzodis": scene.nzodis,
+            "toverhead_fixed": observatory.telescope.toverhead_fixed,
+            "toverhead_multi": observatory.telescope.toverhead_multi,
+            "det_DC": observatory.detector.DC[ilambd],
+            "det_RN": observatory.detector.RN[ilambd],
+            "det_CIC": observatory.detector.CIC[ilambd],
+            "det_tread": observatory.detector.tread[ilambd],
+            "det_pixscale_mas": observatory.detector.pixscale_mas,
+            "dQE": observatory.detector.dQE[ilambd],
+            "QE": observatory.detector.QE[ilambd],
+            "Toptical": observatory.optics_throughput[ilambd],
+            "Fstar": scene.Fstar[ilambd] * scene.F0[ilambd],
+            "Fp": scene.Fstar[ilambd] * scene.F0[ilambd] * scene.Fp0[ilambd],
+            "Fzodi": scene.Fzodi_list[ilambd] * scene.F0[ilambd],
+            "Fexozodi": scene.Fexozodi_list[ilambd]
+            * scene.F0[ilambd]
+            / (scene.sp**2 * scene.dist**2),
+            "sp_lod": arcsec_to_lambda_d(
+                scene.sp, observation.lambd[ilambd], observatory.telescope.diameter
+            ),
+            "omega_lod": observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "T_core": observatory.coronagraph.coronagraph_throughput[ilambd],
+            # "throughput": observatory.total_throughput[ilambd],
+            "photap_frac": observatory.coronagraph.photap_frac[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "Istar_interp": Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
+            "Istar_interp*oneopixscale2": Istar_interp[
+                int(np.floor(iy)), int(np.floor(ix))
+            ]
+            * oneopixscale_arcsec**2,
+            "contrast * offset PSF peak (unused)": 0.025
+            * observatory.coronagraph.TLyot
+            * observatory.coronagraph.contrast,
+            "skytrans": observatory.coronagraph.skytrans[
+                int(np.floor(iy)), int(np.floor(ix))
+            ],
+            "skytrans*oneopixscale2": observatory.coronagraph.skytrans[
+                int(np.floor(iy)), int(np.floor(ix))
+            ]
+            * oneopixscale_arcsec**2,
+            "det_npix": det_npix,
+            "t_photon_count": t_photon_count,
+            "CRp": CRp,
+            "CRbs": CRbs
+            * observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "CRbz": CRbz.value
+            * observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "CRbez": CRbez.value
+            * observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "CRbbin": CRbbin
+            * observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "CRbd": CRbd,
+            "CRnf": CRnf,
+            "SNRCRpfloor_normalized": CRnf / observation.SNR[ilambd],
+            "SNR2_cp": observation.SNR[ilambd] ** 2 * cp,
+            "exptime": observation.exptime[ilambd],
+        }
+
         if verbose:
             print_all_variables(
                 observation,
@@ -1439,13 +1508,8 @@ def calculate_exposure_time_or_snr(
                 # cp,
             )
     # Save the photon counts for later analysis
-    pickle.dump(photon_counts, open("photon_counts.pk", "wb"))
-    # NOTE FOR FUTURE DEVELOPMENT
-    # The nmeananom, norbits, npsfratios loops are not stored in the
-    # exptime matrix.
-    # This is not a problem right now since these are "fake" loops as of
-    # now (nmeananom, norbits, npsfratios all are 1).
-    # But this might change in the future.
+    pickle.dump(observation.photon_counts, open("photon_counts.pk", "wb"))
+
     return
 
 
