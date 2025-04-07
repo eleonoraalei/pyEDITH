@@ -360,7 +360,7 @@ class CoronagraphYIP(Coronagraph):
         "angdiam": 0.01,  # NOTE: added this to match angdiam elsewhere in code
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
-        "contrast": 1.05e-13,  # noise floor contrast of coronagraph (uniform over dark hole and unitless)
+        "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
