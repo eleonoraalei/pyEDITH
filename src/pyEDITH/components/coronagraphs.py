@@ -360,7 +360,7 @@ class CoronagraphYIP(Coronagraph):
         "angdiam": 0.01,  # NOTE: added this to match angdiam elsewhere in code
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
-        "contrast": 1.05e-13,  # contrast of coronagraph (uniform over dark hole and unitless)
+        "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
@@ -499,16 +499,16 @@ class CoronagraphYIP(Coronagraph):
         Istar = yippy_obj.stellar_intens(angdiam_lod.value * lod)
         self.Istar[:, :] = Istar
 
-        # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
-        # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
-        # currently I do not have a YIP with a second Istar realization, so I cannot develop this part yet.
-        self.noisefloor = np.zeros((self.npix, self.npix, 1)) * DIMENSIONLESS
-
-        # self.noisefloor = (
-        #     self.noisefloor_factor * self.contrast
-        # )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
-        # n_floor = np.full((self.npix, self.npix), self.noisefloor * self.PSFpeak)
-        # n_floor =
-        # self.noisefloor = np.zeros((self.npix, self.npix, len(self.angdiams)))
-        # for z in range(len(self.angdiams)):
-        #     self.noisefloor[:, :, z] = n_floor
+        self.PSFpeak = (
+            0.025 * self.TLyot
+        )  # this is an approximation based on PAPLC results
+        
+        self.noisefloor = (
+            self.noisefloor_factor * self.contrast
+        )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
+        n_floor = np.full((self.npix, self.npix), self.noisefloor * self.PSFpeak)
+        self.noisefloor = (
+            np.zeros((self.npix, self.npix, len(self.angdiams))) * DIMENSIONLESS
+        )
+        for z in range(len(self.angdiams)):
+            self.noisefloor[:, :, z] = n_floor        
