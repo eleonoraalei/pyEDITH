@@ -563,12 +563,17 @@ class AstrophysicalScene:
         self.dist = parameters["distance"] * DISTANCE
 
         # Calculate zero point flux at lambda
-        self.F0 = calc_flux_zero_point(
-            lambd=parameters["lambd"] * WAVELENGTH, output_unit="pcgs", perlambd=True
-        ).to(
-            PHOTON_FLUX_DENSITY,
-            equivalencies=u.spectral_density(parameters["lambd"] * WAVELENGTH),
-        )  # [nlambda]
+        if "F0" in parameters.keys():
+            self.F0 = parameters["F0"] * PHOTON_FLUX_DENSITY
+        else:
+            self.F0 = calc_flux_zero_point(
+                lambd=parameters["lambd"] * WAVELENGTH,
+                output_unit="pcgs",
+                perlambd=True,
+            ).to(
+                PHOTON_FLUX_DENSITY,
+                equivalencies=u.spectral_density(parameters["lambd"] * WAVELENGTH),
+            )  # [nlambda]
 
         # Determine if user provided magnitudes or fluxes
 
@@ -596,18 +601,22 @@ class AstrophysicalScene:
             )  # TODO maybe this will become [nlambda] for IFS?
 
             # Convert magnitudes to RELATIVE fluxes (modulo F0)
-            self.Fstar = 10 ** (-0.4 * self.mag.value) * u.dimensionless_unscaled
-            self.Fp0 = 10 ** (-0.4 * self.deltamag.value) * u.dimensionless_unscaled
-            self.Fp0_min = (
-                10 ** (-0.4 * self.min_deltamag.value) * u.dimensionless_unscaled
-            )
+            self.Fstar = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
+            self.Fp0 = 10 ** (-0.4 * self.deltamag.value) * DIMENSIONLESS
+            self.Fp0_min = 10 ** (-0.4 * self.min_deltamag.value) * DIMENSIONLESS
 
         elif all(
-            param in parameters for param in ["Fstar", "FstarV", "Fp/Fs", "Fp_min/Fs"]
+            param in parameters
+            for param in ["Fstar_10pc", "FstarV_10pc", "Fp/Fs", "Fp_min/Fs"]
         ):
+
             # Load fluxes
-            Fstar_absolute = parameters["Fstar"] * PHOTON_FLUX_DENSITY
-            Fstar_V_absolute = parameters["FstarV"] * PHOTON_FLUX_DENSITY
+            Fstar_10pc = parameters["Fstar_10pc"] * PHOTON_FLUX_DENSITY
+            Fstar_V_10pc = parameters["FstarV_10pc"] * PHOTON_FLUX_DENSITY
+
+            Fstar_absolute = Fstar_10pc * (10 * DISTANCE / self.dist) ** 2
+
+            Fstar_V_absolute = Fstar_V_10pc * (10 * DISTANCE / self.dist) ** 2
 
             self.Fp0 = parameters["Fp/Fs"] * DIMENSIONLESS
             self.Fp0_min = parameters["Fp_min/Fs"] * DIMENSIONLESS
@@ -629,7 +638,7 @@ class AstrophysicalScene:
             ]
             missing_flux_params = [
                 param
-                for param in ["Fstar", "FstarV", "Fp/Fs", "Fp_min/Fs"]
+                for param in ["Fstar_10pc", "FstarV_10pc", "Fp/Fs", "Fp_min/Fs"]
                 if param not in parameters
             ]
 
@@ -638,7 +647,7 @@ class AstrophysicalScene:
                 f"1. All magnitude parameters: {', '.join(['magV', 'mag', 'delta_mag', 'delta_mag_min'])}\n"
                 f"   Missing: {', '.join(missing_mag_params)}\n"
                 f"OR\n"
-                f"2. All flux parameters: {', '.join(['Fstar', 'FstarV', 'Fp/Fs', 'Fp_min/Fs'])}\n"
+                f"2. All flux parameters: {', '.join(['Fstar_10pc', 'FstarV_10pc', 'Fp/Fs', 'Fp_min/Fs',])}\n"
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar

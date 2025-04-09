@@ -170,9 +170,10 @@ def parse_parameters(parameters: dict) -> dict:
         "dQE",
         "IFS_eff",
         "mag",  # used to be [ntargs x nlambda], now just [nlambda]
-        "Fstar",
+        "Fstar_10pc",
         "Fp/Fs",
         "delta_mag",  # used to be [nmeananom x norbits x ntargs]
+        "F0",  # for validation purposes, the calculation of F0 is different in AYO
     ]
 
     parsed_params.update(
@@ -187,7 +188,7 @@ def parse_parameters(parameters: dict) -> dict:
         "Lstar",  # used to be [ntargs]
         "distance",  # used to be [ntargs]
         "magV",  # used to be [ntargs]
-        "FstarV",
+        "FstarV_10pc",
         "angdiam",  # used to be [ntargs]
         "nzodis",  # used to be [ntargs]
         "ra",  # used to be [ntargs]

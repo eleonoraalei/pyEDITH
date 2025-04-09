@@ -631,80 +631,80 @@ def calculate_CRnf(
     )
 
 
-def interpolate_arrays(
-    Istar: u.Quantity,
-    noisefloor: u.Quantity,
-    npix: int,
-    ndiams: int,
-    stellar_diam_lod: u.Quantity,
-    angdiams: u.Quantity,
-) -> Tuple[u.Quantity, u.Quantity]:
-    """
-    Interpolate Istar and noisefloor arrays based on stellar diameter.
+# def interpolate_arrays(
+#     Istar: u.Quantity,
+#     noisefloor: u.Quantity,
+#     npix: int,
+#     ndiams: int,
+#     stellar_diam_lod: u.Quantity,
+#     angdiams: u.Quantity,
+# ) -> Tuple[u.Quantity, u.Quantity]:
+#     """
+#     Interpolate Istar and noisefloor arrays based on stellar diameter.
 
-    Parameters
-    ----------
-    Istar : u.Quantity
-        3D array of star intensities. [dimensionless] dimensions: [npix, npix, ndiams]
-    noisefloor :u.Quantity
-        3D array of noise floor values. [dimensionless]  dimensions: [npix, npix, ndiams]
-    npix : int
-        Number of pixels in each dimension.
-    ndiams : int
-        Number of stellar diameters.
-    stellar_diam_lod : u.Quantity
-        Stellar diameter. [lambda/D]
-    angdiams : u.Quantity
-        Array of angular diameters. [lambda/D]
+#     Parameters
+#     ----------
+#     Istar : u.Quantity
+#         3D array of star intensities. [dimensionless] dimensions: [npix, npix, ndiams]
+#     noisefloor :u.Quantity
+#         3D array of noise floor values. [dimensionless]  dimensions: [npix, npix, ndiams]
+#     npix : int
+#         Number of pixels in each dimension.
+#     ndiams : int
+#         Number of stellar diameters.
+#     stellar_diam_lod : u.Quantity
+#         Stellar diameter. [lambda/D]
+#     angdiams : u.Quantity
+#         Array of angular diameters. [lambda/D]
 
-    Returns
-    -------
-    Tuple[u.Quantity, u.Quantity]
-        Interpolated Istar and noisefloor arrays. [dimensionless]
+#     Returns
+#     -------
+#     Tuple[u.Quantity, u.Quantity]
+#         Interpolated Istar and noisefloor arrays. [dimensionless]
 
 
-    Notes
-    -----
-    lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
-    oneolod_arcsec = 1.0 / lod_arcsec
-    stellar_diam_lod = angdiamstar_arcsec * oneolod_arcsec
-    # Usage:
-    # Assuming Istar and noisefloor are 3D NumPy arrays with shape
-    # (npix, npix, ndiams)
-    # and angdiams is a 1D NumPy array
-    Istar_interp, noisefloor_interp = interpolate_arrays(Istar, noisefloor,
-                        npix, ndiams, stellar_diam_lod, angdiams)
+#     Notes
+#     -----
+#     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
+#     oneolod_arcsec = 1.0 / lod_arcsec
+#     stellar_diam_lod = angdiamstar_arcsec * oneolod_arcsec
+#     # Usage:
+#     # Assuming Istar and noisefloor are 3D NumPy arrays with shape
+#     # (npix, npix, ndiams)
+#     # and angdiams is a 1D NumPy array
+#     Istar_interp, noisefloor_interp = interpolate_arrays(Istar, noisefloor,
+#                         npix, ndiams, stellar_diam_lod, angdiams)
 
-    """
-    Istar_interp = np.zeros((npix, npix)) * DIMENSIONLESS
-    noisefloor_interp = np.zeros((npix, npix)) * DIMENSIONLESS
+#     """
+#     Istar_interp = np.zeros((npix, npix)) * DIMENSIONLESS
+#     noisefloor_interp = np.zeros((npix, npix)) * DIMENSIONLESS
 
-    k = np.searchsorted(angdiams, stellar_diam_lod)
+#     k = np.searchsorted(angdiams, stellar_diam_lod)
 
-    if k < ndiams:
-        # Interpolation
-        weight = (stellar_diam_lod - angdiams[k - 1]) / (angdiams[k] - angdiams[k - 1])
-        Istar_interp = (1 - weight) * Istar[:, :, k - 1] + weight * Istar[:, :, k]
-        noisefloor_interp = (1 - weight) * noisefloor[
-            :, :, k - 1
-        ] + weight * noisefloor[:, :, k]
-    else:
-        # Extrapolation
-        weight = (stellar_diam_lod - angdiams[k - 1]) / (
-            angdiams[k - 1] - angdiams[k - 2]
-        )
-        Istar_interp = Istar[:, :, k - 1] + weight * (
-            Istar[:, :, k - 1] - Istar[:, :, k - 2]
-        )
-        noisefloor_interp = noisefloor[:, :, k - 1] + weight * (
-            noisefloor[:, :, k - 1] - noisefloor[:, :, k - 2]
-        )
+#     if k < ndiams:
+#         # Interpolation
+#         weight = (stellar_diam_lod - angdiams[k - 1]) / (angdiams[k] - angdiams[k - 1])
+#         Istar_interp = (1 - weight) * Istar[:, :, k - 1] + weight * Istar[:, :, k]
+#         noisefloor_interp = (1 - weight) * noisefloor[
+#             :, :, k - 1
+#         ] + weight * noisefloor[:, :, k]
+#     else:
+#         # Extrapolation
+#         weight = (stellar_diam_lod - angdiams[k - 1]) / (
+#             angdiams[k - 1] - angdiams[k - 2]
+#         )
+#         Istar_interp = Istar[:, :, k - 1] + weight * (
+#             Istar[:, :, k - 1] - Istar[:, :, k - 2]
+#         )
+#         noisefloor_interp = noisefloor[:, :, k - 1] + weight * (
+#             noisefloor[:, :, k - 1] - noisefloor[:, :, k - 2]
+#         )
 
-    # Ensure non-negative values
-    Istar_interp = np.maximum(Istar_interp, 0)
-    noisefloor_interp = np.maximum(noisefloor_interp, 0)
+#     # Ensure non-negative values
+#     Istar_interp = np.maximum(Istar_interp, 0)
+#     noisefloor_interp = np.maximum(noisefloor_interp, 0)
 
-    return Istar_interp, noisefloor_interp
+#     return Istar_interp, noisefloor_interp
 
 
 def measure_coronagraph_performance(
@@ -897,6 +897,8 @@ def calculate_exposure_time_or_snr(
             observatory.telescope.diameter.to(LENGTH),
         )  # LAMBDA_D units
 
+        """
+        WE DO NOT INTERPOLATE ANYMORE, INTERPOLATION IS DONE WITHIN YIPPY 
         # Interpolate Istar, noisefloor based on angular diameter
         # of the star (depends on the target). It reduces dimensionality
         # from 3D arrays [npix,npix,angdiam] to 2D arrays [npix,npix].
@@ -911,6 +913,7 @@ def calculate_exposure_time_or_snr(
             stellar_diam_lod,
             observatory.coronagraph.angdiams,
         )
+        """
 
         # Measure coronagraph performance at each IWA
         pixscale_rad = observatory.coronagraph.pixscale * lambda_d_to_radians(
@@ -932,7 +935,7 @@ def calculate_exposure_time_or_snr(
         ) = measure_coronagraph_performance(
             observatory.coronagraph.psf_trunc_ratio,
             observatory.coronagraph.photap_frac,
-            Istar_interp,
+            observatory.coronagraph.Istar,
             observatory.coronagraph.skytrans,
             observatory.coronagraph.omega_lod,
             observatory.coronagraph.npix,
@@ -1094,7 +1097,9 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                         observation.SNR[ilambd],
-                        noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
+                        observatory.coronagraph.noisefloor[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ],
                     )
 
                 elif mode == "signal_to_noise":
@@ -1111,7 +1116,9 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                         1,
-                        noisefloor_interp[int(np.floor(iy)), int(np.floor(ix))],
+                        observatory.coronagraph.noisefloor[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ],
                     )
 
                 else:
@@ -1153,7 +1160,9 @@ def calculate_exposure_time_or_snr(
                     CRbs = calculate_CRbs(
                         scene.F0[ilambd],
                         scene.Fstar[ilambd],
-                        Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
+                        observatory.coronagraph.Istar[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ],
                         area_cm2,
                         observatory.coronagraph.pixscale,
                         observatory.total_throughput[ilambd],
@@ -1417,26 +1426,28 @@ def calculate_exposure_time_or_snr(
             "omega_lod": observatory.coronagraph.omega_lod[
                 int(np.floor(iy)), int(np.floor(ix)), 0
             ],
-            "T_core": observatory.coronagraph.coronagraph_throughput[ilambd],
             # "throughput": observatory.total_throughput[ilambd],
-            "photap_frac": observatory.coronagraph.photap_frac[
+            "T_core or photap_frac": observatory.coronagraph.photap_frac[
                 int(np.floor(iy)), int(np.floor(ix)), 0
             ],
-            "Istar_interp": Istar_interp[int(np.floor(iy)), int(np.floor(ix))],
-            "Istar_interp*oneopixscale2": Istar_interp[
+            "Istar": observatory.coronagraph.Istar[
+                int(np.floor(iy)), int(np.floor(ix))
+            ],
+            "Istar*oneopixscale2 in (l/D)^-2": observatory.coronagraph.Istar[
                 int(np.floor(iy)), int(np.floor(ix))
             ]
-            * oneopixscale_arcsec**2,
-            "contrast * offset PSF peak (unused)": 0.025
+            * (1 / observatory.coronagraph.pixscale) ** 2,
+            "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": 0.025
             * observatory.coronagraph.TLyot
-            * observatory.coronagraph.contrast,
+            * observatory.coronagraph.contrast
+            * (1 / observatory.coronagraph.pixscale) ** 2,
             "skytrans": observatory.coronagraph.skytrans[
                 int(np.floor(iy)), int(np.floor(ix))
             ],
-            "skytrans*oneopixscale2": observatory.coronagraph.skytrans[
+            "skytrans*oneopixscale2  in (l/D)^-2": observatory.coronagraph.skytrans[
                 int(np.floor(iy)), int(np.floor(ix))
             ]
-            * oneopixscale_arcsec**2,
+            * (1 / observatory.coronagraph.pixscale) ** 2,
             "det_npix": det_npix,
             "t_photon_count": t_photon_count,
             "CRp": CRp,
@@ -1458,8 +1469,7 @@ def calculate_exposure_time_or_snr(
             ],
             "CRbd": CRbd,
             "CRnf": CRnf,
-            "SNRCRpfloor_normalized": CRnf / observation.SNR[ilambd],
-            "SNR2_cp": observation.SNR[ilambd] ** 2 * cp,
+            "sciencetime": observation.SNR[ilambd] * observation.SNR[ilambd] * cp,
             "exptime": observation.exptime[ilambd],
         }
 
@@ -1475,8 +1485,6 @@ def calculate_exposure_time_or_snr(
                 area_cm2,
                 detpixscale_lod,
                 stellar_diam_lod,
-                Istar_interp,
-                noisefloor_interp,
                 pixscale_rad,
                 oneopixscale_arcsec,
                 det_sep_pix,
@@ -1602,8 +1610,6 @@ def print_all_variables(
     area_cm2,
     detpixscale_lod,
     stellar_diam_lod,
-    Istar_interp,
-    noisefloor_interp,
     pixscale_rad,
     oneopixscale_arcsec,
     det_sep_pix,
@@ -1715,18 +1721,18 @@ def print_all_variables(
             print_array_info(
                 file, "observatory.coronagraph.npix", observatory.coronagraph.npix, mode
             )
-            print_array_info(
-                file,
-                "observatory.coronagraph.ndiams",
-                observatory.coronagraph.ndiams,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.angdiams",
-                observatory.coronagraph.angdiams,
-                mode,
-            )
+            # print_array_info(
+            #     file,
+            #     "observatory.coronagraph.ndiams",
+            #     observatory.coronagraph.ndiams,
+            #     mode,
+            # )
+            # print_array_info(
+            #     file,
+            #     "observatory.coronagraph.angdiams",
+            #     observatory.coronagraph.angdiams,
+            #     mode,
+            # )
             print_array_info(
                 file,
                 "observatory.coronagraph.pixscale",
@@ -1844,8 +1850,10 @@ def print_all_variables(
             print_array_info(file, "stellar_diam_lod", stellar_diam_lod, mode)
 
             file.write("\n2. Interpolated Arrays:\n")
-            print_array_info(file, "Istar_interp", Istar_interp, mode)
-            print_array_info(file, "noisefloor_interp", noisefloor_interp, mode)
+            print_array_info(file, "Istar_interp", observatory.coronagraph.Istar, mode)
+            print_array_info(
+                file, "noisefloor_interp", observatory.coronagraph.noisefloor, mode
+            )
 
             file.write("\n3. Coronagraph Performance Measurements:\n")
             print_array_info(file, "pixscale_rad", pixscale_rad, mode)

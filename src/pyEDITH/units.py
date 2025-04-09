@@ -16,6 +16,7 @@ PHOTON_COUNT = u.photon
 # Astronomical units
 DISTANCE = u.pc
 LUMINOSITY = u.L_sun
+REARTH = u.R_earth
 MAGNITUDE = u.mag
 FLUX = u.W / u.m**2
 FLUX_DENSITY = u.W / (u.m**2 * u.Hz)
