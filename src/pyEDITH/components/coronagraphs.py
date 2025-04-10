@@ -596,7 +596,7 @@ class CoronagraphYIP(Coronagraph):
 
         # AFTER READING INPUT FROM USER, CALCULATE NOISE FLOOR
         self.PSFpeak = (
-            0.025 * self.TLyot
+            0.025 * np.max(self.Istar)
         )  # this is an approximation based on PAPLC results
 
         # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
