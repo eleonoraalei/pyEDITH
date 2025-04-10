@@ -201,7 +201,7 @@ class ToyModelCoronagraph(Coronagraph):
     """
 
     DEFAULT_CONFIG = {
-        "pixscale": 0.25 * LAMBDA_D,  # lambd/D
+        "pixscale": 0.25 * LAMBDA_D,
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         "contrast": 1.05e-13
@@ -363,7 +363,7 @@ class CoronagraphYIP(Coronagraph):
 
     """
 
-    DEFAULT_CONFIG = {  # TODO: do we need this DEFAULT_CONFIG? everything we need is in the YIP or params
+    DEFAULT_CONFIG = {
         "pixscale": 0.25,  # lambd/D
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
@@ -448,6 +448,7 @@ class CoronagraphYIP(Coronagraph):
         self.DEFAULT_CONFIG["pixscale"] = (
             yippy_obj.header.pixscale.value * LAMBDA_D
         )  # has units of lam/D / pix
+
         self.DEFAULT_CONFIG["npix"] = yippy_obj.header.naxis1
         self.DEFAULT_CONFIG["xcenter"] = yippy_obj.header.xcenter * PIXEL
         self.DEFAULT_CONFIG["ycenter"] = yippy_obj.header.ycenter * PIXEL
@@ -594,16 +595,21 @@ class CoronagraphYIP(Coronagraph):
             self.DEFAULT_CONFIG["noisefloor"][:, :, z] = n_floor
         """
 
-        # AFTER READING INPUT FROM USER, CALCULATE NOISE FLOOR
-        self.PSFpeak = (
-            0.025 * self.TLyot
-        )  # this is an approximation based on PAPLC results
+        # # AFTER READING INPUT FROM USER, CALCULATE NOISE FLOOR
+        # self.PSFpeak = (
+        #     0.025 * self.TLyot
+        # )  # this is an approximation based on PAPLC results
 
+        # # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
+        # self.noisefloor = (
+        #     np.full(
+        #         (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"]),
+        #         self.noisefloor_factor * self.contrast * self.PSFpeak,
+        #     )
+        #     * DIMENSIONLESS
+        # )
+
+        # USED IN ETC VALIDATION
         # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
-        self.noisefloor = (
-            np.full(
-                (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"]),
-                self.noisefloor_factor * self.contrast * self.PSFpeak,
-            )
-            * DIMENSIONLESS
-        )
+
+        self.noisefloor = self.noisefloor_factor * self.Istar * DIMENSIONLESS
