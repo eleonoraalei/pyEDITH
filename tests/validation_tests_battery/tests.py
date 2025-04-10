@@ -63,8 +63,9 @@ def run_single_test(name, input_params, expected_output):
 
     yippy_logger = logging.getLogger("yippy")
     yippy_logger.setLevel(logging.ERROR)
-    with io.StringIO() as buf, redirect_stdout(buf), redirect_stderr(buf):
-        texp, validation_output = calculate_texp(input_params, verbose=False)
+    texp, validation_output = calculate_texp(
+        input_params, verbose=False, ETC_validation=True
+    )
 
     errors = []
     # # Check specific variables
@@ -225,8 +226,11 @@ def read_from_excel_sheet(name):
                 df.loc[df["parameter"] == "skytrans", lamb].iloc[0]
             ),
             "det_npix": np.float64(df.loc[df["parameter"] == "det_npix", lamb].iloc[0]),
+            "t_photon_count_ETCVALIDATION": np.float64(
+                df.loc[df["parameter"] == "t_photon_count", lamb].iloc[0]
+            ),
             "t_photon_count": np.float64(
-                df.loc[df["parameter"] == "t_photon_count_ETCVALIDATION", lamb]
+                df.loc[df["parameter"] == "t_photon_count", lamb].iloc[0]
             ),
             "CRp": np.float64(df.loc[df["parameter"] == "CR_p", lamb].iloc[0]),
             "CRbs": np.float64(df.loc[df["parameter"] == "CR_bs", lamb].iloc[0]),

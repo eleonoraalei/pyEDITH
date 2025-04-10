@@ -795,6 +795,7 @@ def calculate_exposure_time_or_snr(
     scene: AstrophysicalScene,
     observatory: Observatory,
     verbose: bool,
+    ETC_validation: bool = False,
     mode: str = "exposure_time",
 ) -> None:
     """
@@ -1242,6 +1243,11 @@ def calculate_exposure_time_or_snr(
                         det_npix,
                         det_CR,
                     )
+
+                    if ETC_validation:
+                        # the ETC validation (Stark+2025) fixed the frame rate
+                        # (t_photon_count) like this
+                        t_photon_count = 1 / det_CR.value * SECOND / FRAME
 
                     CRbd = calculate_CRbd(
                         det_npix,
