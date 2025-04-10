@@ -1326,6 +1326,10 @@ def calculate_exposure_time_or_snr(
                                 ilambd
                             ] *= observatory.coronagraph.nrolls
                     elif mode == "signal_to_noise":
+
+                        # cp not used in this mode. Note: This will make the science time in
+                        # validation variables be 0!
+                        cp = 0
                         # SIGNAL-TO-NOISE
                         # time term
                         time_factors = (
@@ -1450,6 +1454,7 @@ def calculate_exposure_time_or_snr(
             * (1 / observatory.coronagraph.pixscale) ** 2,
             "det_npix": det_npix,
             "t_photon_count": t_photon_count,
+            "t_photon_count_ETCVALIDATION": 1 / det_CRp,
             "CRp": CRp,
             "CRbs": CRbs
             * observatory.coronagraph.omega_lod[
@@ -1467,6 +1472,11 @@ def calculate_exposure_time_or_snr(
             * observatory.coronagraph.omega_lod[
                 int(np.floor(iy)), int(np.floor(ix)), 0
             ],
+            "CRbth": CRbth
+            * observatory.coronagraph.omega_lod[
+                int(np.floor(iy)), int(np.floor(ix)), 0
+            ],
+            "CRb": CRb,
             "CRbd": CRbd,
             "CRnf": CRnf,
             "sciencetime": observation.SNR[ilambd] * observation.SNR[ilambd] * cp,
