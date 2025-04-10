@@ -13,7 +13,9 @@ from contextlib import redirect_stdout, redirect_stderr
 import io
 
 # LOAD HPIC
-hpic = pd.read_csv("tests/validation_tests_battery/full_HPIC.txt", sep="|")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+excel_file_path = os.path.join(script_dir, "ETC_cal_detect.xlsx")
+hpic = pd.read_csv(os.path.join(script_dir, "full_HPIC.txt"), sep="|")
 
 
 def to_arcsec(quantity, observer_distance):
@@ -116,12 +118,15 @@ def read_from_excel_sheet(name):
             "mag": np.array([df.loc[df["parameter"] == "m_lambda", lamb].iloc[0]]),
             "Lstar": 10 ** float(hpic[hpic.hip_name == hip_name].st_lum.iloc[0]),
             "magV": float(hpic[hpic.hip_name == hip_name].sy_vmag.iloc[0]),
-            "angdiam": to_arcsec(
-                2
-                * (float(hpic[hpic.hip_name == hip_name].st_rad.iloc[0]) * u.Rsun).to(
-                    u.m
+            "angdiam": np.round(
+                to_arcsec(
+                    2
+                    * (
+                        float(hpic[hpic.hip_name == hip_name].st_rad.iloc[0]) * u.Rsun
+                    ).to(u.m),
+                    float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]) * u.pc,
                 ),
-                float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]) * u.pc,
+                4,
             ),
             "distance": float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]),
             "diameter": df.loc[df["parameter"] == "D", lamb].iloc[0],
@@ -164,8 +169,11 @@ def read_from_excel_sheet(name):
             "Fp": np.array([df.loc[df["parameter"] == "F_p", lamb].iloc[0]]),
             "observatory_preset": "EAC1",
             "observing_mode": "IMAGER",
-            "nchannels": 1,
             "delta_mag_min": 25,
+            # These parameters are specific to agree with the ETC validation
+            "nchannels": 1,
+            "noisefloor_factor": 0.029,
+            "epswarmTrcold": [0],  ##### done to turn off thermal noise
         }
         output = {
             "F0": np.array(df.loc[df["parameter"] == "F_0", lamb].iloc[0]),
@@ -218,7 +226,7 @@ def read_from_excel_sheet(name):
             ),
             "det_npix": np.float64(df.loc[df["parameter"] == "det_npix", lamb].iloc[0]),
             "t_photon_count": np.float64(
-                df.loc[df["parameter"] == "t_photon_count", lamb].iloc[0]
+                df.loc[df["parameter"] == "t_photon_count_ETCVALIDATION", lamb]
             ),
             "CRp": np.float64(df.loc[df["parameter"] == "CR_p", lamb].iloc[0]),
             "CRbs": np.float64(df.loc[df["parameter"] == "CR_bs", lamb].iloc[0]),
@@ -232,7 +240,7 @@ def read_from_excel_sheet(name):
             ),
             "exptime": np.float64(df.loc[df["parameter"] == "t_exp", lamb].iloc[0]),
         }
-
+        print(np.round(input["angdiam"], 4))
         run_single_test(name_str, input, output)
 
 
