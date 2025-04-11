@@ -795,6 +795,7 @@ def calculate_exposure_time_or_snr(
     scene: AstrophysicalScene,
     observatory: Observatory,
     verbose: bool,
+    ETC_validation: bool = False,
     mode: str = "exposure_time",
 ) -> None:
     """
@@ -1145,8 +1146,13 @@ def calculate_exposure_time_or_snr(
                     ]
                     > detpixscale_lod**2
                 ):
+
                     # (for exposure time mode) Check if it's above the noise floor
                     if mode == "exposure_time" and CRp <= CRnf:
+                        print(
+                            "WARNING: Count rate of the planet smaller than the noise floor. Hardcoded infinity results."
+                        )
+
                         observation.exptime[ilambd] = np.inf
                         continue  # Skip to next iteration
 
@@ -1242,6 +1248,11 @@ def calculate_exposure_time_or_snr(
                         det_npix,
                         det_CR,
                     )
+                    if ETC_validation:
+                        print("Fixing t_photon_count for validation...")
+                        # the ETC validation (Stark+2025) fixed the frame rate
+                        # t_photon_count = 1 / (det_CRp.value) * SECOND / FRAME
+                        t_photon_count = observatory.detector.t_photon_count_input
 
                     CRbd = calculate_CRbd(
                         det_npix,
@@ -1370,6 +1381,98 @@ def calculate_exposure_time_or_snr(
                             "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
                         )
 
+                    # Store the variables of interest
+                    observation.validation_variables[ilambd] = {
+                        "F0": scene.F0[ilambd],
+                        "magstar": scene.mag,
+                        "Lstar": scene.Lstar,
+                        "dist": scene.dist,
+                        "D": observatory.telescope.diameter,
+                        "A_cm": area_cm2,
+                        "lambda": observation.lambd[ilambd].to(u.nm),
+                        "deltalambda_nm": deltalambda_nm,
+                        "snr": observation.SNR[ilambd],
+                        "nzodis": scene.nzodis,
+                        "toverhead_fixed": observatory.telescope.toverhead_fixed,
+                        "toverhead_multi": observatory.telescope.toverhead_multi,
+                        "det_DC": observatory.detector.DC[ilambd],
+                        "det_RN": observatory.detector.RN[ilambd],
+                        "det_CIC": observatory.detector.CIC[ilambd],
+                        "det_tread": observatory.detector.tread[ilambd],
+                        "det_pixscale_mas": observatory.detector.pixscale_mas,
+                        "dQE": observatory.detector.dQE[ilambd],
+                        "QE": observatory.detector.QE[ilambd],
+                        "Toptical": observatory.optics_throughput[ilambd],
+                        "Fstar": scene.Fstar[ilambd] * scene.F0[ilambd],
+                        "Fp": scene.Fstar[ilambd]
+                        * scene.F0[ilambd]
+                        * scene.Fp0[ilambd],
+                        "Fzodi": scene.Fzodi_list[ilambd] * scene.F0[ilambd],
+                        "Fexozodi": scene.Fexozodi_list[ilambd]
+                        * scene.F0[ilambd]
+                        / (scene.sp**2 * scene.dist**2),
+                        "sp_lod": arcsec_to_lambda_d(
+                            scene.sp,
+                            observation.lambd[ilambd],
+                            observatory.telescope.diameter,
+                        ),
+                        "omega_lod": observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        # "throughput": observatory.total_throughput[ilambd],
+                        "T_core or photap_frac": observatory.coronagraph.photap_frac[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "Istar": observatory.coronagraph.Istar[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ],
+                        "Istar*oneopixscale2 in (l/D)^-2": observatory.coronagraph.Istar[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ]
+                        * (1 / observatory.coronagraph.pixscale) ** 2,
+                        "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": 0.025
+                        * observatory.coronagraph.TLyot
+                        * observatory.coronagraph.contrast
+                        * (1 / observatory.coronagraph.pixscale) ** 2,
+                        "skytrans": observatory.coronagraph.skytrans[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ],
+                        "skytrans*oneopixscale2  in (l/D)^-2": observatory.coronagraph.skytrans[
+                            int(np.floor(iy)), int(np.floor(ix))
+                        ]
+                        * (1 / observatory.coronagraph.pixscale) ** 2,
+                        "det_npix": det_npix,
+                        "t_photon_count": t_photon_count,
+                        "CRp": CRp,
+                        "CRbs": CRbs
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "CRbz": CRbz.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "CRbez": CRbez.value
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "CRbbin": CRbbin
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "CRbth": CRbth
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), 0
+                        ],
+                        "CRb": CRb,
+                        "CRbd": CRbd,
+                        "CRnf": CRnf,
+                        "sciencetime": observation.SNR[ilambd]
+                        * observation.SNR[ilambd]
+                        * cp,
+                        "exptime": observation.exptime[ilambd],
+                    }
+
                 else:
                     print(
                         "WARNING: Photometric aperture is not large enough. Hardcoded infinity results."
@@ -1395,93 +1498,6 @@ def calculate_exposure_time_or_snr(
                 raise ValueError(
                     "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
                 )
-
-        # Store the variables of interest
-        observation.validation_variables[ilambd] = {
-            "F0": scene.F0[ilambd],
-            "magstar": scene.mag,
-            "Lstar": scene.Lstar,
-            "dist": scene.dist,
-            "D": observatory.telescope.diameter,
-            "A_cm": area_cm2,
-            "lambda": observation.lambd[ilambd].to(u.nm),
-            "deltalambda_nm": deltalambda_nm,
-            "snr": observation.SNR[ilambd],
-            "nzodis": scene.nzodis,
-            "toverhead_fixed": observatory.telescope.toverhead_fixed,
-            "toverhead_multi": observatory.telescope.toverhead_multi,
-            "det_DC": observatory.detector.DC[ilambd],
-            "det_RN": observatory.detector.RN[ilambd],
-            "det_CIC": observatory.detector.CIC[ilambd],
-            "det_tread": observatory.detector.tread[ilambd],
-            "det_pixscale_mas": observatory.detector.pixscale_mas,
-            "dQE": observatory.detector.dQE[ilambd],
-            "QE": observatory.detector.QE[ilambd],
-            "Toptical": observatory.optics_throughput[ilambd],
-            "Fstar": scene.Fstar[ilambd] * scene.F0[ilambd],
-            "Fp": scene.Fstar[ilambd] * scene.F0[ilambd] * scene.Fp0[ilambd],
-            "Fzodi": scene.Fzodi_list[ilambd] * scene.F0[ilambd],
-            "Fexozodi": scene.Fexozodi_list[ilambd]
-            * scene.F0[ilambd]
-            / (scene.sp**2 * scene.dist**2),
-            "sp_lod": arcsec_to_lambda_d(
-                scene.sp, observation.lambd[ilambd], observatory.telescope.diameter
-            ),
-            "omega_lod": observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            # "throughput": observatory.total_throughput[ilambd],
-            "T_core or photap_frac": observatory.coronagraph.photap_frac[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "Istar": observatory.coronagraph.Istar[
-                int(np.floor(iy)), int(np.floor(ix))
-            ],
-            "Istar*oneopixscale2 in (l/D)^-2": observatory.coronagraph.Istar[
-                int(np.floor(iy)), int(np.floor(ix))
-            ]
-            * (1 / observatory.coronagraph.pixscale) ** 2,
-            "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": 0.025
-            * observatory.coronagraph.TLyot
-            * observatory.coronagraph.contrast
-            * (1 / observatory.coronagraph.pixscale) ** 2,
-            "skytrans": observatory.coronagraph.skytrans[
-                int(np.floor(iy)), int(np.floor(ix))
-            ],
-            "skytrans*oneopixscale2  in (l/D)^-2": observatory.coronagraph.skytrans[
-                int(np.floor(iy)), int(np.floor(ix))
-            ]
-            * (1 / observatory.coronagraph.pixscale) ** 2,
-            "det_npix": det_npix,
-            "t_photon_count": t_photon_count,
-            "t_photon_count_ETCVALIDATION": 1 / det_CRp,
-            "CRp": CRp,
-            "CRbs": CRbs
-            * observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "CRbz": CRbz.value
-            * observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "CRbez": CRbez.value
-            * observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "CRbbin": CRbbin
-            * observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "CRbth": CRbth
-            * observatory.coronagraph.omega_lod[
-                int(np.floor(iy)), int(np.floor(ix)), 0
-            ],
-            "CRb": CRb,
-            "CRbd": CRbd,
-            "CRnf": CRnf,
-            "sciencetime": observation.SNR[ilambd] * observation.SNR[ilambd] * cp,
-            "exptime": observation.exptime[ilambd],
-        }
 
         if verbose:
             print_all_variables(

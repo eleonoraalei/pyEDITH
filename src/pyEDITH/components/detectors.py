@@ -207,14 +207,14 @@ class EACDetector(Detector):
         from eacy import load_detector
 
         # ****** Update Default Config when necessary ******
-        
+
         detector_params = load_detector(parameters["observing_mode"]).__dict__
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
-            mediator.get_observation_parameter("lambd")
-            * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-            mediator.get_observation_parameter("lambd")
-            * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+                mediator.get_observation_parameter("lambd")
+                * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
+                mediator.get_observation_parameter("lambd")
+                * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             ]
 
             detector_params = parse_input.average_over_bandpass(
@@ -222,19 +222,23 @@ class EACDetector(Detector):
             )
         elif parameters["observing_mode"] == "IFS":
             detector_params = parse_input.interpolate_over_bandpass(
-                detector_params, mediator.get_observation_parameter("lambd"))
+                detector_params, mediator.get_observation_parameter("lambd")
+            )
         else:
             raise ValueError(
                 f"Unsupported observing mode: {parameters['observing_mode']}"
             )
 
         dc_arr = np.empty_like(mediator.get_observation_parameter("lambd").value)
-        dc_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = detector_params["dc_vis"]
-        dc_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = detector_params["dc_nir"]
+        dc_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = (
+            detector_params["dc_vis"]
+        )
+        dc_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = (
+            detector_params["dc_nir"]
+        )
         self.DEFAULT_CONFIG["DC"] = (
-            dc_arr
-            * DARK_CURRENT
-        )# Dark current (counts pix^-1 s^-1, nlambd array)
+            dc_arr * DARK_CURRENT
+        )  # Dark current (counts pix^-1 s^-1, nlambd array)
 
         # self.DEFAULT_CONFIG["DC"] = (
         #     np.array(
@@ -251,12 +255,13 @@ class EACDetector(Detector):
         # Dark current (counts pix^-1 s^-1, nlambd array)
 
         rn_arr = np.empty_like(mediator.get_observation_parameter("lambd").value)
-        rn_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = detector_params["rn_vis"]
-        rn_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = detector_params["rn_nir"]
-        self.DEFAULT_CONFIG["RN"] = (
-            rn_arr
-            * READ_NOISE
+        rn_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = (
+            detector_params["rn_vis"]
         )
+        rn_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = (
+            detector_params["rn_nir"]
+        )
+        self.DEFAULT_CONFIG["RN"] = rn_arr * READ_NOISE
         # self.DEFAULT_CONFIG["RN"] = [
         #     (
         #         detector_params["rn_vis"]
@@ -267,28 +272,33 @@ class EACDetector(Detector):
 
         if parameters["observing_mode"] == "IMAGER":
             qe_arr = [
-            (
-                detector_params["qe_vis"]
-                if mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
-                else detector_params["qe_nir"]
-            )
+                (
+                    detector_params["qe_vis"]
+                    if mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
+                    else detector_params["qe_nir"]
+                )
             ]
         elif parameters["observing_mode"] == "IFS":
-            # combine the vis and nir qe arrays into a single array. 
+            # combine the vis and nir qe arrays into a single array.
             qe_arr = np.empty_like(mediator.get_observation_parameter("lambd").value)
-            qe_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = detector_params["qe_vis"][mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH]
-            qe_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = detector_params["qe_nir"][mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH]
+            qe_arr[mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH] = (
+                detector_params["qe_vis"][
+                    mediator.get_observation_parameter("lambd") < 1 * WAVELENGTH
+                ]
+            )
+            qe_arr[mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH] = (
+                detector_params["qe_nir"][
+                    mediator.get_observation_parameter("lambd") >= 1 * WAVELENGTH
+                ]
+            )
             # make sure qe_arr does not contain NaNs
             assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
         else:
             raise ValueError(
                 f"Unsupported observing mode: {parameters['observing_mode']}"
             )
-        
-        self.DEFAULT_CONFIG["QE"] = (
-            qe_arr
-            * QE
-        )
+
+        self.DEFAULT_CONFIG["QE"] = qe_arr * QE
         # self.DEFAULT_CONFIG["QE"] = [
         #     (
         #         detector_params["qe_vis"]
@@ -301,10 +311,7 @@ class EACDetector(Detector):
 
         # for now, hardcoded to 0.75
         dQE_arr.fill(0.75)
-        self.DEFAULT_CONFIG["dQE"] = (
-            dQE_arr
-            * DIMENSIONLESS
-        )   
+        self.DEFAULT_CONFIG["dQE"] = dQE_arr * DIMENSIONLESS
         # self.DEFAULT_CONFIG["dQE"] = [
         #     0.75
         # ] * DIMENSIONLESS  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies ## TO ADD TO YAML
@@ -315,20 +322,25 @@ class EACDetector(Detector):
             * (0.5e-6 * LENGTH / mediator.get_telescope_parameter("diameter"))
             * (180.0 / np.double(np.pi) * 60.0 * 60.0 * 1000.0)
         ) * MAS
-       
-        # fill in tread and CIC to match the length of the wavelength array 
-        self.DEFAULT_CONFIG["tread"] = np.full_like(
-            mediator.get_observation_parameter("lambd").value,
-            self.DEFAULT_CONFIG["tread"][0].value,
-            dtype=np.float64,
-        ) * READ_TIME
-        self.DEFAULT_CONFIG["CIC"] = np.full_like(
-            mediator.get_observation_parameter("lambd").value,
-            self.DEFAULT_CONFIG["CIC"][0].value,
-            dtype=np.float64,
-        ) * CIC
 
-       
+        # fill in tread and CIC to match the length of the wavelength array
+        self.DEFAULT_CONFIG["tread"] = (
+            np.full_like(
+                mediator.get_observation_parameter("lambd").value,
+                self.DEFAULT_CONFIG["tread"][0].value,
+                dtype=np.float64,
+            )
+            * READ_TIME
+        )
+        self.DEFAULT_CONFIG["CIC"] = (
+            np.full_like(
+                mediator.get_observation_parameter("lambd").value,
+                self.DEFAULT_CONFIG["CIC"][0].value,
+                dtype=np.float64,
+            )
+            * CIC
+        )
+
         # ***** Load parameters, use defaults if not provided *****
         for key, default_value in self.DEFAULT_CONFIG.items():
             if key in parameters:
@@ -372,3 +384,10 @@ class EACDetector(Detector):
             else:
                 # If it's not a Quantity, convert to numpy array without units
                 setattr(self, param, np.array(attr_value, dtype=np.float64))
+
+        # USED ONLY TO VALIDATE ETCs
+        if "t_photon_count_input" in parameters.keys():
+
+            self.t_photon_count_input = (
+                parameters["t_photon_count_input"] * SECOND / FRAME
+            )

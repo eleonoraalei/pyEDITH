@@ -10,9 +10,6 @@ import os
 # TODO: this should go in your zshrc file as an export statement
 # os.environ["SCI_ENG_DIR"] = "/Users/ealei/Coding/pyEDITH/Sci-Eng-Interface/hwo_sci_eng"
 
-# Print the value of the environment variable
-print(os.environ["SCI_ENG_DIR"])
-
 
 def main():
     """
@@ -125,7 +122,7 @@ def main():
         parser.print_help()
 
 
-def calculate_texp(parameters: dict, verbose) -> np.array:
+def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
     """
     Calculates the exposure time for a planet observed with a given coronagraph.
 
@@ -175,7 +172,12 @@ def calculate_texp(parameters: dict, verbose) -> np.array:
 
     # EXPOSURE TIME CALCULATION
     calculate_exposure_time_or_snr(
-        observation, scene, observatory, verbose, mode="exposure_time"
+        observation,
+        scene,
+        observatory,
+        verbose,
+        ETC_validation=ETC_validation,
+        mode="exposure_time",
     )
 
     return observation.exptime, observation.validation_variables
