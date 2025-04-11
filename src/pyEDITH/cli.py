@@ -122,7 +122,7 @@ def main():
         parser.print_help()
 
 
-def calculate_texp(parameters: dict, verbose, ETC_validation) -> np.array:
+def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
     """
     Calculates the exposure time for a planet observed with a given coronagraph.
 
