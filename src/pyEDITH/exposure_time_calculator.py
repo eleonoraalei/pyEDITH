@@ -1245,9 +1245,10 @@ def calculate_exposure_time_or_snr(
                     )
 
                     if ETC_validation:
+                        print("Fixing t_photon_count for validation...")
                         # the ETC validation (Stark+2025) fixed the frame rate
-                        # (t_photon_count) like this
-                        t_photon_count = 1 / det_CR.value * SECOND / FRAME
+                        # t_photon_count = 1 / (det_CRp.value) * SECOND / FRAME
+                        t_photon_count = observatory.detector.t_photon_count_input
 
                     CRbd = calculate_CRbd(
                         det_npix,
@@ -1460,7 +1461,7 @@ def calculate_exposure_time_or_snr(
             * (1 / observatory.coronagraph.pixscale) ** 2,
             "det_npix": det_npix,
             "t_photon_count": t_photon_count,
-            "t_photon_count_ETCVALIDATION": 1 / det_CRp,
+            # "t_photon_count_ETCVALIDATION": 1 / det_CRp,
             "CRp": CRp,
             "CRbs": CRbs
             * observatory.coronagraph.omega_lod[

@@ -48,7 +48,7 @@ def process_star(name):
         yippy_logger.setLevel(logging.ERROR)
         # Run pyEDITH calculation
         texp, validation_output = calculate_texp(
-            input_params, verbose=False, ETC_validation=False
+            input_params, verbose=False, ETC_validation=True
         )
 
         # Compare with Ayo's results
@@ -115,6 +115,9 @@ def prepare_input_params(df, hpic, hip_name, code):
         "nchannels": 1,
         "noisefloor_factor": 0.029,
         "epswarmTrcold": [0],
+        "t_photon_count_input": np.float64(
+            df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
+        ),
     }
 
     input["delta_mag"] = fluxes_to_magnitudes(input["Fstar"], input["Fp"], input["F0"])
@@ -169,9 +172,9 @@ def get_expected_output(df, code):
             df.loc[df["parameter"] == "skytrans", code].iloc[0]
         ),
         "det_npix": np.float64(df.loc[df["parameter"] == "det_npix", code].iloc[0]),
-        "t_photon_count_ETCVALIDATION": np.float64(
-            df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
-        ),
+        # "t_photon_count_ETCVALIDATION": np.float64(
+        #     df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
+        # ),
         "t_photon_count": np.float64(
             df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
         ),

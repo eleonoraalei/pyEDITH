@@ -220,6 +220,7 @@ def parse_parameters(parameters: dict) -> dict:
         "temperature",
         "Tcontam",
         "CRb_multiplier",
+        "t_photon_count_input",  # only for ETC validation
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):
