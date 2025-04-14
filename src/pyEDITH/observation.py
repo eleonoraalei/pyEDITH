@@ -21,6 +21,8 @@ class Observation:
         Signal-to-noise ratio array.
     photap_rad : float
         Photometric aperture radius (in units of lambda/D).
+    psf_trunc_ratio : np.ndarray
+        PSF truncation ratio.
     tp : ndarray
         Exposure time of every planet (nmeananom x norbits x ntargs array).
     exptime : ndarray
@@ -89,6 +91,8 @@ class Observation:
 
         self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
 
+        self.psf_trunc_ratio = parameters["psf_trunc_ratio"] * DIMENSIONLESS  # scalar
+
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
         self.nlambd = len(self.wavelength)
@@ -124,6 +128,7 @@ class Observation:
             "nlambd": int,
             "SNR": DIMENSIONLESS,
             "photap_rad": LAMBDA_D,
+            "psf_trunc_ratio": DIMENSIONLESS,
             "CRb_multiplier": float,
         }
 

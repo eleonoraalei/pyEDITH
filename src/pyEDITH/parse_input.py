@@ -263,6 +263,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
     # ----- SCALARS ----
     scalar_params = [
         "photap_rad",
+        "psf_trunc_ratio",
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",

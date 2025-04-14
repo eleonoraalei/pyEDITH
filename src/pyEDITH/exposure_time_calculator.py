@@ -707,7 +707,7 @@ def calculate_CRnf(
 #     return Istar_interp, noisefloor_interp
 
 
-def measure_coronagraph_performance(
+def measure_coronagraph_performance_at_IWA(
     psf_trunc_ratio: u.Quantity,
     photap_frac: u.Quantity,
     Istar_interp: u.Quantity,
@@ -719,7 +719,14 @@ def measure_coronagraph_performance(
     oneopixscale_arcsec: u.Quantity,
 ) -> Tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity]:
     """
-    Measure the performance of the coronagraph.
+    Measure the performance of the coronagraph at the Inner Working Angle (IWA).
+
+    This function determines the IWA and calculates various parameters at that point:
+
+    1. Finds the psf_trunc_ratio closest to 0.3
+    2. Determines the IWA by finding where photap_frac falls to half its maximum value
+    3. Calculates maximum values of Istar, skytrans, photap_frac, and omega_lod in a 2-pixel annulus at the IWA
+
 
      Parameters
     ----------
@@ -745,27 +752,24 @@ def measure_coronagraph_performance(
     Returns
     -------
     Tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity]
-        det_sep_pix : Separation at detection point. [pixel]
-        det_sep : Separation at detection point. [arcsec]
-        det_Istar : Stellar intensity at detection point. [dimensionless]
-        det_skytrans : Sky transmission at detection point. [dimensionless]
-        det_photap_frac : Photometric aperture fraction at detection point. [dimensionless]
-        det_omega_lod : Solid angle at detection point. [lambda/D]^2
+        det_sep_pix: Separation at the IWA. [pixel]
+        det_sep: Separation at the IWA. [arcsec]
+        det_Istar: Maximum stellar intensity at the IWA. [dimensionless]
+        det_skytrans: Maximum sky transmission at the IWA. [dimensionless]
+        det_photap_frac: Maximum photometric aperture fraction at the IWA. [dimensionless]
+        det_omega_lod: Solid angle corresponding to max photap_frac at the IWA. [lambda/D]^2
 
-    Notes
-    -----
-    This function measures various performance metrics of the coronagraph,
-    including the detection separation, stellar intensity, sky transmission,
-    photometric aperture fraction, and solid angle at the detection point.
     """
 
     # Find psf_trunc_ratio closest to 0.3
-    bestiratio = np.argmin(np.abs(psf_trunc_ratio - 0.3))
+    bestiratio = np.argmin(
+        np.abs(psf_trunc_ratio - 0.3)
+    )  # NOT USED, in EDITH only one psf_trunc_ratio
 
     # Find maximum photap_frac in first half of image
     maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter.value), bestiratio])
 
-    # Find IWA
+    # Find IWA = where photap_frac is half the value of the maximum
     row = photap_frac[:, int(ycenter.value), bestiratio]
     iwa_index = np.where(row[: int(xcenter.value)] > 0.5 * maxphotap_frac)[0][-1]
     det_sep_pix = abs((iwa_index + 0.5) - xcenter.value) * PIXEL
@@ -940,8 +944,8 @@ def calculate_exposure_time_or_snr(
             det_skytrans,
             det_photap_frac,
             det_omega_lod,
-        ) = measure_coronagraph_performance(
-            observatory.coronagraph.psf_trunc_ratio,
+        ) = measure_coronagraph_performance_at_IWA(
+            observation.psf_trunc_ratio,
             observatory.coronagraph.photap_frac,
             observatory.coronagraph.Istar,
             observatory.coronagraph.skytrans,
@@ -1768,8 +1772,8 @@ def print_all_variables(
             )
             print_array_info(
                 file,
-                "observatory.coronagraph.psf_trunc_ratio",
-                observatory.coronagraph.psf_trunc_ratio,
+                "observation.psf_trunc_ratio",
+                observation.psf_trunc_ratio,
                 mode,
             )
             print_array_info(

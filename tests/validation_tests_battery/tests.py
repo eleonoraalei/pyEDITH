@@ -81,6 +81,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),
         "photap_rad": 0.85,
+        "psf_trunc_ratio": 0.4585,
         "wavelength": np.array(
             [df.loc[df["parameter"] == "λ", code].iloc[0] / 1000]
         ),  # nm to micron
@@ -296,7 +297,7 @@ class ScientificNotationFormatter(ScalarFormatter):
     def __init__(self, useOffset=True, useMathText=True):
         super().__init__(useOffset=useOffset, useMathText=useMathText)
         self.set_scientific(True)
-        self.set_powerlimits((-3, 3))
+        self.set_powerlimits((-2, 2))
 
     def _set_format(self):
         self.format = "%1.1f"
@@ -370,7 +371,7 @@ def visualize_comparisons(comparisons, name, wavelength):
             # Set y-axis limits to zoom in on the data points
             y_min, y_max = min(y), max(y)
             y_range = y_max - y_min
-            y_padding = 0.1 * y_range  # Add 10% padding
+            y_padding = 1 * y_range  # Add 100% padding
             ax.set_ylim(y_min - y_padding, y_max + y_padding)
 
             # Set y-axis to log scale if the values span more than 2 orders of magnitude
@@ -398,8 +399,8 @@ def visualize_comparisons(comparisons, name, wavelength):
         ax.tick_params(axis="both", which="major", labelsize=10)
 
         # Only show legend for the first subplot
-        if i == 0:
-            ax.legend(fontsize=10, loc="upper left", bbox_to_anchor=(1, 1))
+        # if i == 0:
+        #     ax.legend(fontsize=10, loc="upper left", bbox_to_anchor=(1, 1))
 
     # Remove any unused subplots
     for j in range(i + 1, n_rows * n_cols):
