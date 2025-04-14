@@ -42,6 +42,7 @@ def process_star(name):
 
         # Prepare input parameters for pyEDITH calculation
         input_params = prepare_input_params(df, hpic, hip_name, "AYO")
+
         import logging
 
         yippy_logger = logging.getLogger("yippy")
