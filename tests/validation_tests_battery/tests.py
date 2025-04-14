@@ -80,7 +80,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),
         "photap_rad": 0.85,
-        "lambd": np.array(
+        "wavelength": np.array(
             [df.loc[df["parameter"] == "λ", code].iloc[0] / 1000]
         ),  # nm to micron
         "bandwidth": df.loc[df["parameter"] == "Δλ", code].iloc[0]
@@ -100,7 +100,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "Toptical": np.array([df.loc[df["parameter"] == "T_optical", code].iloc[0]]),
         "ra": float(hpic[hpic.hip_name == hip_name].ra.iloc[0]),
         "dec": float(hpic[hpic.hip_name == hip_name].dec.iloc[0]),
-        "sp": lambda_d_to_arcsec(
+        "separation": lambda_d_to_arcsec(
             value_lod=df.loc[df["parameter"] == "sp", code].iloc[0],
             wavelength=np.array(df.loc[df["parameter"] == "λ", code].iloc[0] / 1000)
             * u.micron,
@@ -113,11 +113,13 @@ def prepare_input_params(df, hpic, hip_name, code):
         "observing_mode": "IMAGER",
         "delta_mag_min": 25,
         "nchannels": 1,
-        "noisefloor_factor": 0.029,
+        # "noisefloor_factor": 0.029,
         "epswarmTrcold": [0],
         "t_photon_count_input": np.float64(
             df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
         ),
+        "az_avg": True,
+        "noisefloor_PPF": 1 / 0.029,
     }
 
     input["delta_mag"] = fluxes_to_magnitudes(input["Fstar"], input["Fp"], input["F0"])
@@ -133,7 +135,7 @@ def get_expected_output(df, code):
         "dist": np.float64(df.loc[df["parameter"] == "dist", code].iloc[0]),
         "D": np.float64(df.loc[df["parameter"] == "D", code].iloc[0]),
         "A_cm": np.float64(df.loc[df["parameter"] == "A", code].iloc[0]),
-        "lambda": np.float64(df.loc[df["parameter"] == "λ", code].iloc[0]),
+        "wavelength": np.float64(df.loc[df["parameter"] == "λ", code].iloc[0]),
         "deltalambda_nm": np.float64(df.loc[df["parameter"] == "Δλ", code].iloc[0]),
         "snr": np.float64(df.loc[df["parameter"] == "SNR", code].iloc[0]),
         "nzodis": np.float64(df.loc[df["parameter"] == "nzodis", code].iloc[0]),
@@ -365,17 +367,27 @@ def visualize_comparisons(comparisons, name, wavelength):
                     label="Std Dev",
                 )
 
+            # Set y-axis limits to zoom in on the data points
+            y_min, y_max = min(y), max(y)
+            y_range = y_max - y_min
+            y_padding = 0.1 * y_range  # Add 10% padding
+            ax.set_ylim(y_min - y_padding, y_max + y_padding)
+
             # Set y-axis to log scale if the values span more than 2 orders of magnitude
             if len(set(y)) > 1:
                 if max(y) / min(y) > 100:
                     ax.set_yscale("log")
+                    # For log scale, adjust limits to ensure all points are visible
+                    ax.set_ylim(y_min / 1.1, y_max * 1.1)
                 else:
-                    ax.set_ylim(bottom=0)  # Set bottom limit to 0 for linear scale
+                    ax.set_ylim(
+                        bottom=max(0, y_min - y_padding)
+                    )  # Ensure bottom limit is not negative for linear scale
+
             # Set custom formatter for y-axis ticks
             formatter = ScientificNotationFormatter()
             ax.yaxis.set_major_formatter(formatter)
             ax.yaxis.offsetText.set_fontsize(7)
-            ax.set_ylim(-1.2 * min(y), +1.2 * max(y))
 
         else:
             ax.text(0.5, 0.5, "No valid data", ha="center", va="center")

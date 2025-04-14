@@ -101,7 +101,7 @@ def main():
         if not secondary_parameters:
             raise ValueError("The secondary parameters are not specified.")
 
-        if len(parameters["lambd"]) > 1:
+        if len(parameters["wavelength"]) > 1:
             raise TypeError("Cannot accept multiple lambdas as primary lambda")
         else:
             for key in parameters:

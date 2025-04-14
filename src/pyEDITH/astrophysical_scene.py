@@ -482,7 +482,7 @@ class AstrophysicalScene:
         Right ascension of target stars in degrees
     dec : ndarray
         Declination of target stars in degrees
-    sp : ndarray
+    separation : ndarray
         Separation of planets in arcseconds
     xp : ndarray
         X-coordinate of planets in arcseconds
@@ -567,12 +567,12 @@ class AstrophysicalScene:
             self.F0 = parameters["F0"] * PHOTON_FLUX_DENSITY
         else:
             self.F0 = calc_flux_zero_point(
-                lambd=parameters["lambd"] * WAVELENGTH,
+                lambd=parameters["wavelength"] * WAVELENGTH,
                 output_unit="pcgs",
                 perlambd=True,
             ).to(
                 PHOTON_FLUX_DENSITY,
-                equivalencies=u.spectral_density(parameters["lambd"] * WAVELENGTH),
+                equivalencies=u.spectral_density(parameters["wavelength"] * WAVELENGTH),
             )  # [nlambda]
 
         # Determine if user provided magnitudes or fluxes
@@ -666,9 +666,9 @@ class AstrophysicalScene:
         # separation of planet (arcseconds) (nmeananom x norbits x ntargs array)
         # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
         # SO THAT XP = SP (input) and YP = 0
-        self.sp = parameters["sp"] * ARCSEC
-        self.xp = self.sp.copy()
-        self.yp = self.sp.copy() * 0.0
+        self.separation = parameters["separation"] * ARCSEC
+        self.xp = self.separation.copy()
+        self.yp = self.separation.copy() * 0.0
 
     def calculate_zodi_exozodi(self, observation: object) -> None:
         """
@@ -704,14 +704,14 @@ class AstrophysicalScene:
         )  # calculate absolute V band mag of target
 
         self.Fzodi_list = calc_zodi_flux(
-            self.dec, self.ra, observation.lambd, self.F0
+            self.dec, self.ra, observation.wavelength, self.F0
         )  # [nlambda]
 
         self.Fexozodi_list = calc_exozodi_flux(
             self.M_V,
             self.vmag,
             self.nzodis,
-            observation.lambd,
+            observation.wavelength,
             self.mag,
         )  # [nlambda]
 
@@ -734,7 +734,7 @@ class AstrophysicalScene:
             "nzodis": ZODI,
             "ra": DEG,
             "dec": DEG,
-            "sp": ARCSEC,
+            "separation": ARCSEC,
             "xp": ARCSEC,
             "yp": ARCSEC,
             # "deltamag": MAGNITUDE,

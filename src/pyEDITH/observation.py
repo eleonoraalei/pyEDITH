@@ -83,8 +83,8 @@ class Observation:
         # -------- INPUTS ---------
         # Observational parameters
 
-        self.lambd = (
-            parameters["lambd"] * WAVELENGTH
+        self.wavelength = (
+            parameters["wavelength"] * WAVELENGTH
         )  # wavelength # nlambd array #unit: micron
 
         self.SR = parameters["resolution"] * DIMENSIONLESS  # spec res # nlambd array
@@ -95,7 +95,7 @@ class Observation:
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
-        self.nlambd = len(self.lambd)
+        self.nlambd = len(self.wavelength)
 
     def set_output_arrays(self):
         """
@@ -124,7 +124,7 @@ class Observation:
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "lambd": WAVELENGTH,
+            "wavelength": WAVELENGTH,
             "nlambd": int,
             "SR": DIMENSIONLESS,
             "SNR": DIMENSIONLESS,

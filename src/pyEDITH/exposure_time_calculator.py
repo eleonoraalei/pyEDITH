@@ -838,10 +838,10 @@ def calculate_exposure_time_or_snr(
             deltalambda_nm = (
                 np.min(
                     [
-                        (observation.lambd[ilambd].to(u.nm).value)
+                        (observation.wavelength[ilambd].to(u.nm).value)
                         / observation.SR[ilambd],
                         observatory.coronagraph.bandwidth
-                        * (observation.lambd[ilambd].to(u.nm).value),
+                        * (observation.wavelength[ilambd].to(u.nm).value),
                     ]
                 )
                 * u.nm
@@ -851,18 +851,18 @@ def calculate_exposure_time_or_snr(
             # Instead, we calculate the spectral resolution from the provided wavelength grid.
             # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid.
             # For now, we assume the user is providing their own wavelength grid.
-            IFS_resolution = observation.lambd / np.gradient(
-                observation.lambd
+            IFS_resolution = observation.wavelength / np.gradient(
+                observation.wavelength
             )  # calculate the resolution from the wavelength grid
-            dlam_um = np.gradient(observation.lambd)
+            dlam_um = np.gradient(observation.wavelength)
             if ~np.isfinite(IFS_resolution).any():
                 print(
                     "WARNING: Wavelength grid is not valid. Using default spectral resolution of 140."
                 )
                 IFS_resolution = 140 * np.ones_like(
-                    observation.lambd
+                    observation.wavelength
                 )  # default resolution
-                dlam_um = observation.lambd / IFS_resolution * WAVELENGTH
+                dlam_um = observation.wavelength / IFS_resolution * WAVELENGTH
             # assert observation.SR[ilambd] == calculated_SR[ilambd], "Provided SR does not match the calculated SR from the wavelength grid."
 
             deltalambda_nm = dlam_um.to(u.nm)[ilambd]
@@ -877,7 +877,7 @@ def calculate_exposure_time_or_snr(
         # this is still dimensionless
         lod_rad = lambda_d_to_radians(
             lod,
-            observation.lambd[ilambd].to(LENGTH),
+            observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )
 
@@ -888,13 +888,13 @@ def calculate_exposure_time_or_snr(
 
         detpixscale_lod = arcsec_to_lambda_d(
             observatory.detector.pixscale_mas.to(u.arcsec),
-            observation.lambd[ilambd].to(LENGTH),
+            observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )  # LAMBDA_D units
 
         stellar_diam_lod = arcsec_to_lambda_d(
             scene.angdiam_arcsec,
-            observation.lambd[ilambd].to(LENGTH),
+            observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )  # LAMBDA_D units
 
@@ -919,7 +919,7 @@ def calculate_exposure_time_or_snr(
         # Measure coronagraph performance at each IWA
         pixscale_rad = observatory.coronagraph.pixscale * lambda_d_to_radians(
             lod,
-            observation.lambd[ilambd].to(LENGTH),
+            observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )  # going from LAMBDA_D to radians
 
@@ -1018,7 +1018,7 @@ def calculate_exposure_time_or_snr(
 
         det_CRbth = (
             calculate_CRbth(
-                observation.lambd[ilambd],
+                observation.wavelength[ilambd],
                 area_cm2,
                 deltalambda_nm,
                 observatory.telescope.temperature,
@@ -1043,8 +1043,8 @@ def calculate_exposure_time_or_snr(
 
         # Calculate separation (from arcsec to l/D)
         sp_lod = arcsec_to_lambda_d(
-            scene.sp,
-            observation.lambd[ilambd].to(LENGTH),
+            scene.separation,
+            observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )
 
@@ -1215,7 +1215,7 @@ def calculate_exposure_time_or_snr(
                         deltalambda_nm,
                         observatory.coronagraph.nchannels,
                         scene.dist,
-                        scene.sp,
+                        scene.separation,
                     )
                     observation.photon_counts["CRbez"][ilambd] = (
                         CRbez.value
@@ -1266,7 +1266,7 @@ def calculate_exposure_time_or_snr(
                     observation.photon_counts["CRbd"][ilambd] = CRbd.value
 
                     CRbth = calculate_CRbth(
-                        observation.lambd[ilambd],
+                        observation.wavelength[ilambd],
                         area_cm2,
                         deltalambda_nm,
                         observatory.telescope.temperature,
@@ -1389,7 +1389,7 @@ def calculate_exposure_time_or_snr(
                         "dist": scene.dist,
                         "D": observatory.telescope.diameter,
                         "A_cm": area_cm2,
-                        "lambda": observation.lambd[ilambd].to(u.nm),
+                        "wavelength": observation.wavelength[ilambd].to(u.nm),
                         "deltalambda_nm": deltalambda_nm,
                         "snr": observation.SNR[ilambd],
                         "nzodis": scene.nzodis,
@@ -1410,10 +1410,10 @@ def calculate_exposure_time_or_snr(
                         "Fzodi": scene.Fzodi_list[ilambd] * scene.F0[ilambd],
                         "Fexozodi": scene.Fexozodi_list[ilambd]
                         * scene.F0[ilambd]
-                        / (scene.sp**2 * scene.dist**2),
+                        / (scene.separation**2 * scene.dist**2),
                         "sp_lod": arcsec_to_lambda_d(
-                            scene.sp,
-                            observation.lambd[ilambd],
+                            scene.separation,
+                            observation.wavelength[ilambd],
                             observatory.telescope.diameter,
                         ),
                         "omega_lod": observatory.coronagraph.omega_lod[
@@ -1670,7 +1670,9 @@ def print_all_variables(
         with open("pyedith_" + mode + ".txt", "w") as file:
             file.write("Input Objects and Their Relevant Properties:\n")
             file.write("1. Observation:\n")
-            print_array_info(file, "observation.lambd", observation.lambd, mode)
+            print_array_info(
+                file, "observation.wavelength", observation.wavelength, mode
+            )
             print_array_info(file, "observation.SR", observation.SR, mode)
             print_array_info(file, "observation.SNR", observation.SNR, mode)
             print_array_info(file, "observation.td_limit", observation.td_limit, mode)
@@ -1688,7 +1690,7 @@ def print_all_variables(
             print_array_info(file, "scene.Fbinary_list", scene.Fbinary_list, mode)
             print_array_info(file, "scene.xp", scene.xp, mode)
             print_array_info(file, "scene.yp", scene.yp, mode)
-            print_array_info(file, "scene.sp", scene.sp, mode)
+            print_array_info(file, "scene.separation", scene.separation, mode)
             print_array_info(file, "scene.dist", scene.dist, mode)
 
             file.write("\n3. Observatory:\n")

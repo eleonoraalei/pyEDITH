@@ -137,24 +137,30 @@ def parse_parameters(parameters: dict) -> dict:
     def parse_list_param(key, default_len):
         value = parameters[key]
         if default_len > 1:
-            # it is supposed to be a list.
+            # If it's supposed to be a list but given as a single value, convert to a list
+            if not isinstance(value, list):
+                return [float(value)] * default_len
+            # If it's already a list, check its length and convert to float
             checks_on_list_values(key, value, default_len)
             return [float(v) for v in value]
         else:
-            return [float(value)]
+            # For single values, always return a single-element list
+            return [float(value)] if not isinstance(value, list) else [float(value[0])]
 
     parsed_params = {}
 
     # CONSTANTS
-    if isinstance(parameters["lambda"], list):
-        parsed_params["nlambda"] = len(parameters["lambda"])
+    if isinstance(parameters["wavelength"], list):
+        parsed_params["nlambda"] = len(parameters["wavelength"])
     else:
         parsed_params["nlambda"] = 1
 
     parsed_params["ntargs"] = 1  # For now, we assume one target
 
     # ------ ARRAYS OF LENGTH NLAMBDA ------
-    parsed_params["lambd"] = parse_list_param("lambda", parsed_params["nlambda"])
+    parsed_params["wavelength"] = parse_list_param(
+        "wavelength", parsed_params["nlambda"]
+    )
 
     wavelength_params = [
         "resolution",
@@ -202,7 +208,7 @@ def parse_parameters(parameters: dict) -> dict:
 
     # ---- MORE SCALARS (used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1)
     if "separation" in parameters.keys():
-        parsed_params["sp"] = float(parameters["separation"])
+        parsed_params["separation"] = float(parameters["separation"])
 
     # ----- SCALARS ----
     scalar_params = [
