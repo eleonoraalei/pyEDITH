@@ -14,15 +14,16 @@
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-photap_rad = 0.85       ;   lambd/D
-wavelength = 0.5              ;   wavelength (micron)
-snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
+photap_rad = 0.85       ; photometric aperture radius used for plots and some basic exp time estimates, recommended = 0.7 l/D_inscribed ~ 0.85 l/D
+wavelength = [0.5,0.55]              ;   wavelength (micron)
+snr = [7.0,7.0]                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
+CRb_multiplier  = 2.          ; factor to multiply to remove background
 
 ;--- STAR PARAMETERS ---
 Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
-magV = 5.84             ;   stellar magnitude at V band
-mag = 6.189576               ;   magnitude at desired lambda (must have same length as lambda)
+FstarV_10pc = 1.244e+02     ; flux in the V band (ph/s/cm^2/nm)
+Fstar_10pc = [1.128e+02, 1.13e+02]
 angular_diameter = 0.01            ;   angular diameter of star (arcsec)
 nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
 ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
@@ -31,29 +32,11 @@ dec = 02.5151668316500      ;   declination of target star used to estimate zodi
 ;--- PLANET PARAMETERS ---
 separation = 0.0628       ;   separation of planet (arcsec)
 delta_mag = 25.5          ;   difference in mag between planet and host star 
-delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
+Fp/Fs =  [6.3e-8,6.4e-8]                 ; planet flux at lambda in ph/s/cm^2/nm 
+Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
 
 
 ;--- OBSERVATORY PARAMETERS ----
-telescope_type = EAC1
-coronagraph_type = EAC1
-detector_type = EAC1
-observing_mode = IMAGER
-
-;--------------------------------
-;------- SECONDARY LAMBDA -------
-;--------------------------------
-
-;--- OBSERVATIONAL PARAMETERS ---
-secondary_wavelength = 1.0              ;   wavelength (micron)
-
-;--- STAR PARAMETERS ---
-secondary_mag = 4.908907              ;   magnitude at desired lambda (must have same length as lambda)
-
-;--- PLANET PARAMETERS ---
-secondary_delta_mag = 25.5          ;   difference in mag between planet and host star 
-secondary_delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
-
-;--- CORONAGRAPH PARAMETERS ---
-secondary_Tcore = 1.22E-01    ;   core throughput of coronagraph (uniform over dark hole, unitless) 
+observatory_preset = EAC1
+observing_mode =  IFS
 

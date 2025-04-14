@@ -34,11 +34,11 @@ separation = 0.0628       ;   separation of planet (arcsec)
 Fp/Fs =  6.309573444801917e-11                 ; planet flux at lambda in ph/s/cm^2/nm 
 Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
 
-;--- OBSERVATORY SPECS ---
+;--- OBSERVATORY PARAMETERS ---
 observatory_preset = ToyModel
 observing_mode =  IMAGER
 
-;--- TELESCOPE PARAMETERS ---
+;--- (OVERRIDING DEFAULT) TELESCOPE PARAMETERS ---
 diameter = 7.87              ;   circumscribed diameter of aperture (m)
 td_limit =                  5.184000E+06   ;(s) {scalar} detection time upper limit, 2 months = 5.184e6 s
 toverhead_fixed = 8381.30  ;   fixed overhead time (seconds)
@@ -48,8 +48,7 @@ Tcontam = 0.950000 ;{scalar} effective throughput factor to budget for contamina
 Toptical = 0.362
 ;epswarmTrcold = 0.638    ; 1.0-Toptical {scalar OR array of length NLD} product of cummulative warm emissivity and cummulative cold transmission (we assume throughput == Toptical for toymodel)
 
-;--- CORONAGRAPH PARAMETERS ---
-type = toymodel           ;   keyword to associate to the default coronagraph type
+;--- (OVERRIDING DEFAULT) CORONAGRAPH PARAMETERS ---
 minimum_IWA = 1.0                 ;   smallest WA to allow (lambda/D)
 maximum_OWA = 60.0               ;   largest WA to allow (lambda/D)
 contrast = 1.05e-13       ;   contrast of coronagraph (uniform over dark hole and unitless)
@@ -61,12 +60,12 @@ nrolls = 1                ;   number of rolls
 nchannels = 2             ; number of parallel detection channels (channels evaluated as one contiguous channel)         
 PSF_trunc_ratio = 0.3
 
-;--- DETECTOR PARAMETERS ---
+;--- (OVERRIDING DEFAULT) DETECTOR PARAMETERS ---
 npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# nlambd array, 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
-dark_current = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
-read_noise = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
-read_time = 1000.         ;   read time (seconds) (must have same length as lambda)
-cic = 1.3e-3              ;   clock induced charge (counts pix^-1 photon_count^-1) (must have same length as lambda)
+DC = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
+RN = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
+tread = 1000.         ;   read time (seconds) (must have same length as lambda)
+CIC = 1.3e-3              ;   clock induced charge (counts pix^-1 photon_count^-1) (must have same length as lambda)
 QE =              0.897   ;{scalar OR scalar OR array of length NLD} detector QE for detection observations
 dQE =             0.750   ;{scalar OR array of length NLD} detector dQE for detection observations
 

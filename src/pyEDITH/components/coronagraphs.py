@@ -376,7 +376,8 @@ class CoronagraphYIP(Coronagraph):
         "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
-        "psf_trunc_ratio": [0.46] * DIMENSIONLESS,  # nlambda array, changed from 0.35 because this works better, not sure why
+        "psf_trunc_ratio": [0.46]
+        * DIMENSIONLESS,  # nlambda array, changed from 0.35 because this works better, not sure why
         "coronagraph_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.

@@ -15,8 +15,7 @@
 
 ;--- OBSERVATIONAL PARAMETERS ---
 photap_rad = 0.85       ; photometric aperture radius used for plots and some basic exp time estimates, recommended = 0.7 l/D_inscribed ~ 0.85 l/D
-lambda = 0.5              ;   wavelength (micron)
-resolution = 5.0          ;   spectral resolution at each lambda (must have same length as lambda)
+wavelegth = 0.5              ;   wavelength (micron)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 CRb_multiplier  = 2.          ; factor to multiply to remove background
 
@@ -35,6 +34,7 @@ separation = 0.0628       ;   separation of planet (arcsec)
 delta_mag = 25.5          ;   difference in mag between planet and host star 
 delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
 
+;--- OBSERVATORY PARAMETERS ----
 observatory_preset = EAC1
 observing_mode =  IMAGER
 

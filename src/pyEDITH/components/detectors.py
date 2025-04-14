@@ -136,7 +136,7 @@ class ToyModelDetector(Detector):
                 # Use default value
                 setattr(self, key, default_value)
 
-        # Convert to numpy array when appropriate
+        # # Convert to numpy array when appropriate
         array_params = [
             "npix_multiplier",
             "DC",
@@ -386,6 +386,19 @@ class EACDetector(Detector):
             else:
                 # If it's not a Quantity, convert to numpy array without units
                 setattr(self, param, np.array(attr_value, dtype=np.float64))
+
+        # Ensure npix_multiplier has the same length as wavelength (the other ones are taken care of by EACy)
+        if len(self.npix_multiplier) != len(
+            mediator.get_observation_parameter("wavelength")
+        ):
+            self.npix_multiplier = (
+                np.full_like(
+                    mediator.get_observation_parameter("wavelength").value,
+                    self.npix_multiplier[0],
+                    dtype=np.float64,
+                )
+                * DIMENSIONLESS
+            )
 
         # USED ONLY TO VALIDATE ETCs
         if "t_photon_count_input" in parameters.keys():

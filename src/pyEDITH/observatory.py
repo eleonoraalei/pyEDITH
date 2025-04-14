@@ -66,7 +66,11 @@ class Observatory(ABC):  # abstract class
             # multiply by the IFS efficiency if in spectroscopy mode
             # NOTE: this is a placeholder for now. Not yet included in YAML files. Name will probably change.
             # may also move to elsewhere in code.
-            self.optics_throughput *= parameters["IFS_eff"]
+            ifs_eff = u.Quantity(
+                parameters.get("IFS_eff", 1.0), unit=u.dimensionless_unscaled
+            )
+
+            self.optics_throughput *= ifs_eff
         else:
             pass
 

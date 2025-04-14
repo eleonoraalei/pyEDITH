@@ -1,10 +1,11 @@
 from typing import Union, Dict, Tuple
 from pathlib import Path
-import eacy
 import astropy.units as u
 import numpy as np
 from .units import *
 from scipy.interpolate import interp1d
+import pandas as pd
+import os
 
 
 def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
@@ -70,45 +71,65 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
             else:
                 variables[key] = value
 
-    # Fill in missing secondary variables with primary variable values
-    # if secondary_flag:
-    #     for key in variables:
-    #         if key not in secondary_variables:
-    #             secondary_variables[key] = variables[key]
+    # Handle IFS mode
+    if variables.get("observing_mode") == "IFS":
+        required_columns = ["wavelength", "Fstar_10pc", "Fp/Fs"]
+
+        # Check if all required columns are provided as lists in the input file
+        if all(
+            col in variables and isinstance(variables[col], list)
+            for col in required_columns
+        ):
+            # Ensure all lists have the same length
+            lengths = [len(variables[col]) for col in required_columns]
+            if len(set(lengths)) != 1:
+                raise ValueError(
+                    f"All of {', '.join(required_columns)} must have the same length"
+                )
+            variables["nlambda"] = lengths[0]
+
+        # If not all required columns are provided, try to read from spectrum file
+        elif "spectrum_file" in variables:
+            spectrum_file = variables["spectrum_file"]
+
+            # Check if the file exists and is readable
+            if not os.path.isfile(spectrum_file):
+                raise FileNotFoundError(f"Spectrum file not found: {spectrum_file}")
+            if not os.access(spectrum_file, os.R_OK):
+                raise PermissionError(f"Spectrum file is not readable: {spectrum_file}")
+
+            # Read the spectrum file
+            spectrum_df = pd.read_csv(variables["spectrum_file"])
+
+            # Ensure the file has exactly 3 columns
+            if len(spectrum_df.columns) != 3:
+                raise ValueError(
+                    f"Spectrum file must contain exactly 3 columns (wavelength, stellar flux, planet contrast), but it has {len(spectrum_df.columns)}"
+                )
+            # Rename the columns to ensure they have the correct names
+            spectrum_df.columns = ["wavelength", "Fstar_10pc", "Fp/Fs"]
+
+            # Verify that all columns can be converted to float
+            for column in spectrum_df.columns:
+                try:
+                    spectrum_df[column] = spectrum_df[column].astype(float)
+                except ValueError:
+                    raise ValueError(f"Column '{column}' contains non-numeric values")
+
+            # Set the wavelength-dependent parameters from the file
+            variables["wavelength"] = spectrum_df["wavelength"].tolist()
+            variables["Fstar_10pc"] = spectrum_df["Fstar_10pc"].tolist()
+            variables["Fp/Fs"] = spectrum_df["Fp/Fs"].tolist()
+
+        else:
+            raise ValueError(
+                "Required parameters 'wavelength', 'Fstar_10pc', and 'Fp/Fs' are not provided. Please write them explicitly or provide a spectrum_file path."
+            )
 
     return variables, secondary_variables
 
 
-def checks_on_list_values(key: str, value, length: int) -> bool:
-    """
-    Check that a list has exactly the specified length.
-
-    Parameters:
-    -----------
-    key : str
-        The name of the parameter being checked.
-    value : any
-        The value to be checked.
-    length : int
-        The expected length of the list.
-
-    Returns:
-    --------
-    bool
-        True if the value is a list of the specified length.
-
-    Raises:
-    -------
-    ValueError
-        If the value is not a list or does not have the specified length.
-    """
-
-    if not isinstance(value, (list)) or len(list(value)) != length:
-        raise ValueError(key + " should be a list of length " + str(length))
-    return True
-
-
-def parse_parameters(parameters: dict) -> dict:
+def parse_parameters(parameters: dict, nlambda=None) -> dict:
     """
     Parses and processes input parameters for the Edith simulation.
 
@@ -136,41 +157,71 @@ def parse_parameters(parameters: dict) -> dict:
 
     def parse_list_param(key, default_len):
         value = parameters[key]
+
+        # Function to convert to float array, preserving Quantity if present
+        def to_float_array(v):
+            if isinstance(v, u.Quantity):
+                return u.Quantity(np.array(v.value, dtype=np.float64), v.unit)
+            else:
+                return np.array(v, dtype=np.float64)
+
         if default_len > 1:
             # If it's supposed to be a list but given as a single value, convert to a list
-            if not isinstance(value, list):
-                return [float(value)] * default_len
-            # If it's already a list, check its length and convert to float
-            checks_on_list_values(key, value, default_len)
-            return [float(v) for v in value]
+            if not isinstance(value, (list, np.ndarray, u.Quantity)) or (
+                isinstance(value, u.Quantity) and value.isscalar
+            ):
+                return to_float_array([value] * default_len)
+
+            # If it's already a list or Quantity array, check its length
+            if len(value) != default_len:
+                print(
+                    f"WARNING: {key} should be a list of length {default_len}. pyEDITH will create one assuming the input value for all the elements of the list. "
+                )
+                if isinstance(value, u.Quantity):
+                    return u.Quantity(np.full(default_len, value.value), value.unit)
+                else:
+                    return np.full(default_len, value)
+
+            return to_float_array(value)
         else:
-            # For single values, always return a single-element list
-            return [float(value)] if not isinstance(value, list) else [float(value[0])]
+            # For single values, always return a single-element array
+            if isinstance(value, (list, np.ndarray, u.Quantity)) and len(value) > 0:
+                return to_float_array([value[0]])
+            else:
+                return to_float_array([value])
 
     parsed_params = {}
 
     # CONSTANTS
-    if isinstance(parameters["wavelength"], list):
-        parsed_params["nlambda"] = len(parameters["wavelength"])
+    if "wavelength" in parameters.keys():
+        if isinstance(parameters["wavelength"], list):
+            parsed_params["nlambda"] = len(parameters["wavelength"])
+        else:
+            parsed_params["nlambda"] = 1
+        parsed_params["wavelength"] = parse_list_param(
+            "wavelength", parsed_params["nlambda"]
+        )
+
+    elif nlambda is not None:
+        parsed_params["nlambda"] = nlambda
     else:
-        parsed_params["nlambda"] = 1
+        raise ValueError(
+            "pyEDITH does not have access to wavelength here, you should provide nlambda as an argument to this function."
+        )
 
-    parsed_params["ntargs"] = 1  # For now, we assume one target
-
+    # Use the determined or provided nlambda for array standardization
+    nlambda = parsed_params["nlambda"]
     # ------ ARRAYS OF LENGTH NLAMBDA ------
-    parsed_params["wavelength"] = parse_list_param(
-        "wavelength", parsed_params["nlambda"]
-    )
 
     wavelength_params = [
         "snr",
         "Toptical",
         "epswarmTrcold",
         "npix_multiplier",
-        "dark_current",
-        "read_noise",
-        "read_time",
-        "cic",
+        "DC",
+        "RN",
+        "tread",
+        "CIC",
         "QE",
         "dQE",
         "IFS_eff",
@@ -183,7 +234,7 @@ def parse_parameters(parameters: dict) -> dict:
 
     parsed_params.update(
         {
-            key: parse_list_param(key, parsed_params["nlambda"])
+            key: parse_list_param(key, nlambda)
             for key in list(set(wavelength_params) & set(parameters.keys()))
         }
     )
