@@ -163,7 +163,6 @@ def parse_parameters(parameters: dict) -> dict:
     )
 
     wavelength_params = [
-        "resolution",
         "snr",
         "Toptical",
         "epswarmTrcold",

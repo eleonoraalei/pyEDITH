@@ -17,8 +17,6 @@ class Observation:
         Wavelength array (in microns).
     nlambd : int
         Number of wavelength points.
-    SR : np.ndarray
-        Spectral resolution array.
     SNR : np.ndarray
         Signal-to-noise ratio array.
     photap_rad : float
@@ -87,8 +85,6 @@ class Observation:
             parameters["wavelength"] * WAVELENGTH
         )  # wavelength # nlambd array #unit: micron
 
-        self.SR = parameters["resolution"] * DIMENSIONLESS  # spec res # nlambd array
-
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
 
         self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
@@ -126,7 +122,6 @@ class Observation:
         expected_args = {
             "wavelength": WAVELENGTH,
             "nlambd": int,
-            "SR": DIMENSIONLESS,
             "SNR": DIMENSIONLESS,
             "photap_rad": LAMBDA_D,
             "CRb_multiplier": float,

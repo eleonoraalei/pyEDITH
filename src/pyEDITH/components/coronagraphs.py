@@ -170,6 +170,7 @@ class Coronagraph(ABC):
             "minimum_IWA": LAMBDA_D,
             "maximum_OWA": LAMBDA_D,
             "coronagraph_throughput": DIMENSIONLESS,
+            "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
 
         for arg, expected_type in expected_args.items():
@@ -219,6 +220,8 @@ class ToyModelCoronagraph(Coronagraph):
         "psf_trunc_ratio": [0.3] * DIMENSIONLESS,  # nlambda array
         "coronagraph_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
+        "coronagraph_spectral_resolution": 1
+        * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
     }
 
     def __init__(self, path=None, keyword=None):
@@ -375,6 +378,8 @@ class CoronagraphYIP(Coronagraph):
         "nrolls": 1,  # number of rolls
         "psf_trunc_ratio": [0.35] * DIMENSIONLESS,  # nlambda array
         "coronagraph_throughput": None,
+        "coronagraph_spectral_resolution": 1
+        * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
         "nchannels": 2,  # number of channels
         "TLyot": 0.65
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
@@ -593,7 +598,7 @@ class CoronagraphYIP(Coronagraph):
         tele_diam = telescope_params["diam_circ"] * LENGTH
 
         angdiam_lod = arcsec_to_lambda_d(
-            angdiam_arcsec, 0.55*WAVELENGTH, tele_diam
+            angdiam_arcsec, 0.55 * WAVELENGTH, tele_diam
         )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Right now, assumes 0.55 um. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
         self.DEFAULT_CONFIG["Istar"] = (

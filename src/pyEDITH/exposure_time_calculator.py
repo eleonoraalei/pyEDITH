@@ -839,16 +839,24 @@ def calculate_exposure_time_or_snr(
                 np.min(
                     [
                         (observation.wavelength[ilambd].to(u.nm).value)
-                        / observation.SR[ilambd],
+                        / observatory.coronagraph.coronagraph_spectral_resolution,
                         observatory.coronagraph.bandwidth
                         * (observation.wavelength[ilambd].to(u.nm).value),
                     ]
                 )
                 * u.nm
             )  # nanometers
+            if (
+                observatory.coronagraph.bandwidth
+                * observation.wavelength[ilambd].to(u.nm).value
+                >= observation.wavelength[ilambd].to(u.nm).value
+                / observatory.coronagraph.coronagraph_spectral_resolution
+            ):
+                print(
+                    "WARNING: Bandwidth larger than what the coronagraph allows. Selecting widest possible bandwidth..."
+                )
         elif observatory.observing_mode == "IFS":
-            # NOTE: the IFS mode disregards the user-provided SR. This is necessary because of the definition of R.
-            # Instead, we calculate the spectral resolution from the provided wavelength grid.
+            # NOTE: we calculate the spectral resolution from the provided wavelength grid.
             # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid.
             # For now, we assume the user is providing their own wavelength grid.
             IFS_resolution = observation.wavelength / np.gradient(
@@ -863,7 +871,6 @@ def calculate_exposure_time_or_snr(
                     observation.wavelength
                 )  # default resolution
                 dlam_um = observation.wavelength / IFS_resolution * WAVELENGTH
-            # assert observation.SR[ilambd] == calculated_SR[ilambd], "Provided SR does not match the calculated SR from the wavelength grid."
 
             deltalambda_nm = dlam_um.to(u.nm)[ilambd]
         else:
@@ -1673,7 +1680,6 @@ def print_all_variables(
             print_array_info(
                 file, "observation.wavelength", observation.wavelength, mode
             )
-            print_array_info(file, "observation.SR", observation.SR, mode)
             print_array_info(file, "observation.SNR", observation.SNR, mode)
             print_array_info(file, "observation.td_limit", observation.td_limit, mode)
             print_array_info(

@@ -88,7 +88,6 @@ def prepare_input_params(df, hpic, hip_name, code):
         / df.loc[df["parameter"] == "λ", code].iloc[0],
         "nzodis": df.loc[df["parameter"] == "nzodis", code].iloc[0],
         "snr": np.array([df.loc[df["parameter"] == "SNR", code].iloc[0]]),
-        "resolution": np.array([5]),
         "toverhead_fixed": df.loc[df["parameter"] == "t_overhead,static", code].iloc[0],
         "toverhead_multi": df.loc[df["parameter"] == "t_overhead,dynamic", code].iloc[
             0
