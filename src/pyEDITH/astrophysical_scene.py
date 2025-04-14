@@ -474,7 +474,7 @@ class AstrophysicalScene:
         Stellar magnitudes at V band
     mag : ndarray
         Stellar magnitudes at desired wavelengths
-    angdiam_arcsec : ndarray
+    angular_diameter_arcsec : ndarray
         Angular diameter of stars in arcseconds
     nzodis : ndarray
         Amount of exozodi around target stars in "zodis"
@@ -651,7 +651,7 @@ class AstrophysicalScene:
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
-        self.angdiam_arcsec = parameters["angdiam"] * ARCSEC
+        self.angular_diameter_arcsec = parameters["angular_diameter"] * ARCSEC
 
         # amount of exozodi around target star ("zodis") # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
         self.nzodis = parameters["nzodis"] * ZODI
@@ -730,7 +730,7 @@ class AstrophysicalScene:
             "dist": DISTANCE,
             # "vmag": MAGNITUDE,
             # "mag": MAGNITUDE,
-            "angdiam_arcsec": ARCSEC,
+            "angular_diameter_arcsec": ARCSEC,
             "nzodis": ZODI,
             "ra": DEG,
             "dec": DEG,

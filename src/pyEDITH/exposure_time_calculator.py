@@ -900,7 +900,7 @@ def calculate_exposure_time_or_snr(
         )  # LAMBDA_D units
 
         stellar_diam_lod = arcsec_to_lambda_d(
-            scene.angdiam_arcsec,
+            scene.angular_diameter_arcsec,
             observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )  # LAMBDA_D units
@@ -1688,7 +1688,12 @@ def print_all_variables(
 
             file.write("\n2. Scene:\n")
             print_array_info(file, "scene.mag", scene.mag, mode)
-            print_array_info(file, "scene.angdiam_arcsec", scene.angdiam_arcsec, mode)
+            print_array_info(
+                file,
+                "scene.angular_diameter_arcsec",
+                scene.angular_diameter_arcsec,
+                mode,
+            )
             print_array_info(file, "scene.F0", scene.F0, mode)
             print_array_info(file, "scene.Fp0", scene.Fp0, mode)
             print_array_info(file, "scene.Fzodi_list", scene.Fzodi_list, mode)
@@ -1755,18 +1760,6 @@ def print_all_variables(
             print_array_info(
                 file, "observatory.coronagraph.npix", observatory.coronagraph.npix, mode
             )
-            # print_array_info(
-            #     file,
-            #     "observatory.coronagraph.ndiams",
-            #     observatory.coronagraph.ndiams,
-            #     mode,
-            # )
-            # print_array_info(
-            #     file,
-            #     "observatory.coronagraph.angdiams",
-            #     observatory.coronagraph.angdiams,
-            #     mode,
-            # )
             print_array_info(
                 file,
                 "observatory.coronagraph.pixscale",

@@ -125,7 +125,7 @@ class Coronagraph(ABC):
         Y-coordinate of the image center.
     bandwidth : float
         Bandwidth of the coronagraph.
-    angdiams : np.ndarray
+    angular_diameter : np.ndarray
         Angular diameters of the target objects.
     npsfratios : int
         Number of PSF ratios.
@@ -590,19 +590,22 @@ class CoronagraphYIP(Coronagraph):
         #             self.DEFAULT_CONFIG["r"][i, j]
         #         )
 
-        angdiam_arcsec = mediator.get_scene_parameter("angdiam_arcsec")
+        angular_diameter_arcsec = mediator.get_scene_parameter(
+            "angular_diameter_arcsec"
+        )
         lam = mediator.get_observation_parameter("wavelength")
 
         # TODO how to behave when tele_diam has been overwritten by the user?
         telescope_params = load_telescope("EAC1").__dict__
         tele_diam = telescope_params["diam_circ"] * LENGTH
 
-        angdiam_lod = arcsec_to_lambda_d(
-            angdiam_arcsec, 0.55 * WAVELENGTH, tele_diam
+        angular_diameter_lod = arcsec_to_lambda_d(
+            angular_diameter_arcsec, 0.55 * WAVELENGTH, tele_diam
         )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Right now, assumes 0.55 um. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
         self.DEFAULT_CONFIG["Istar"] = (
-            yippy_obj.stellar_intens(angdiam_lod.value * lod)[:, :] * DIMENSIONLESS
+            yippy_obj.stellar_intens(angular_diameter_lod.value * lod)[:, :]
+            * DIMENSIONLESS
         )
 
         # calculate noisefloor

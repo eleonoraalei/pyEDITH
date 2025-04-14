@@ -15,8 +15,7 @@
 
 ;--- OBSERVATIONAL PARAMETERS ---
 photap_rad = 0.85       ;   lambd/D
-lambda = 0.5              ;   wavelength (micron)
-resolution = 5.0          ;   spectral resolution at each lambda (must have same length as lambda)
+wavelength = 0.5              ;   wavelength (micron)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 
 ;--- STAR PARAMETERS ---
@@ -24,7 +23,7 @@ Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
 magV = 5.84             ;   stellar magnitude at V band
 mag = 6.189576               ;   magnitude at desired lambda (must have same length as lambda)
-angdiam = 0.01            ;   angular diameter of star (arcsec)
+angular_diameter = 0.01            ;   angular diameter of star (arcsec)
 nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
 ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
 dec = 02.5151668316500      ;   declination of target star used to estimate zodi (deg)
@@ -45,8 +44,7 @@ detector_type = EAC1
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-secondary_lambda = 1.0              ;   wavelength (micron)
-secondary_resolution = 5.0         ;   spectral resolution at each lambda (must have same length as lambda)
+secondary_wavelength = 1.0              ;   wavelength (micron)
 
 ;--- STAR PARAMETERS ---
 secondary_mag = 4.908907              ;   magnitude at desired lambda (must have same length as lambda)

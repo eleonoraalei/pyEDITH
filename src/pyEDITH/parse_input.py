@@ -194,7 +194,7 @@ def parse_parameters(parameters: dict) -> dict:
         "distance",  # used to be [ntargs]
         "magV",  # used to be [ntargs]
         "FstarV_10pc",
-        "angdiam",  # used to be [ntargs]
+        "angular_diameter",  # used to be [ntargs]
         "nzodis",  # used to be [ntargs]
         "ra",  # used to be [ntargs]
         "dec",  # used to be [ntargs]
