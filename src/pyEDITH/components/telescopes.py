@@ -191,9 +191,9 @@ class EACTelescope(Telescope):
 
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
-                mediator.get_observation_parameter("lambd")
+                mediator.get_observation_parameter("wavelength")
                 * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-                mediator.get_observation_parameter("lambd")
+                mediator.get_observation_parameter("wavelength")
                 * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             ] * WAVELENGTH
 

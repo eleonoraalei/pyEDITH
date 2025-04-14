@@ -369,8 +369,8 @@ class CoronagraphYIP(Coronagraph):
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
-        "noisefloor_contrast": None,#0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": 300.,  # divide Istar by this to get the noise floor (unitless)
+        "noisefloor_contrast": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
+        "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "psf_trunc_ratio": [0.35] * DIMENSIONLESS,  # nlambda array
@@ -418,9 +418,9 @@ class CoronagraphYIP(Coronagraph):
         # averaging over bandpass is only required for imaging mode.
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
-                mediator.get_observation_parameter("lambd")
+                mediator.get_observation_parameter("wavelength")
                 * (1 - 0.5 * self.bandwidth),
-                mediator.get_observation_parameter("lambd")
+                mediator.get_observation_parameter("wavelength")
                 * (1 + 0.5 * self.bandwidth),
             ]
 
@@ -429,7 +429,7 @@ class CoronagraphYIP(Coronagraph):
             )
         elif parameters["observing_mode"] == "IFS":
             instrument_params = parse_input.interpolate_over_bandpass(
-                instrument_params, mediator.get_observation_parameter("lambd")
+                instrument_params, mediator.get_observation_parameter("wavelength")
             )
         else:
             raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
@@ -462,39 +462,58 @@ class CoronagraphYIP(Coronagraph):
         self.DEFAULT_CONFIG["r"] = (
             generate_radii(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
             * self.DEFAULT_CONFIG["pixscale"]
-        )  
-
+        )
 
         self.DEFAULT_CONFIG["npsfratios"] = len(self.DEFAULT_CONFIG["psf_trunc_ratio"])
 
-        omega_lod =   np.zeros((self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npsfratios"]))
-        photap_frac = np.zeros((self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npsfratios"]))
-    
-    
+        omega_lod = np.zeros(
+            (
+                self.DEFAULT_CONFIG["npix"],
+                self.DEFAULT_CONFIG["npix"],
+                self.DEFAULT_CONFIG["npsfratios"],
+            )
+        )
+        photap_frac = np.zeros(
+            (
+                self.DEFAULT_CONFIG["npix"],
+                self.DEFAULT_CONFIG["npix"],
+                self.DEFAULT_CONFIG["npsfratios"],
+            )
+        )
+
         offsets = np.sqrt(yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2)
         noffsets = len(offsets)
         peakvals = np.zeros(noffsets)
         temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
         temp_photap_frac = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
         resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05))
-        temppixomegalod = (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor)**2        # Create a 2D grid of offsets from the image coordinates (using r_arr)
-        resolvedPSFs = np.empty((noffsets, resolvingfactor * self.DEFAULT_CONFIG["npix"], resolvingfactor * self.DEFAULT_CONFIG["npix"]))
+        temppixomegalod = (
+            self.DEFAULT_CONFIG["pixscale"] / resolvingfactor
+        ) ** 2  # Create a 2D grid of offsets from the image coordinates (using r_arr)
+        resolvedPSFs = np.empty(
+            (
+                noffsets,
+                resolvingfactor * self.DEFAULT_CONFIG["npix"],
+                resolvingfactor * self.DEFAULT_CONFIG["npix"],
+            )
+        )
         for i in range(noffsets):
-            resolvedPSFs[i, :, :] = zoom(yippy_obj.offax.reshaped_psfs[i, 0, :, :], resolvingfactor, order=3)
-        
+            resolvedPSFs[i, :, :] = zoom(
+                yippy_obj.offax.reshaped_psfs[i, 0, :, :], resolvingfactor, order=3
+            )
+
         resolvedPSFs = np.maximum(resolvedPSFs, 0)
 
-        
         for i in range(noffsets):
             tempPSF = yippy_obj.offax.reshaped_psfs[i, 0, :, :]
-            
+
             norm = np.sum(tempPSF)
             peakvals[i] = np.max(tempPSF)
             tempPSF_res = resolvedPSFs[i, :, :]
 
             norm2 = np.sum(tempPSF_res)
             if norm2 != 0:
-                tempPSF_res *= (norm / norm2)
+                tempPSF_res *= norm / norm2
             maxtempPSF = np.max(tempPSF_res)
             for j in range(self.DEFAULT_CONFIG["npsfratios"]):
                 thresh = self.DEFAULT_CONFIG["psf_trunc_ratio"][j] * maxtempPSF
@@ -503,23 +522,27 @@ class CoronagraphYIP(Coronagraph):
                     k_idx = np.where(tempPSF_res == maxtempPSF)
                 temp_omega_lod[i, j] = len(k_idx[0]) * temppixomegalod
                 temp_photap_frac[i, j] = np.sum(tempPSF_res[k_idx])
-            
+
         # interpolate
         f_peak = interp1d(offsets, peakvals, bounds_error=False, fill_value=np.nan)
-        PSFpeaks = f_peak(self.DEFAULT_CONFIG["r"]) 
+        PSFpeaks = f_peak(self.DEFAULT_CONFIG["r"])
 
         for j in range(self.DEFAULT_CONFIG["npsfratios"]):
-            omega_lod[:, :, j] = np.interp(self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_omega_lod[:, j]).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
-            photap_frac[:, :, j] = np.interp(self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
+            omega_lod[:, :, j] = np.interp(
+                self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_omega_lod[:, j]
+            ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
+            photap_frac[:, :, j] = np.interp(
+                self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
+            ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
 
-        PSFpeaks = np.maximum(PSFpeaks, 0) 
+        PSFpeaks = np.maximum(PSFpeaks, 0)
         omega_lod = np.maximum(omega_lod, 0)
         photap_frac = np.maximum(photap_frac, 0)
 
         self.DEFAULT_CONFIG["omega_lod"] = omega_lod * DIMENSIONLESS
         self.DEFAULT_CONFIG["photap_frac"] = photap_frac * DIMENSIONLESS
 
-        # BELOW IS ALL OLD STUFF 
+        # BELOW IS ALL OLD STUFF
         # self.DEFAULT_CONFIG["omega_lod"] = (
         #     np.full(
         #         (
@@ -543,7 +566,6 @@ class CoronagraphYIP(Coronagraph):
         #     * DIMENSIONLESS
         # )
 
-
         # # sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(
         # #     aperture_radius_lod=self.DEFAULT_CONFIG["psf_trunc_ratio"],
         # #     oversample=2,
@@ -564,7 +586,7 @@ class CoronagraphYIP(Coronagraph):
         #         )
 
         angdiam_arcsec = mediator.get_scene_parameter("angdiam_arcsec")
-        lam = mediator.get_observation_parameter("lambd")
+        lam = mediator.get_observation_parameter("wavelength")
 
         # TODO how to behave when tele_diam has been overwritten by the user?
         telescope_params = load_telescope("EAC1").__dict__
@@ -577,36 +599,60 @@ class CoronagraphYIP(Coronagraph):
         self.DEFAULT_CONFIG["Istar"] = (
             yippy_obj.stellar_intens(angdiam_lod.value * lod)[0, :, :] * DIMENSIONLESS
         )
-        
+
         # calculate noisefloor
-        self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
+        self.DEFAULT_CONFIG["noisefloor"] = (
+            np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
+        )
 
         if self.DEFAULT_CONFIG["noisefloor_contrast"] is not None:
             print("Setting the noise floor via user-supplied noisefloor_contrast...")
-            self.DEFAULT_CONFIG["noisefloor"] = (self.DEFAULT_CONFIG["pixscale"]**2 / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]) * self.DEFAULT_CONFIG["noisefloor_contrast"] * self.DEFAULT_CONFIG["photap_frac"][:, :, 0]
-        
+            self.DEFAULT_CONFIG["noisefloor"] = (
+                (
+                    self.DEFAULT_CONFIG["pixscale"] ** 2
+                    / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
+                )
+                * self.DEFAULT_CONFIG["noisefloor_contrast"]
+                * self.DEFAULT_CONFIG["photap_frac"][:, :, 0]
+            )
+
         if self.DEFAULT_CONFIG["noisefloor_PPF"] is not None:
             print("Setting the noise floor via user-supplied noisefloor_PPF...")
-            self.DEFAULT_CONFIG["noisefloor"] = self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
+            self.DEFAULT_CONFIG["noisefloor"] = (
+                self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
+            )
 
-        if self.DEFAULT_CONFIG["noisefloor_contrast"] is None and self.DEFAULT_CONFIG["noisefloor_PPF"] is None:
-            print("Specify either noisefloor_contrast or noisefloor_PPF to set the noise floor.")
-            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(self.DEFAULT_CONFIG["Istar"])
-
+        if (
+            self.DEFAULT_CONFIG["noisefloor_contrast"] is None
+            and self.DEFAULT_CONFIG["noisefloor_PPF"] is None
+        ):
+            print(
+                "Specify either noisefloor_contrast or noisefloor_PPF to set the noise floor."
+            )
+            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
+                self.DEFAULT_CONFIG["Istar"]
+            )
 
         if self.DEFAULT_CONFIG["az_avg"]:
-            # azimuthally average the stellar intensity to smooth it out 
+            # azimuthally average the stellar intensity to smooth it out
             print("Azimuthally averaging contrast maps and noise floor...")
             ntheta = 100
             theta_vals = np.linspace(0, 360, ntheta, endpoint=False)
             tempIstar = np.zeros_like(self.DEFAULT_CONFIG["Istar"])
             tempnoisefloor = np.zeros_like(self.DEFAULT_CONFIG["noisefloor"])
             for angle in theta_vals:
-                tempIstar[:, :] += rotate(self.DEFAULT_CONFIG["Istar"][:, :], angle, reshape=False, order=3)
-                tempnoisefloor[:, :] += rotate(self.DEFAULT_CONFIG["noisefloor"][:, :], angle, reshape=False, order=3)
+                tempIstar[:, :] += rotate(
+                    self.DEFAULT_CONFIG["Istar"][:, :], angle, reshape=False, order=3
+                )
+                tempnoisefloor[:, :] += rotate(
+                    self.DEFAULT_CONFIG["noisefloor"][:, :],
+                    angle,
+                    reshape=False,
+                    order=3,
+                )
             self.DEFAULT_CONFIG["Istar"] = tempIstar / ntheta
             self.DEFAULT_CONFIG["noisefloor"] = tempnoisefloor / ntheta
-                
+
         """ 
         OLD VERSION
         # NOTE: Yippy already interpolates for the correct angdiam. The ETC will attempt to do another interpolation,
@@ -700,4 +746,4 @@ class CoronagraphYIP(Coronagraph):
         # USED IN ETC VALIDATION
         # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
 
-        #self.noisefloor = self.noisefloor_factor * self.Istar * DIMENSIONLESS
+        # self.noisefloor = self.noisefloor_factor * self.Istar * DIMENSIONLESS
