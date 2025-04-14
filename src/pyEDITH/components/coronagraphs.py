@@ -429,7 +429,7 @@ class CoronagraphYIP(Coronagraph):
             )
         elif parameters["observing_mode"] == "IFS":
             instrument_params = parse_input.interpolate_over_bandpass(
-                instrument_params, mediator.get_observation_parameter("lambd")
+                instrument_params, mediator.get_observation_parameter("wavelength")
             )
         else:
             raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
@@ -571,11 +571,11 @@ class CoronagraphYIP(Coronagraph):
         tele_diam = telescope_params["diam_circ"] * LENGTH
 
         angdiam_lod = arcsec_to_lambda_d(
-            angdiam_arcsec, lam, tele_diam
-        )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
+            angdiam_arcsec, 0.55*WAVELENGTH, tele_diam
+        )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Right now, assumes 0.55 um. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
         self.DEFAULT_CONFIG["Istar"] = (
-            yippy_obj.stellar_intens(angdiam_lod.value * lod)[0, :, :] * DIMENSIONLESS
+            yippy_obj.stellar_intens(angdiam_lod.value * lod)[:, :] * DIMENSIONLESS
         )
         
         # calculate noisefloor
