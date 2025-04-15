@@ -1441,10 +1441,10 @@ def calculate_exposure_time_or_snr(
                             int(np.floor(iy)), int(np.floor(ix))
                         ]
                         * (1 / observatory.coronagraph.pixscale) ** 2,
-                        "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": 0.025
-                        * observatory.coronagraph.TLyot
-                        * observatory.coronagraph.contrast
-                        * (1 / observatory.coronagraph.pixscale) ** 2,
+                        # "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": 0.025
+                        # * observatory.coronagraph.TLyot
+                        # * observatory.coronagraph.contrast
+                        # * (1 / observatory.coronagraph.pixscale) ** 2,
                         "skytrans": observatory.coronagraph.skytrans[
                             int(np.floor(iy)), int(np.floor(ix))
                         ],
