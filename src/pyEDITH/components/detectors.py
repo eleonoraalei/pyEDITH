@@ -321,9 +321,12 @@ class EACDetector(Detector):
         # Calculate default detector pixel scale based on telescope
         self.DEFAULT_CONFIG["pixscale_mas"] = (
             0.5
-            * (0.5e-6 * LENGTH / mediator.get_telescope_parameter("diameter"))
-            * (180.0 / np.double(np.pi) * 60.0 * 60.0 * 1000.0)
-        ) * MAS
+            * lambda_d_to_arcsec(
+                1 * LAMBDA_D,
+                0.5e-6 * LENGTH,
+                mediator.get_telescope_parameter("diameter").to(LENGTH),
+            )
+        ).to(MAS)
 
         # fill in tread and CIC to match the length of the wavelength array
         self.DEFAULT_CONFIG["tread"] = (

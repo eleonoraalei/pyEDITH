@@ -18,6 +18,7 @@ photap_rad = 0.85       ; photometric aperture radius used for plots and some ba
 wavelength = [0.5,0.55]              ;   wavelength (micron)
 snr = [7.0,7.0]                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 CRb_multiplier  = 2.          ; factor to multiply to remove background
+psf_trunc_ratio = 0.35      ; truncation ratio of the PSF 
 
 ;--- STAR PARAMETERS ---
 Lstar = 0.86              ;   luminosity of star (solar luminosities)
@@ -31,7 +32,6 @@ dec = 02.5151668316500      ;   declination of target star used to estimate zodi
 
 ;--- PLANET PARAMETERS ---
 separation = 0.0628       ;   separation of planet (arcsec)
-delta_mag = 25.5          ;   difference in mag between planet and host star 
 Fp/Fs =  [6.3e-8,6.4e-8]                 ; planet flux at lambda in ph/s/cm^2/nm 
 Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
 

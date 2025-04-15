@@ -464,37 +464,37 @@ class AstrophysicalScene:
 
     Attributes
     ----------
-    Lstar : ndarray
+    Lstar : float
         Luminosity of stars in solar luminosities
-    dist : ndarray
+    dist : float
         Distance to stars in parsecs
-    vmag : ndarray
+    vmag : float
         Stellar magnitudes at V band
     mag : ndarray
         Stellar magnitudes at desired wavelengths
-    angular_diameter_arcsec : ndarray
+    angular_diameter_arcsec : float
         Angular diameter of stars in arcseconds
-    nzodis : ndarray
+    nzodis : float
         Amount of exozodi around target stars in "zodis"
-    ra : ndarray
+    ra : float
         Right ascension of target stars in degrees
-    dec : ndarray
+    dec : float
         Declination of target stars in degrees
-    separation : ndarray
+    separation : float
         Separation of planets in arcseconds
-    xp : ndarray
+    xp : float
         X-coordinate of planets in arcseconds
-    yp : ndarray
+    yp : float
         Y-coordinate of planets in arcseconds
     deltamag : ndarray
         Magnitude difference between planets and host stars
-    min_deltamag : ndarray
+    min_deltamag : float
         Brightest planet to resolve at the IWA
     F0V : float
         Flux zero point for V band
     F0 : ndarray
         Flux zero points for prescribed wavelengths
-    M_V : ndarray
+    M_V : float
         Absolute V band magnitudes of target stars
     Fzodi_list : ndarray
         Zodiacal light fluxes
@@ -581,20 +581,16 @@ class AstrophysicalScene:
             # stellar mag (not absolute mag!!) at V band # used to be (ntargs array) now scalar
             self.vmag = parameters["magV"] * MAGNITUDE
 
-            # stellar mag at desired lambd # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
+            # stellar mag at desired lambd # used to be (ntargs array) now scalar
             self.mag = parameters["mag"] * MAGNITUDE
 
             # difference in mag between planet and host star
             # (nmeananom x norbits x ntargs array)
-            self.deltamag = (
-                parameters["delta_mag"] * MAGNITUDE
-            )  # TODO maybe this will become [nlambda] for IFS?
+            self.deltamag = parameters["delta_mag"] * MAGNITUDE
 
             # brightest planet to resolve w/ photon counting detector evaluated at
             # the IWA, sets the time between counts (ntargs array)
-            self.min_deltamag = (
-                parameters["delta_mag_min"] * MAGNITUDE
-            )  # TODO maybe this will become [nlambda] for IFS?
+            self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
 
             # Convert magnitudes to RELATIVE fluxes (modulo F0)
             self.Fstar = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
