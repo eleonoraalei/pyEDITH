@@ -464,8 +464,6 @@ class AstrophysicalScene:
 
     Attributes
     ----------
-    ntargs : int
-        Number of target stars
     Lstar : ndarray
         Luminosity of stars in solar luminosities
     dist : ndarray
@@ -553,8 +551,6 @@ class AstrophysicalScene:
         """
 
         # -------- INPUTS ---------
-        # Target star parameters
-        self.ntargs = 1
 
         # luminosity of star (solar luminosities) # used to be (ntargs array) now scalar
         self.Lstar = parameters["Lstar"] * LUMINOSITY
@@ -725,7 +721,6 @@ class AstrophysicalScene:
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "ntargs": int,
             "Lstar": LUMINOSITY,
             "dist": DISTANCE,
             # "vmag": MAGNITUDE,

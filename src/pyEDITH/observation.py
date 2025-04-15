@@ -31,17 +31,6 @@ class Observation:
         Signal-to-noise ratio for each target and wavelength.
     td_limit : float
         Limit placed on exposure times.
-    nooptimize : int
-        Flag to disable exposure time optimization.
-    optimize_phase : int
-        Flag to optimize the phase of the planet (not functional in this code).
-    ntot : int
-        Total number of something (purpose not specified).
-    nmeananom : int
-        Number of mean anomalies.
-    norbits : int
-        Number of orbits.
-
 
     """
 
@@ -51,19 +40,6 @@ class Observation:
         """
         # Misc parameters that probably don't need to be changed
         self.td_limit = 1e20 * TIME  # limit placed on exposure times # scalar
-        self.nooptimize = (
-            0  # do not attempt to optimize exposure times for this code # scalar
-        )
-        self.optimize_phase = (
-            0  # optimize the phase of the planet (does not work in this code) # scalar
-        )
-
-        # Some things specific to this code
-        # self.ntargs = 1 #specified in the reading of the input
-        # self.nlambd = 1 #specified in the reading of the input
-        self.ntot = 1
-        self.nmeananom = 1
-        self.norbits = 1
 
     def load_configuration(self, parameters: dict) -> None:
         """
