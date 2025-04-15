@@ -38,4 +38,4 @@ observatory_preset = EAC1
 observing_mode =  IFS
 
 ;--- IFS MODE ONLY: PATH TO SPECTRA --- 
-spectrum_file = 'inputs/spectrum.txt' ; must have the following format: wavelength (micron); stellar flux (ph/s/cm^2/nm); planet/star flux ratio (dimensionless)
+spectrum_file = 'inputs/spectrum.txt' ; must have the following format (comma-separated): wavelength (micron), stellar flux (ph/s/cm^2/nm), planet/star flux ratio (dimensionless)

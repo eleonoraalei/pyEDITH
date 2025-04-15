@@ -4,7 +4,6 @@ import sys
 # Basic units
 LENGTH = u.m
 TIME = u.s
-MASS = u.kg
 TEMPERATURE = u.K
 ANGLE = u.rad
 WAVELENGTH = u.um

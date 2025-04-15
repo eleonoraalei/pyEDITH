@@ -468,6 +468,7 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # Get PSF Truncation ratio from Observation
+        # TODO implement photap_rad option too
         # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
         self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
             [mediator.get_observation_parameter("psf_trunc_ratio")]

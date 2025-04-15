@@ -956,13 +956,18 @@ def calculate_exposure_time_or_snr(
             oneopixscale_arcsec,
         )
 
-        #  Calculate det_npix
-        det_npix = (
-            observatory.detector.npix_multiplier[ilambd]
-            * det_omega_lod
-            / (detpixscale_lod**2)
-            * observatory.coronagraph.nchannels
-        ) * PIXEL  # number of pixels in detector
+        if ETC_validation:
+            print("Fixing det_npix for validation...")
+
+            det_npix = observatory.detector.det_npix_input * PIXEL
+        else:
+            #  Calculate det_npix
+            det_npix = (
+                observatory.detector.npix_multiplier[ilambd]
+                * det_omega_lod
+                / (detpixscale_lod**2)
+                * observatory.coronagraph.nchannels
+            ) * PIXEL  # number of pixels in detector
 
         # Here we calculate detector noise, as it may depend on count rates
         # We don't know the count rates yet, so we make estimates based on

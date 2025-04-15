@@ -65,9 +65,23 @@ class Observation:
 
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
 
-        self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
+        if "photap_rad" in parameters:
+            self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
+        elif "psf_trunc_ratio" in parameters:
+            self.psf_trunc_ratio = (
+                parameters["psf_trunc_ratio"] * DIMENSIONLESS
+            )  # scalar
+        else:
+            raise ValueError(
+                "Either 'photap_rad' or 'psf_trunc_ratio' must be provided in the parameters."
+            )
 
-        self.psf_trunc_ratio = parameters["psf_trunc_ratio"] * DIMENSIONLESS  # scalar
+        # If both are provided, we'll use psf_trunc_ratio and ignore photap_rad
+        if "photap_rad" in parameters and "psf_trunc_ratio" in parameters:
+            print(
+                "Warning: Both 'photap_rad' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photap_rad'."
+            )
+            # TODO goes with coronagraph implementation of photap_rad function.
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
@@ -103,10 +117,18 @@ class Observation:
             "wavelength": WAVELENGTH,
             "nlambd": int,
             "SNR": DIMENSIONLESS,
-            "photap_rad": LAMBDA_D,
-            "psf_trunc_ratio": DIMENSIONLESS,
             "CRb_multiplier": float,
         }
+
+        # Either photap_rad or psf_trunc_ratio must be present
+        if hasattr(self, "photap_rad"):
+            expected_args["photap_rad"] = LAMBDA_D
+        elif hasattr(self, "psf_trunc_ratio"):
+            expected_args["psf_trunc_ratio"] = DIMENSIONLESS
+        else:
+            raise AttributeError(
+                "Observation must have either 'photap_rad' or 'psf_trunc_ratio' attribute"
+            )
 
         for arg, expected_type in expected_args.items():
             if not hasattr(self, arg):

@@ -234,6 +234,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "Fp/Fs",
         "delta_mag",  # used to be [nmeananom x norbits x ntargs]
         "F0",  # for validation purposes, the calculation of F0 is different in AYO
+        "det_npix_input",  # for validation purposes
     ]
 
     parsed_params.update(

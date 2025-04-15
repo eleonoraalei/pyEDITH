@@ -409,3 +409,8 @@ class EACDetector(Detector):
             self.t_photon_count_input = (
                 parameters["t_photon_count_input"] * SECOND / FRAME
             )
+
+        # USED ONLY TO VALIDATE ETCs
+        if "det_npix_input" in parameters.keys():
+
+            self.det_npix_input = parameters["det_npix_input"] * DIMENSIONLESS
