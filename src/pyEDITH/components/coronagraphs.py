@@ -144,8 +144,6 @@ class Coronagraph(ABC):
         Number of roll angles.
     nchannels : int
         Number of channels.
-    psf_trunc_ratio : np.ndarray
-        PSF truncation ratio.
     minimum_IWA : float
         Minimum Inner Working Angle (lambd/D)
     maximum_OWA : float
@@ -177,7 +175,6 @@ class Coronagraph(ABC):
             "npsfratios": int,
             "nrolls": int,
             "nchannels": int,
-            "psf_trunc_ratio": DIMENSIONLESS,
             "minimum_IWA": LAMBDA_D,
             "maximum_OWA": LAMBDA_D,
             "coronagraph_throughput": DIMENSIONLESS,
@@ -228,7 +225,6 @@ class ToyModelCoronagraph(Coronagraph):
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "nrolls": 1,  # number of rolls
         "nchannels": 2,  # number of channels
-        "psf_trunc_ratio": [0.3] * DIMENSIONLESS,  # nlambda array
         "coronagraph_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
         "coronagraph_spectral_resolution": 1
@@ -274,7 +270,7 @@ class ToyModelCoronagraph(Coronagraph):
                 setattr(self, key, default_value)
 
         # Convert to numpy array when appropriate
-        array_params = ["psf_trunc_ratio", "coronagraph_throughput"]
+        array_params = ["coronagraph_throughput"]
         for param in array_params:
             attr_value = getattr(self, param)
             if isinstance(attr_value, u.Quantity):
@@ -289,6 +285,9 @@ class ToyModelCoronagraph(Coronagraph):
             else:
                 # If it's not a Quantity, convert to numpy array without units
                 setattr(self, param, np.array(attr_value, dtype=np.float64))
+
+        # Get PSF Truncation ratio from Observation
+        self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
 
         # Derived parameters
         self.npsfratios = len(self.psf_trunc_ratio)
