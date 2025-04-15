@@ -102,6 +102,17 @@ class Coronagraph(ABC):
     This class defines the basic structure and methods common to all coronagraphs.
     Specific coronagraph models should inherit from this class and implement
     their own `generate_secondary_parameters` method.
+    Right now, there are two coronagraph sub-classes:
+    -> ToyModelCoronagraph
+        This is a simplistic coronagraph setup where the user can specify all
+        coronagraph parameters. Use this for testing coronagraph parameters
+        not defined by a Yield Input Package (files containing models of
+        realistic coronagraph responses).
+
+    -> CoronagraphYIP
+        This is a coronagraph setup that is defined by a Yield Input Package (YIP),
+        which contains models of realistic coronagraph responses. User this for
+        testing specific coronagraph cases. Requires a path to a YIP.
 
     Attributes:
     -----------
@@ -133,6 +144,8 @@ class Coronagraph(ABC):
         Number of roll angles.
     nchannels : int
         Number of channels.
+    psf_trunc_ratio : np.ndarray
+        PSF truncation ratio.
     minimum_IWA : float
         Minimum Inner Working Angle (lambd/D)
     maximum_OWA : float
@@ -164,6 +177,7 @@ class Coronagraph(ABC):
             "npsfratios": int,
             "nrolls": int,
             "nchannels": int,
+            "psf_trunc_ratio": DIMENSIONLESS,
             "minimum_IWA": LAMBDA_D,
             "maximum_OWA": LAMBDA_D,
             "coronagraph_throughput": DIMENSIONLESS,
@@ -214,6 +228,7 @@ class ToyModelCoronagraph(Coronagraph):
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "nrolls": 1,  # number of rolls
         "nchannels": 2,  # number of channels
+        "psf_trunc_ratio": [0.3] * DIMENSIONLESS,  # nlambda array
         "coronagraph_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
         "coronagraph_spectral_resolution": 1
@@ -259,7 +274,7 @@ class ToyModelCoronagraph(Coronagraph):
                 setattr(self, key, default_value)
 
         # Convert to numpy array when appropriate
-        array_params = ["coronagraph_throughput"]
+        array_params = ["psf_trunc_ratio", "coronagraph_throughput"]
         for param in array_params:
             attr_value = getattr(self, param)
             if isinstance(attr_value, u.Quantity):
@@ -275,11 +290,8 @@ class ToyModelCoronagraph(Coronagraph):
                 # If it's not a Quantity, convert to numpy array without units
                 setattr(self, param, np.array(attr_value, dtype=np.float64))
 
-        # Get PSF Truncation ratio from Observation
-        self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
-        self.npsfratios = 1
-
         # Derived parameters
+        self.npsfratios = len(self.psf_trunc_ratio)
         self.npix = int(2 * 60 / self.pixscale)  # TODO check units here
         self.xcenter = self.npix / 2.0 * PIXEL
         self.ycenter = self.npix / 2.0 * PIXEL
@@ -370,7 +382,7 @@ class CoronagraphYIP(Coronagraph):
         "pixscale": 0.25,  # lambd/D
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
-        "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
+        # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_contrast": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
         "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
@@ -379,8 +391,8 @@ class CoronagraphYIP(Coronagraph):
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
         "nchannels": 2,  # number of channels
-        "TLyot": 0.65
-        * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
+        # "TLyot": 0.65
+        # * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "az_avg": True,  # azimuthally average the contrast maps and noise floor if True
     }
 
@@ -497,9 +509,7 @@ class CoronagraphYIP(Coronagraph):
         temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
         temp_photap_frac = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
         resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05))
-        temppixomegalod = (
-            self.DEFAULT_CONFIG["pixscale"] / resolvingfactor
-        ) ** 2  # Create a 2D grid of offsets from the image coordinates (using r_arr)
+        temppixomegalod = (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor) ** 2
         resolvedPSFs = np.empty(
             (
                 noffsets,
@@ -551,49 +561,6 @@ class CoronagraphYIP(Coronagraph):
 
         self.DEFAULT_CONFIG["omega_lod"] = omega_lod * DIMENSIONLESS
         self.DEFAULT_CONFIG["photap_frac"] = photap_frac * DIMENSIONLESS
-
-        # BELOW IS ALL OLD STUFF
-        # self.DEFAULT_CONFIG["omega_lod"] = (
-        #     np.full(
-        #         (
-        #             self.DEFAULT_CONFIG["npix"],
-        #             self.DEFAULT_CONFIG["npix"],
-        #             self.DEFAULT_CONFIG["npsfratios"],
-        #         ),
-        #         float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
-        #     )
-        #     * DIMENSIONLESS
-        # )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
-
-        # self.DEFAULT_CONFIG["photap_frac"] = (
-        #     np.empty(
-        #         (
-        #             self.DEFAULT_CONFIG["npix"],
-        #             self.DEFAULT_CONFIG["npix"],
-        #             self.DEFAULT_CONFIG["npsfratios"],
-        #         )
-        #     )
-        #     * DIMENSIONLESS
-        # )
-
-        # # sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(
-        # #     aperture_radius_lod=self.DEFAULT_CONFIG["psf_trunc_ratio"],
-        # #     oversample=2,
-        # #     plot=False,
-        # # )  # changed from aperture_radius_lod=0.7
-        # sep_arr_lod, offax_tput_arr = yippy_obj.get_throughput_curve(
-        #     aperture_radius_lod=mediator.get_observation_parameter("photap_rad"),
-        #     oversample=2,
-        #     plot=False,
-        # )  # changed from aperture_radius_lod=0.7
-
-        # offax_tput_func = interp1d(sep_arr_lod, offax_tput_arr)
-        # for i in range(self.DEFAULT_CONFIG["npix"]):
-        #     for j in range(self.DEFAULT_CONFIG["npix"]):
-        #         # get the off axis throughput at each separation
-        #         self.DEFAULT_CONFIG["photap_frac"][i, j] = offax_tput_func(
-        #             self.DEFAULT_CONFIG["r"][i, j]
-        #         )
 
         angular_diameter_arcsec = mediator.get_scene_parameter(
             "angular_diameter_arcsec"
@@ -666,30 +633,6 @@ class CoronagraphYIP(Coronagraph):
             self.DEFAULT_CONFIG["Istar"] = tempIstar / ntheta
             self.DEFAULT_CONFIG["noisefloor"] = tempnoisefloor / ntheta
 
-        """ 
-        OLD VERSION
-        # NOTE: Yippy already interpolates for the correct angdiam. The ETC will attempt to do another interpolation,
-        # so here we create a larger matrix that contains all the same values so that it gives the same result.
-       
-        # On-axis intensity map with a stellar diameter
-        self.DEFAULT_CONFIG["Istar"] = (
-            np.zeros(
-                (
-                    self.DEFAULT_CONFIG["npix"],
-                    self.DEFAULT_CONFIG["npix"],
-                    len(self.DEFAULT_CONFIG["angdiams"]),
-                )
-            )
-            * DIMENSIONLESS
-        )  # TODO: should self.angdiam be an array??
-        # for i_diam, angdiam in enumerate(self.angdiam):
-        #     Istar = yippy_obj.stellar_intens(angdiam)
-        #     self.Istar[:,:,i_diam] = Istar
-
-        for z in range(len(self.DEFAULT_CONFIG["angdiams"])):
-            self.DEFAULT_CONFIG["Istar"][:, :, z] = Istar
-        """
-
         # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES ****
         # TODO for coronagraph, allow replacement only in terms of scaling factors?
         # NOTE what should be allowed to be replaced?
@@ -710,53 +653,3 @@ class CoronagraphYIP(Coronagraph):
             else:
                 # Use default value
                 setattr(self, key, default_value)
-
-        """ OLD VERSION
-        # TODO: calculate noisefloor. Corey is working on this functionality for yippy that we can implement later.
-        # by default, the noise floor is zero unless a second realization of stellar intensity is given in the YIP
-        # currently I do not have a YIP with a second Istar realization, so I cannot develop this part yet.
-        #
-        # WE KEEP IT AS IN THE TOYMODEL FOR NOW
-        self.DEFAULT_CONFIG["PSFpeak"] = (
-            0.025 * self.DEFAULT_CONFIG["TLyot"]
-        )  # this is an approximation based on PAPLC results
-
-        self.DEFAULT_CONFIG["noisefloor"] = (
-            self.DEFAULT_CONFIG["noisefloor_factor"] * self.DEFAULT_CONFIG["contrast"]
-        )  # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) # scalar
-        n_floor = np.full(
-            (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"]),
-            self.DEFAULT_CONFIG["noisefloor"] * self.DEFAULT_CONFIG["PSFpeak"],
-        )
-        self.DEFAULT_CONFIG["noisefloor"] = (
-            np.zeros(
-                (
-                    self.DEFAULT_CONFIG["npix"],
-                    self.DEFAULT_CONFIG["npix"],
-                    len(self.DEFAULT_CONFIG["angdiams"]),
-                )
-            )
-            * DIMENSIONLESS
-        )
-        for z in range(len(self.DEFAULT_CONFIG["angdiams"])):
-            self.DEFAULT_CONFIG["noisefloor"][:, :, z] = n_floor
-        """
-
-        # # AFTER READING INPUT FROM USER, CALCULATE NOISE FLOOR
-        # self.PSFpeak = (
-        #     0.025 * self.TLyot
-        # )  # this is an approximation based on PAPLC results
-
-        # # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
-        # self.noisefloor = (
-        #     np.full(
-        #         (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"]),
-        #         self.noisefloor_factor * self.contrast * self.PSFpeak,
-        #     )
-        #     * DIMENSIONLESS
-        # )
-
-        # USED IN ETC VALIDATION
-        # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
-
-        # self.noisefloor = self.noisefloor_factor * self.Istar * DIMENSIONLESS
