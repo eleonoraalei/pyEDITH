@@ -194,7 +194,7 @@ class Coronagraph(ABC):
             elif isinstance(expected_type, u.UnitBase):
                 if not isinstance(value, u.Quantity):
                     raise TypeError(f"Coronagraph attribute {arg} should be a Quantity")
-                if not value.unit.is_equivalent(expected_type):
+                if not value.unit == expected_type:
                     raise ValueError(
                         f"Coronagraph attribute {arg} has incorrect units. Expected {expected_type}, got {value.unit}"
                     )

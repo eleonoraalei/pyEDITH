@@ -108,9 +108,7 @@ def calc_flux_zero_point(
 
     # Convert to per wavelength if requested
     if perlambd:
-        if output_unit == "jy":
-            f0 = f0.to(u.Jy / u.cm, equivalencies=u.spectral_density(lambd))
-        elif output_unit == "cgs":
+        if output_unit == "cgs":
             f0 = f0.to(u.erg / (u.s * u.cm**3), equivalencies=u.spectral_density(lambd))
         elif output_unit == "pcgs":
             f0 = f0.to(
@@ -175,23 +173,6 @@ def calc_exozodi_flux(
 
     M_V_sun = 4.83 * MAGNITUDE  # V band absolute magnitude of Sun
 
-    """
-    UNNECESSARY
-    # Calculate counts s^-1 cm^-2 arcsec^-2 nm^-1 @ V band
-    # The following formula maintains a constant optical depth regardless
-    # of stellar type
-    # NOTE: the older version of the code used the following expression
-    # flux_exozodi_Vband = F0V * (double(10.)^(-0.4*(M_V - M_V_sun))
-    #                                       / Lstar) * (nexozodis * vflux_1zodi)
-    # The above expression has a 1/Lstar in it, which corrects for the
-    # 1/r^2 factor based on the EEID.  In the new version of exposure_time_calculator.c,
-    # we explicitly divide by 1/r^2, so the new version of the
-    # eflux_exozodi_Vband expression does not divide by Lstar.
-
-    flux_exozodi_Vband = (
-        F0V * 10.0 ** (-0.4 * (M_V - M_V_sun).value) * (nexozodis * vflux_1zodi)
-    )  # vector of length nstars
-    """
     # Now, multiply by the ratio of the star's counts received at lambd to those
     # received at V band
     nlambd = len(lambd)
@@ -206,23 +187,6 @@ def calc_exozodi_flux(
             * 10.0 ** (-0.4 * (M_V - M_V_sun).value)
             * 10.0 ** (-0.4 * (lambdmag[ilambd] - vmag).value)
         )
-    """
-    I simplified the equation. It was originally this:
-
-    flux_exozodi_lambd = np.full(
-        (nlambd, nstars), flux_exozodi_Vband
-    )  # congrid([[flux_exozodi_Vband],[flux_exozodi_Vband]],nstars,nlambd)
-
-    for ilambd in np.arange(nlambd):
-        flux_exozodi_lambd[ilambd, :] *= (
-            F0lambd[ilambd] * np.double(10.0) ** (-0.4 * lambdmag[ilambd, :])
-        ) / (F0V * np.double(10.0) ** (-0.4 * vmag))
-    )
-
-    # Now, because we return just the quantity 10.^(-0.4*magOmega_EZ), we remove the F0
-    for ilambd in np.arange(nlambd):
-        flux_exozodi_lambd[ilambd, :] /= F0lambd[ilambd]
-    """
 
     return (
         flux_exozodi_lambd * INV_SQUARE_ARCSEC
@@ -234,8 +198,8 @@ def calc_zodi_flux(
     ra: u.Quantity,
     lambd: u.Quantity,
     F0: u.Quantity,
-    starshade: bool = False,
-    ss_elongation: u.Quantity = None,
+    # starshade: bool = False,
+    # ss_elongation: u.Quantity = None,
 ) -> u.Quantity:
     """
 
@@ -255,10 +219,10 @@ def calc_zodi_flux(
         Wavelengths in microns (vector of length nlambd).
     F0 : Quantity
         Flux zero points at wavelengths lambd (vector of length nlambd).
-    starshade : bool, optional
-        Flag to enable starshade mode (default is False).
-    ss_elongation : Quantity, optional
-        Mean solar elongation for the starshade's observations in degrees (required if starshade=True).
+    # starshade : bool, optional
+    #     Flag to enable starshade mode (default is False).
+    # ss_elongation : Quantity, optional
+    #     Mean solar elongation for the starshade's observations in degrees (required if starshade=True).
 
     Returns:
     --------
@@ -286,14 +250,14 @@ def calc_zodi_flux(
     Astronomy and Astrophysics Supplement Series, 127(1), 1-99.
     """
 
-    if starshade and ss_elongation is None:
-        raise ValueError(
-            "ERROR. You have set the STARSHADE flag. Must specify SS_ELONGATION in degrees."
-        )
-    if not starshade and ss_elongation is not None:
-        raise ValueError(
-            "ERROR. You must enable STARSHADE mode if you are setting SS_ELONGATION in degrees."
-        )
+    # if starshade and ss_elongation is None:
+    #     raise ValueError(
+    #         "ERROR. You have set the STARSHADE flag. Must specify SS_ELONGATION in degrees."
+    #     )
+    # if not starshade and ss_elongation is not None:
+    #     raise ValueError(
+    #         "ERROR. You must enable STARSHADE mode if you are setting SS_ELONGATION in degrees."
+    #     )
 
     # Convert equatorial coordinates to ecliptic coordinates
     coords = SkyCoord(ra=ra, dec=dec, frame="icrs")
@@ -756,7 +720,7 @@ class AstrophysicalScene:
                     raise TypeError(
                         f"AstrophysicalScene attribute {arg} should be a Quantity"
                     )
-                if not value.unit.is_equivalent(expected_type):
+                if not value.unit == (expected_type):
                     raise ValueError(
                         f"AstrophysicalScene attribute {arg} has incorrect units"
                     )

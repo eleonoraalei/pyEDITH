@@ -58,7 +58,7 @@ class Detector(ABC):
             value = getattr(self, arg)
             if not isinstance(value, u.Quantity):
                 raise TypeError(f"Detector attribute {arg} should be a Quantity")
-            if not value.unit.is_equivalent(expected_unit):
+            if not value.unit == expected_unit:
                 raise ValueError(
                     f"Detector attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
                 )
