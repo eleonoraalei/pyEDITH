@@ -62,6 +62,7 @@ def process_star(name):
 
 
 def prepare_input_params(df, hpic, hip_name, code):
+
     input = {
         "F0": np.array([df.loc[df["parameter"] == "F_0", code].iloc[0]]),
         "mag": np.array([df.loc[df["parameter"] == "m_lambda", code].iloc[0]]),
