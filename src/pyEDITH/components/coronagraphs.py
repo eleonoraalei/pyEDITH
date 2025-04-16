@@ -386,6 +386,8 @@ class CoronagraphYIP(Coronagraph):
         "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
+        "Tcore": 0.2968371
+        * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photap_rad method of calculating Omega)
         "coronagraph_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
@@ -478,15 +480,8 @@ class CoronagraphYIP(Coronagraph):
             * self.DEFAULT_CONFIG["pixscale"]
         )
 
-        # Get PSF Truncation ratio from Observation
-        # TODO implement photap_rad option too
-        # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
-        self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
-        )
-
-        self.DEFAULT_CONFIG["npsfratios"] = len(self.DEFAULT_CONFIG["psf_trunc_ratio"])
-
+        # instantiate omega_lod and photap_frac
+        self.DEFAULT_CONFIG["npsfratios"] = len([mediator.get_observation_parameter("psf_trunc_ratio")])
         omega_lod = np.zeros(
             (
                 self.DEFAULT_CONFIG["npix"],
@@ -502,59 +497,103 @@ class CoronagraphYIP(Coronagraph):
             )
         )
 
-        offsets = np.sqrt(yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2)
-        noffsets = len(offsets)
-        peakvals = np.zeros(noffsets)
-        temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
-        temp_photap_frac = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
-        resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05))
-        temppixomegalod = (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor) ** 2
-        resolvedPSFs = np.empty(
-            (
-                noffsets,
-                resolvingfactor * self.DEFAULT_CONFIG["npix"],
-                resolvingfactor * self.DEFAULT_CONFIG["npix"],
+        # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
+        if mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is None:
+            print("WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega.")
+            assert False
+        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is not None:
+            print("WARNING: Both psf_trunc_ratio and photap_rad are specified. Specify one or the other to calculate Omega.")
+            assert False
+        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is None:
+            print("Using psf_trunc_ratio to calculate Omega...")
+
+            # Use the PSF truncation ratio method of calculating Omega with the YIP files
+
+            # Get PSF Truncation ratio from Observation
+            self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
+            [mediator.get_observation_parameter("psf_trunc_ratio")]
+            )         # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
+
+            self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
+            [mediator.get_observation_parameter("psf_trunc_ratio")]
             )
-        )
-        for i in range(noffsets):
-            resolvedPSFs[i, :, :] = zoom(
-                yippy_obj.offax.reshaped_psfs[i, 0, :, :], resolvingfactor, order=3
+            offsets = np.sqrt(yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2)
+            noffsets = len(offsets)
+            peakvals = np.zeros(noffsets)
+            temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
+            temp_photap_frac = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
+            resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05))
+            temppixomegalod = (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor) ** 2
+            resolvedPSFs = np.empty(
+                (
+                    noffsets,
+                    resolvingfactor * self.DEFAULT_CONFIG["npix"],
+                    resolvingfactor * self.DEFAULT_CONFIG["npix"],
+                )
             )
+            for i in range(noffsets):
+                resolvedPSFs[i, :, :] = zoom(
+                    yippy_obj.offax.reshaped_psfs[i, 0, :, :], resolvingfactor, order=3
+                )
 
-        resolvedPSFs = np.maximum(resolvedPSFs, 0)
+            resolvedPSFs = np.maximum(resolvedPSFs, 0)
 
-        for i in range(noffsets):
-            tempPSF = yippy_obj.offax.reshaped_psfs[i, 0, :, :]
+            for i in range(noffsets):
+                tempPSF = yippy_obj.offax.reshaped_psfs[i, 0, :, :]
 
-            norm = np.sum(tempPSF)
-            peakvals[i] = np.max(tempPSF)
-            tempPSF_res = resolvedPSFs[i, :, :]
+                norm = np.sum(tempPSF)
+                peakvals[i] = np.max(tempPSF)
+                tempPSF_res = resolvedPSFs[i, :, :]
 
-            norm2 = np.sum(tempPSF_res)
-            if norm2 != 0:
-                tempPSF_res *= norm / norm2
-            maxtempPSF = np.max(tempPSF_res)
+                norm2 = np.sum(tempPSF_res)
+                if norm2 != 0:
+                    tempPSF_res *= norm / norm2
+                maxtempPSF = np.max(tempPSF_res)
+                for j in range(self.DEFAULT_CONFIG["npsfratios"]):
+                    thresh = self.DEFAULT_CONFIG["psf_trunc_ratio"][j] * maxtempPSF
+                    k_idx = np.where(tempPSF_res > thresh)
+                    if len(k_idx[0]) == 0:
+                        k_idx = np.where(tempPSF_res == maxtempPSF)
+                    temp_omega_lod[i, j] = len(k_idx[0]) * temppixomegalod
+                    temp_photap_frac[i, j] = np.sum(tempPSF_res[k_idx])
+
+            # interpolate
+            f_peak = interp1d(offsets, peakvals, bounds_error=False, fill_value=np.nan)
+            PSFpeaks = f_peak(self.DEFAULT_CONFIG["r"])
+
             for j in range(self.DEFAULT_CONFIG["npsfratios"]):
-                thresh = self.DEFAULT_CONFIG["psf_trunc_ratio"][j] * maxtempPSF
-                k_idx = np.where(tempPSF_res > thresh)
-                if len(k_idx[0]) == 0:
-                    k_idx = np.where(tempPSF_res == maxtempPSF)
-                temp_omega_lod[i, j] = len(k_idx[0]) * temppixomegalod
-                temp_photap_frac[i, j] = np.sum(tempPSF_res[k_idx])
+                omega_lod[:, :, j] = np.interp(
+                    self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_omega_lod[:, j]
+                ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
+                photap_frac[:, :, j] = np.interp(
+                    self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
+                ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
 
-        # interpolate
-        f_peak = interp1d(offsets, peakvals, bounds_error=False, fill_value=np.nan)
-        PSFpeaks = f_peak(self.DEFAULT_CONFIG["r"])
+        elif mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is not None:
+            print("Using photap_rad to calculate Omega...")
 
-        for j in range(self.DEFAULT_CONFIG["npsfratios"]):
-            omega_lod[:, :, j] = np.interp(
-                self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_omega_lod[:, j]
-            ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
-            photap_frac[:, :, j] = np.interp(
-                self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
-            ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
+            # Use the photap_rad method of calculating Omega.
+            # this method also requires you to set Tcore (does not use the YIP to calculate this)
 
-        PSFpeaks = np.maximum(PSFpeaks, 0)
+            # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
+
+            omega_lod = (
+            np.full(
+                (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
+                float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
+            )
+            * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+            )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
+
+            photap_frac = (
+            np.full((self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1), self.DEFAULT_CONFIG["Tcore"])
+            * self.DEFAULT_CONFIG["Tcore"].unit
+            )  # core throughput at all separations (npix,npix,len(psftruncratio))
+        
+            photap_frac[self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]] = 0.0  # index 0 is the
+            photap_frac[self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]] = 0.0
+
+
         omega_lod = np.maximum(omega_lod, 0)
         photap_frac = np.maximum(photap_frac, 0)
 

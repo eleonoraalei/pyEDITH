@@ -708,7 +708,7 @@ def calculate_CRnf(
 
 
 def measure_coronagraph_performance_at_IWA(
-    psf_trunc_ratio: u.Quantity,
+    #psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photap_rad for omega calculation. This is not used anyway in this function.
     photap_frac: u.Quantity,
     Istar_interp: u.Quantity,
     skytrans: u.Quantity,
@@ -762,9 +762,11 @@ def measure_coronagraph_performance_at_IWA(
     """
 
     # Find psf_trunc_ratio closest to 0.3
-    bestiratio = np.argmin(
-        np.abs(psf_trunc_ratio - 0.3)
-    )  # NOT USED, in EDITH only one psf_trunc_ratio
+    # Commenting this out for now since this is not used. 
+    # bestiratio = np.argmin(
+    #     np.abs(psf_trunc_ratio - 0.3)
+    # )  # NOT USED, in EDITH only one psf_trunc_ratio
+    bestiratio = 0 # len = 1 array, so only one index to choose
 
     # Find maximum photap_frac in first half of image
     maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter.value), bestiratio])
@@ -945,7 +947,7 @@ def calculate_exposure_time_or_snr(
             det_photap_frac,
             det_omega_lod,
         ) = measure_coronagraph_performance_at_IWA(
-            observation.psf_trunc_ratio,
+            #observation.psf_trunc_ratio, # this is no longer used in the function
             observatory.coronagraph.photap_frac,
             observatory.coronagraph.Istar,
             observatory.coronagraph.skytrans,

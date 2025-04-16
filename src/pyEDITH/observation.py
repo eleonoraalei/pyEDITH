@@ -64,23 +64,22 @@ class Observation:
         )  # wavelength # nlambd array #unit: micron
 
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
-
-        if "photap_rad" in parameters:
+        if "photap_rad" in parameters and parameters["photap_rad"] is not None:
             self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
-        elif "psf_trunc_ratio" in parameters:
+        if "psf_trunc_ratio" in parameters and parameters["psf_trunc_ratio"] is not None:
             self.psf_trunc_ratio = (
                 parameters["psf_trunc_ratio"] * DIMENSIONLESS
             )  # scalar
-        else:
+        if "photap_rad" not in parameters and "psf_trunc_ratio" not in parameters:
             raise ValueError(
                 "Either 'photap_rad' or 'psf_trunc_ratio' must be provided in the parameters."
             )
-
         # If both are provided, we'll use psf_trunc_ratio and ignore photap_rad
-        if "photap_rad" in parameters and "psf_trunc_ratio" in parameters:
+        if "photap_rad" in parameters and "psf_trunc_ratio" in parameters and parameters["photap_rad"] is not None and parameters["psf_trunc_ratio"] is not None:
             print(
                 "Warning: Both 'photap_rad' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photap_rad'."
             )
+            self.photap_rad = None # ignore photap_rad by setting to None
             # TODO goes with coronagraph implementation of photap_rad function.
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
@@ -121,15 +120,14 @@ class Observation:
         }
 
         # Either photap_rad or psf_trunc_ratio must be present
-        if hasattr(self, "photap_rad"):
+        if hasattr(self, "photap_rad") and getattr(self, "photap_rad") is not None:
             expected_args["photap_rad"] = LAMBDA_D
-        elif hasattr(self, "psf_trunc_ratio"):
+        elif hasattr(self, "psf_trunc_ratio") and getattr(self, "psf_trunc_ratio") is not None:
             expected_args["psf_trunc_ratio"] = DIMENSIONLESS
         else:
             raise AttributeError(
                 "Observation must have either 'photap_rad' or 'psf_trunc_ratio' attribute"
             )
-
         for arg, expected_type in expected_args.items():
             if not hasattr(self, arg):
                 raise AttributeError(f"Observation is missing attribute: {arg}")
