@@ -65,14 +65,15 @@ class Observation:
 
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
 
-        if "photap_rad" in parameters:
-            self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
-        elif "psf_trunc_ratio" in parameters:
+        if "psf_trunc_ratio" in parameters:
             self.psf_trunc_ratio = (
                 parameters["psf_trunc_ratio"] * DIMENSIONLESS
             )  # scalar
+        elif "photap_rad" in parameters:
+            self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
+
         else:
-            raise ValueError(
+            raise KeyError(
                 "Either 'photap_rad' or 'psf_trunc_ratio' must be provided in the parameters."
             )
 
@@ -144,7 +145,7 @@ class Observation:
             elif expected_type in ALL_UNITS:
                 if not isinstance(value, u.Quantity):
                     raise TypeError(f"Observation attribute {arg} should be a Quantity")
-                if not value.unit.is_equivalent(expected_type):
+                if not value.unit == expected_type:
                     raise ValueError(f"Observation attribute {arg} has incorrect units")
             else:
                 raise ValueError(f"Unexpected type specification for {arg}")
