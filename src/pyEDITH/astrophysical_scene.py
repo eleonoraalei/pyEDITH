@@ -563,12 +563,30 @@ class AstrophysicalScene:
 
         elif all(
             param in parameters
-            for param in ["Fstar_10pc", "FstarV_10pc", "Fp/Fs", "Fp_min/Fs"]
+            for param in ["Fstar_10pc", "Fp/Fs", "Fp_min/Fs"]
         ):
 
             # Load fluxes
             Fstar_10pc = parameters["Fstar_10pc"] * PHOTON_FLUX_DENSITY
-            Fstar_V_10pc = parameters["FstarV_10pc"] * PHOTON_FLUX_DENSITY
+
+            if "FstarV_10pc" not in parameters and parameters["observing_mode"] == "IFS":
+                print("WARNING: `FstarV_10pc` not specified in parameters. Calculating internally using synphot...")
+                from synphot import SourceSpectrum, SpectralElement, Observation
+                from synphot.models import Empirical1D
+                # if given a spectrum, calculate the v-band flux using synphot
+                tempSpec = SourceSpectrum(Empirical1D, points=parameters["wavelength"] * WAVELENGTH, lookup_table=Fstar_10pc)
+                johnson_v = SpectralElement.from_filter('johnson_v')
+                obsTemp = Observation(tempSpec, johnson_v)
+                
+                # unit conversion is necessary because V-band flux is in units of [photons/s/cm^2], 
+                # and not PHOTON_FLUX_DENSITY since an integration over wavelength was performed. 
+                # Doing this to make the units line up.
+                Fstar_V_10pc = obsTemp.integrate(flux_unit=PHOTON_FLUX_DENSITY).value * PHOTON_FLUX_DENSITY 
+                
+            elif "FstarV_10pc" not in parameters and parameters["observing_mode"] == "IMAGING":
+                raise ValueError("FstarV_10pc missing in parameters.")
+            else:
+                Fstar_V_10pc = parameters["FstarV_10pc"] * PHOTON_FLUX_DENSITY
 
             Fstar_absolute = Fstar_10pc * (10 * DISTANCE / self.dist) ** 2
 
