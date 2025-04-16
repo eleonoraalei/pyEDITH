@@ -204,7 +204,7 @@ class EACTelescope(Telescope):
         elif parameters["observing_mode"] == "IFS":
             # interpolate telescope throughput onto native wavelength grid
             telescope_params = parse_input.interpolate_over_bandpass(
-                telescope_params, mediator.get_coronagraph_parameter("bandwidth")
+                telescope_params, mediator.get_observation_parameter("wavelength")
             )
         else:
             raise ValueError(

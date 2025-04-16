@@ -65,11 +65,11 @@ class Observation:
 
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
 
-        if "psf_trunc_ratio" in parameters:
+        if "psf_trunc_ratio" in parameters.keys():
             self.psf_trunc_ratio = (
                 parameters["psf_trunc_ratio"] * DIMENSIONLESS
             )  # scalar
-        elif "photap_rad" in parameters:
+        elif "photap_rad" in parameters.keys():
             self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
 
         else:

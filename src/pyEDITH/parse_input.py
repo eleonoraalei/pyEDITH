@@ -126,7 +126,10 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
                 "Required parameters 'wavelength', 'Fstar_10pc', and 'Fp/Fs' are not provided. Please write them explicitly or provide a spectrum_file path."
             )
 
-    if variables.get("observing_mode") == "IMAGER" and len(variables["wavelength"]) > 1:
+    if (
+        variables.get("observing_mode") == "IMAGER"
+        and len([variables["wavelength"]]) > 1
+    ):
         raise KeyError(
             "In IMAGER mode you can only use one wavelength at a time. If you are simulating photometry, please run every single wavelength separately. If you want to model a spectrum, please use IFS mode."
         )

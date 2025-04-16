@@ -439,7 +439,7 @@ class CoronagraphYIP(Coronagraph):
                 mediator.get_observation_parameter("wavelength")
                 * (1 + 0.5 * self.bandwidth),
             ]
-
+            print(instrument_params)
             instrument_params = parse_input.average_over_bandpass(
                 instrument_params, wavelength_range
             )
@@ -481,7 +481,9 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # instantiate omega_lod and photap_frac
-        self.DEFAULT_CONFIG["npsfratios"] = len([mediator.get_observation_parameter("psf_trunc_ratio")])
+        self.DEFAULT_CONFIG["npsfratios"] = len(
+            [mediator.get_observation_parameter("psf_trunc_ratio")]
+        )
         omega_lod = np.zeros(
             (
                 self.DEFAULT_CONFIG["npix"],
@@ -498,26 +500,33 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
-        if mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is None:
-            print("WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega.")
-            assert False
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is not None:
-            print("WARNING: Both psf_trunc_ratio and photap_rad are specified. Specify one or the other to calculate Omega.")
-            assert False
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is None:
+        if (
+            mediator.get_observation_parameter("psf_trunc_ratio") is None
+            and mediator.get_observation_parameter("photap_rad") is None
+        ):
+            raise KeyError(
+                "WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega."
+            )
+        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None:
+            if mediator.get_observation_parameter("photap_rad") is not None:
+                print(
+                    "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+                )
             print("Using psf_trunc_ratio to calculate Omega...")
 
             # Use the PSF truncation ratio method of calculating Omega with the YIP files
 
             # Get PSF Truncation ratio from Observation
             self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
-            )         # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
+                [mediator.get_observation_parameter("psf_trunc_ratio")]
+            )  # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
 
             self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
+                [mediator.get_observation_parameter("psf_trunc_ratio")]
             )
-            offsets = np.sqrt(yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2)
+            offsets = np.sqrt(
+                yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2
+            )
             noffsets = len(offsets)
             peakvals = np.zeros(noffsets)
             temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
@@ -569,7 +578,10 @@ class CoronagraphYIP(Coronagraph):
                     self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
                 ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
 
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is not None:
+        elif (
+            mediator.get_observation_parameter("psf_trunc_ratio") is None
+            and mediator.get_observation_parameter("photap_rad") is not None
+        ):
             print("Using photap_rad to calculate Omega...")
 
             # Use the photap_rad method of calculating Omega.
@@ -578,21 +590,28 @@ class CoronagraphYIP(Coronagraph):
             # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
 
             omega_lod = (
-            np.full(
-                (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
-                float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
-            )
-            * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+                np.full(
+                    (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
+                    float(np.pi)
+                    * mediator.get_observation_parameter("photap_rad") ** 2,
+                )
+                * (mediator.get_observation_parameter("photap_rad").unit) ** 2
             )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
             photap_frac = (
-            np.full((self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1), self.DEFAULT_CONFIG["Tcore"])
-            * self.DEFAULT_CONFIG["Tcore"].unit
+                np.full(
+                    (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
+                    self.DEFAULT_CONFIG["Tcore"],
+                )
+                * self.DEFAULT_CONFIG["Tcore"].unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
-        
-            photap_frac[self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]] = 0.0  # index 0 is the
-            photap_frac[self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]] = 0.0
 
+            photap_frac[
+                self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]
+            ] = 0.0  # index 0 is the
+            photap_frac[
+                self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]
+            ] = 0.0
 
         omega_lod = np.maximum(omega_lod, 0)
         photap_frac = np.maximum(photap_frac, 0)

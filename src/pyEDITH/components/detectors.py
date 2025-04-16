@@ -209,6 +209,7 @@ class EACDetector(Detector):
         # ****** Update Default Config when necessary ******
 
         detector_params = load_detector(parameters["observing_mode"]).__dict__
+
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
                 mediator.get_observation_parameter("wavelength")
@@ -225,7 +226,7 @@ class EACDetector(Detector):
                 detector_params, mediator.get_observation_parameter("wavelength")
             )
         else:
-            raise ValueError(
+            raise KeyError(
                 f"Unsupported observing mode: {parameters['observing_mode']}"
             )
 
