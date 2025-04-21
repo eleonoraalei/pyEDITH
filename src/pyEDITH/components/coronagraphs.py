@@ -383,7 +383,7 @@ class CoronagraphYIP(Coronagraph):
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_contrast": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
+        "noisefloor_PPF": None,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
@@ -426,6 +426,12 @@ class CoronagraphYIP(Coronagraph):
             self,
             "bandwidth",
             parameters.get("bandwidth", self.DEFAULT_CONFIG["bandwidth"]),
+        )
+
+        setattr(
+            self,
+            "noisefloor_PPF",
+            parameters.get("noisefloor_PPF", self.DEFAULT_CONFIG["noisefloor_PPF"]),
         )
 
         # ***** Load the YAML using EACy *****

@@ -293,6 +293,9 @@ class EACDetector(Detector):
             ] = detector_params["qe_nir"][
                 mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
             ]
+            # if qe_arr contains NaNs, then likely the wavelength range is outside of the qe range.
+            # set the NaN values to zero
+            qe_arr = np.nan_to_num(qe_arr)
             # make sure qe_arr does not contain NaNs
             assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
         else:

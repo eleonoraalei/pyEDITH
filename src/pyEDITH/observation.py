@@ -29,6 +29,8 @@ class Observation:
         Exposure time for each target and wavelength.
     fullsnr : ndarray
         Signal-to-noise ratio for each target and wavelength.
+    snr_ez : ndarray
+        SNR on the exozodi; only used for when ez cannot be subtracted to Poisson limit
     td_limit : float
         Limit placed on exposure times.
 
@@ -103,6 +105,8 @@ class Observation:
             Exposure time for each target and wavelength.
         - fullsnr : ndarray
             Signal-to-noise ratio for each target and wavelength.
+        - snr_ez : ndarray
+            SNR on exozodi
         """
         # Initialize some arrays needed for outputs...
         self.tp = 0.0 * TIME  # exposure time of every planet
@@ -113,6 +117,9 @@ class Observation:
 
         # only used for snr calculation
         self.fullsnr = np.full((self.nlambd), 0.0) * DIMENSIONLESS
+
+        # only used for manual exozodi studies. Does not affect calculations on planet SNR.
+        self.snr_ez = np.full((self.nlambd), 0.0) * DIMENSIONLESS
 
     def validate_configuration(self):
         """
