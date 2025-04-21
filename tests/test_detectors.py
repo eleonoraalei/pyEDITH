@@ -9,8 +9,8 @@ from pyEDITH.units import (
     DARK_CURRENT,
     READ_NOISE,
     READ_TIME,
-    CIC,
-    QE,
+    CLOCK_INDUCED_CHARGE,
+    QUANTUM_EFFICIENCY,
     WAVELENGTH,
     LENGTH,
     ARCSEC,
@@ -194,8 +194,8 @@ def test_toy_model_detector_load_configuration():
     assert np.all(detector.DC == [4e-5] * DARK_CURRENT)
     assert np.all(detector.RN == [1.0] * READ_NOISE)
     assert np.all(detector.tread == [1100] * READ_TIME)
-    assert np.all(detector.CIC == [1.5e-3] * CIC)
-    assert np.all(detector.QE == [0.9] * QE)  # Default
+    assert np.all(detector.CIC == [1.5e-3] * CLOCK_INDUCED_CHARGE)
+    assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)  # Default
     assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)  # Default
 
     # Test default values
@@ -227,8 +227,8 @@ def test_eac_detector_load_configuration(
         assert detector.DC.unit == DARK_CURRENT
         assert detector.RN.unit == READ_NOISE
         assert detector.tread.unit == READ_TIME
-        assert detector.CIC.unit == CIC
-        assert detector.QE.unit == QE
+        assert detector.CIC.unit == CLOCK_INDUCED_CHARGE
+        assert detector.QE.unit == QUANTUM_EFFICIENCY
         assert detector.dQE.unit == DIMENSIONLESS
 
         # Common assertions

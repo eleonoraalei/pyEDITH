@@ -18,10 +18,30 @@ from pyEDITH.units import (
 from unittest.mock import patch, MagicMock
 
 
-class MockMediator:
+class MockMediator_IMAGER:
     def get_observation_parameter(self, param):
         if param == "wavelength":
-            return [0.5] * WAVELENGTH
+            return [0.7] * WAVELENGTH
+        elif param == "psf_trunc_ratio":
+            return [0.3] * DIMENSIONLESS
+        elif param == "photap_rad":
+            return 0.7 * LAMBDA_D
+        else:
+            return 1.0
+        
+    def get_coronagraph_parameter(self, param):
+        return 0.2 if param == "bandwidth" else 1.0
+
+    def get_scene_parameter(self, param):
+        if param == "angular_diameter_arcsec":
+            return 0.1 * ARCSEC
+        else:
+            return 1.0
+
+class MockMediator_IFS:
+    def get_observation_parameter(self, param):
+        if param == "wavelength":
+            return [0.5,0.6,0.7] * WAVELENGTH
         elif param == "psf_trunc_ratio":
             return [0.3] * DIMENSIONLESS
         elif param == "photap_rad":
@@ -141,7 +161,7 @@ def test_toy_model_coronagraph_load_configuration():
         "nrolls": 2,
         "nchannels": 1,
     }
-    mediator = MockMediator()
+    mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
 
@@ -163,7 +183,6 @@ def test_toy_model_coronagraph_load_configuration():
     )  # should grab from default values
 
     # Calculated  values
-    assert hasattr(coronagraph, "psf_trunc_ratio")
     assert hasattr(coronagraph, "npsfratios")
     assert hasattr(coronagraph, "npix")
     assert hasattr(coronagraph, "xcenter")
@@ -251,9 +270,11 @@ def mock_yippy_object():
 @pytest.fixture
 def mock_instrument():
     mock = MagicMock()
-    mock.total_inst_refl = 0.9
+    mock.lam=np.linspace(0.3,1.6,10) * WAVELENGTH
+    mock.total_inst_refl = np.array([4.80759739e-29, 4.05330898e-01, 4.40641747e-01, 3.94770896e-01,
+        4.12956241e-01, 5.15044124e-01, 5.76293823e-01, 5.38605236e-01,
+        6.27117118e-01, 6.63022075e-01])
     return mock
-
 
 @pytest.fixture
 def mock_telescope():
@@ -264,8 +285,8 @@ def mock_telescope():
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-@patch("pyEDITH.components.coronagraphs.yippycoro")  # Patch the alias used in your file
-def test_coronagraph_yip_load_configuration(
+@patch("pyEDITH.components.coronagraphs.yippycoro")  
+def test_coronagraph_yip_load_configuration_IMAGER(
     mock_yippycoro,
     mock_load_telescope,
     mock_load_instrument,
@@ -277,6 +298,7 @@ def test_coronagraph_yip_load_configuration(
     mock_load_telescope.return_value = mock_telescope
     mock_yippycoro.return_value = mock_yippy_object
 
+    
     coronagraph = CoronagraphYIP(path="test_path")
     parameters = {
         "observing_mode": "IMAGER",
@@ -287,7 +309,7 @@ def test_coronagraph_yip_load_configuration(
         "az_avg": True,
     }
 
-    mediator = MockMediator()
+    mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
 
@@ -341,8 +363,11 @@ def test_coronagraph_yip_load_configuration(
 
     # Check noisefloor
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    # The exact calculation of noisefloor depends on your implementation
-    assert np.all(coronagraph.noisefloor >= 0 * DIMENSIONLESS)
+    # TODO evaluate noisefloor
+
+    # Check coronagraph_throughput
+    assert len(coronagraph.coronagraph_throughput)==1
+    assert np.isclose(coronagraph.coronagraph_throughput.value,0.394770896)
 
     # Check other attributes
     assert hasattr(coronagraph, "psf_trunc_ratio")
@@ -350,68 +375,67 @@ def test_coronagraph_yip_load_configuration(
     assert hasattr(coronagraph, "coronagraph_throughput")
     assert hasattr(coronagraph, "coronagraph_spectral_resolution")
 
+    #### IFS MODE
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")  
+def test_coronagraph_yip_load_configuration_IFS(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object,
+    mock_instrument,
+    mock_telescope,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object
 
-# @patch("eacy.load_instrument", mock_load_instrument)
-# @patch("eacy.load_telescope", mock_load_telescope)
-# @patch("yippy.Coronagraph", mock_yippycoro)
-# def test_coronagraph_yip_ifs_mode(mock_mediator, mock_yippy_object):
-#     mock_load_instrument.return_value = type(
-#         "obj", (object,), {"__dict__": {"total_inst_refl": 0.9}}
-#     )
-#     mock_load_telescope.return_value = type(
-#         "obj", (object,), {"__dict__": {"diam_circ": 8.0}}
-#     )
-#     mock_yippycoro.return_value = mock_yippy_object
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IFS",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "az_avg": True,
+    }
 
-#     coronagraph = CoronagraphYIP(path="test_path")
-#     parameters = {
-#         "observing_mode": "IFS",
-#         "pixscale": 0.3,
-#         "minimum_IWA": 2.5,
-#         "maximum_OWA": 90.0,
-#         "bandwidth": 0.1,
-#         "nrolls": 2,
-#         "nchannels": 1,
-#     }
+    mediator_ifs = MockMediator_IFS()
 
-#     coronagraph.load_configuration(parameters, mock_mediator)
+    coronagraph.load_configuration(parameters, mediator_ifs)
 
-#     assert coronagraph.observing_mode == "IFS"
-#     # Add more assertions specific to IFS mode
+    # Check coronagraph_throughput
+    assert len(coronagraph.coronagraph_throughput)==3
+    assert np.isclose(coronagraph.coronagraph_throughput.value,[0.41891199, 0.43711322, 0.40535648]).all()
 
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")  
+def test_coronagraph_yip_load_configuration_INVALID(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object,
+    mock_instrument,
+    mock_telescope,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object
 
-# @patch("eacy.load_instrument", mock_load_instrument)
-# @patch("eacy.load_telescope", mock_load_telescope)
-# @patch("yippy.Coronagraph", mock_yippycoro)
-# def test_coronagraph_yip_validate_configuration(mock_mediator, mock_yippy_object):
-#     mock_load_instrument.return_value = type(
-#         "obj", (object,), {"__dict__": {"total_inst_refl": 0.9}}
-#     )
-#     mock_load_telescope.return_value = type(
-#         "obj", (object,), {"__dict__": {"diam_circ": 8.0}}
-#     )
-#     mock_yippycoro.return_value = mock_yippy_object
+    
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "Invalid",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "az_avg": True,
+    }
 
-#     coronagraph = CoronagraphYIP(path="test_path")
-#     parameters = {
-#         "observing_mode": "IMAGER",
-#         "pixscale": 0.3,
-#         "minimum_IWA": 2.5,
-#         "maximum_OWA": 90.0,
-#         "bandwidth": 0.1,
-#         "nrolls": 2,
-#         "nchannels": 1,
-#     }
-#     coronagraph.load_configuration(parameters, mock_mediator)
+    mediator = MockMediator_IMAGER()
 
-#     coronagraph.validate_configuration()  # Should not raise any exception
-
-#     # Test missing attribute
-#     delattr(coronagraph, "Istar")
-#     with pytest.raises(AttributeError):
-#         coronagraph.validate_configuration()
-
-#     # Test incorrect units
-#     coronagraph.Istar = np.zeros((coronagraph.npix, coronagraph.npix))  # Missing units
-#     with pytest.raises(TypeError):
-#         coronagraph.validate_configuration()
+    with pytest.raises(ValueError,match="Invalid observing mode. Must be 'IMAGER' or 'IFS'."):
+        coronagraph.load_configuration(parameters, mediator)

@@ -3,7 +3,6 @@ from pathlib import Path
 import astropy.units as u
 import numpy as np
 from .units import *
-from scipy.interpolate import interp1d
 import pandas as pd
 import os
 
@@ -128,7 +127,7 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
 
     if (
         variables.get("observing_mode") == "IMAGER"
-        and len([variables["wavelength"]]) > 1
+        and isinstance(variables["wavelength"], list)
     ):
         raise KeyError(
             "In IMAGER mode you can only use one wavelength at a time. If you are simulating photometry, please run every single wavelength separately. If you want to model a spectrum, please use IFS mode."
@@ -389,33 +388,3 @@ def print_observatory_config(config: Union[str, Dict[str, str]]) -> None:
         print(f"  Detector:    {config['detector']}")
     print()  # Add a blank line for better readability
 
-
-def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
-    # take the average within the specified wavelength range
-    numpy_array_variables = {
-        key: value for key, value in params.items() if isinstance(value, np.ndarray)
-    }
-    for key, value in numpy_array_variables.items():
-        if key != "lam":
-            params[key] = np.mean(
-                params[key][
-                    (params["lam"].value >= wavelength_range[0].value)
-                    & (params["lam"].value <= wavelength_range[1].value)
-                ]
-            )
-    return params
-
-
-def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
-    # take the average within the specified wavelength range
-    numpy_array_variables = {
-        key: value for key, value in params.items() if isinstance(value, np.ndarray)
-    }
-    for key, value in numpy_array_variables.items():
-        if key != "lam":
-            interp_func = interp1d(params["lam"], params[key])
-            ynew = interp_func(
-                wavelengths
-            )  # interpolates the CG throughput values onto native wl grid
-            params[key] = ynew
-    return params

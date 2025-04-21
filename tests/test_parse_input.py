@@ -9,8 +9,6 @@ from pyEDITH.parse_input import (
     parse_parameters,
     read_configuration,
     get_observatory_config,
-    average_over_bandpass,
-    interpolate_over_bandpass,
 )
 from pyEDITH.units import WAVELENGTH, DIMENSIONLESS, LENGTH
 
@@ -21,7 +19,26 @@ def sample_input_file():
         tmp.write(
             """
         ; This is a comment
-        wavelength = [0.5, 0.6, 0.7]
+        wavelength = 0.5
+        Lstar = 1.0
+        distance = 10
+        magV = 5.0
+        nzodis = 3.0
+        observing_mode = 'IMAGER'
+        secondary_wavelength = 1.0
+        """
+        )
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+@pytest.fixture
+def sample_input_file_error():
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write(
+            """
+        ; This is a comment
+        wavelength = [0.5, 0.6]
         Lstar = 1.0
         distance = 10
         magV = 5.0
@@ -35,12 +52,12 @@ def sample_input_file():
     os.unlink(tmp.name)
 
 
-def test_parse_input_file(sample_input_file):
+def test_parse_input_file(sample_input_file,sample_input_file_error):
     variables, secondary_variables = parse_input_file(
         sample_input_file, secondary_flag=True
     )
 
-    assert variables["wavelength"] == [0.5, 0.6, 0.7]
+    assert variables["wavelength"] == 0.5
     assert variables["Lstar"] == 1.0
     assert variables["distance"] == 10
     assert variables["magV"] == 5.0
@@ -48,24 +65,30 @@ def test_parse_input_file(sample_input_file):
     assert variables["observing_mode"] == "IMAGER"
     assert secondary_variables["wavelength"] == 1.0
 
+    with pytest.raises(KeyError):
+        variables, secondary_variables = parse_input_file(
+        sample_input_file_error, secondary_flag=True
+    )
+
+
 
 def test_parse_parameters():
     parameters = {
-        "wavelength": [0.5, 0.6, 0.7],
+        "wavelength":  [0.5,0.6,0.7],
         "Lstar": 1.0,
         "distance": 10,
         "magV": 5.0,
         "nzodis": 3.0,
-        "observing_mode": "IMAGER",
+        "observing_mode": "IFS",
     }
     parsed = parse_parameters(parameters)
 
-    assert np.all(parsed["wavelength"] == [0.5, 0.6, 0.7] * WAVELENGTH)
+    assert np.all(parsed["wavelength"] == np.array([0.5,0.6,0.7] ))
     assert parsed["Lstar"] == 1.0
     assert parsed["distance"] == 10
     assert parsed["magV"] == 5.0
     assert parsed["nzodis"] == 3.0
-    assert parsed["observing_mode"] == "IMAGER"
+    assert parsed["observing_mode"] == "IFS"
     assert parsed["nlambda"] == 3
 
 
@@ -74,13 +97,13 @@ def test_read_configuration(sample_input_file):
         sample_input_file, secondary_flag=True
     )
 
-    assert np.all(parsed_parameters["wavelength"] == [0.5, 0.6, 0.7] * WAVELENGTH)
+    assert np.all(parsed_parameters["wavelength"] == np.array([0.5]))
     assert parsed_parameters["Lstar"] == 1.0
     assert parsed_parameters["distance"] == 10
     assert parsed_parameters["magV"] == 5.0
     assert parsed_parameters["nzodis"] == 3.0
     assert parsed_parameters["observing_mode"] == "IMAGER"
-    assert parsed_secondary_parameters["wavelength"] == 1.0 * WAVELENGTH
+    assert parsed_secondary_parameters["wavelength"] == np.array([1.0]) 
 
 
 def test_get_observatory_config():
@@ -100,27 +123,6 @@ def test_get_observatory_config():
         get_observatory_config({})
 
 
-def test_average_over_bandpass():
-    params = {
-        "lam": np.array([0.4, 0.5, 0.6, 0.7, 0.8]) * WAVELENGTH,
-        "value": np.array([1, 2, 3, 4, 5]) * DIMENSIONLESS,
-    }
-    wavelength_range = [0.45 * WAVELENGTH, 0.75 * WAVELENGTH]
-
-    result = average_over_bandpass(params, wavelength_range)
-    assert np.isclose(result["value"].value, 3)
-
-
-def test_interpolate_over_bandpass():
-    params = {
-        "lam": np.array([0.4, 0.5, 0.6, 0.7, 0.8]) * WAVELENGTH,
-        "value": np.array([1, 2, 3, 4, 5]) * DIMENSIONLESS,
-    }
-    wavelengths = [0.45, 0.55, 0.65, 0.75] * WAVELENGTH
-
-    result = interpolate_over_bandpass(params, wavelengths)
-    assert np.allclose(result["value"].value, [1.5, 2.5, 3.5, 4.5])
-
 
 def test_parse_parameters_IFS_mode():
     parameters = {
@@ -132,9 +134,9 @@ def test_parse_parameters_IFS_mode():
     parsed = parse_parameters(parameters)
 
     assert parsed["observing_mode"] == "IFS"
-    assert np.all(parsed["wavelength"] == [0.5, 0.6, 0.7] * WAVELENGTH)
-    assert np.all(parsed["Fstar_10pc"] == [1e-8, 1e-8, 1e-8] * PHOTON_FLUX_DENSITY)
-    assert np.all(parsed["Fp/Fs"] == [1e-10, 1e-10, 1e-10] * DIMENSIONLESS)
+    assert np.all(parsed["wavelength"] == np.array([0.5, 0.6, 0.7]))
+    assert np.all(parsed["Fstar_10pc"] == np.array([1e-8, 1e-8, 1e-8]))
+    assert np.all(parsed["Fp/Fs"] == np.array([1e-10, 1e-10, 1e-10]))
 
 
 def test_parse_parameters_IMAGER_mode():
@@ -145,10 +147,7 @@ def test_parse_parameters_IMAGER_mode():
     parsed = parse_parameters(parameters)
 
     assert parsed["observing_mode"] == "IMAGER"
-    assert np.all(parsed["wavelength"] == [0.5] * WAVELENGTH)
-
-    with pytest.raises(KeyError):
-        parse_parameters({"observing_mode": "IMAGER", "wavelength": [0.5, 0.6]})
+    assert np.all(parsed["wavelength"] == np.array([0.5]))
 
 
 if __name__ == "__main__":

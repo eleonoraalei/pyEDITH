@@ -122,7 +122,7 @@ class Observatory(ABC):  # abstract class
 
         # Observatory-related args
         expected_args = {
-            "total_throughput": QE,
+            "total_throughput": QUANTUM_EFFICIENCY,
             "optics_throughput": DIMENSIONLESS,
             "epswarmTrcold": DIMENSIONLESS,
         }

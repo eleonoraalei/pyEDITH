@@ -4,7 +4,7 @@ from astropy import units as u
 from unittest.mock import patch, MagicMock
 from pyEDITH.components.telescopes import ToyModelTelescope, EACTelescope
 from pyEDITH.units import LENGTH, TIME, DIMENSIONLESS, TEMPERATURE, WAVELENGTH
-from pyEDITH.parse_input import average_over_bandpass, interpolate_over_bandpass
+from pyEDITH.utils import average_over_bandpass, interpolate_over_bandpass
 from copy import deepcopy
 
 

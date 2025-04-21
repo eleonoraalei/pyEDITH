@@ -16,6 +16,11 @@ classifiers = [
 dependencies= [
   "numpy",
   "scipy",
+  "pytest",
+  "astropy",
+  "pandas",
+  "yippy",
+  "openpyxl"
 ]
 [project.urls]
 Homepage = "https://github.com/eleonoraalei/pyEDITH/"

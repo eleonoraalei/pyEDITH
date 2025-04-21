@@ -194,7 +194,6 @@ def calculate_CRbz(
         +++NOTE: Later added together into tempCRbfactor+++
         +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
-
     return (
         F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
     ).to(
@@ -275,7 +274,6 @@ def calculate_CRbez(
     # Calculate Fexozodi at the separation (scale the value of Fexozodi at 1 AU
     # to the separation in AU)
     scaling_factor = u.AU / arcsec_to_au(sp, dist)
-
     return (
         F0
         * (Fexozodi * scaling_factor**2)
@@ -343,7 +341,6 @@ def calculate_CRbbin(
         +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
 
     """
-
     return (F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels).to(
         u.electron / (u.s),
         equivalencies=u.equivalencies.dimensionless_angles(),
@@ -623,88 +620,11 @@ def calculate_CRnf(
     # CRnoisefloor = tempCRnffactor * omega_lod[index2];
 
     """
-
     return (
         SNR
         * (F0 * Fstar * area * throughput * dlambda * nchannels / (pixscale**2))
         * noisefloor
     )
-
-
-# def interpolate_arrays(
-#     Istar: u.Quantity,
-#     noisefloor: u.Quantity,
-#     npix: int,
-#     ndiams: int,
-#     stellar_diam_lod: u.Quantity,
-#     angdiams: u.Quantity,
-# ) -> Tuple[u.Quantity, u.Quantity]:
-#     """
-#     Interpolate Istar and noisefloor arrays based on stellar diameter.
-
-#     Parameters
-#     ----------
-#     Istar : u.Quantity
-#         3D array of star intensities. [dimensionless] dimensions: [npix, npix, ndiams]
-#     noisefloor :u.Quantity
-#         3D array of noise floor values. [dimensionless]  dimensions: [npix, npix, ndiams]
-#     npix : int
-#         Number of pixels in each dimension.
-#     ndiams : int
-#         Number of stellar diameters.
-#     stellar_diam_lod : u.Quantity
-#         Stellar diameter. [lambda/D]
-#     angdiams : u.Quantity
-#         Array of angular diameters. [lambda/D]
-
-#     Returns
-#     -------
-#     Tuple[u.Quantity, u.Quantity]
-#         Interpolated Istar and noisefloor arrays. [dimensionless]
-
-
-#     Notes
-#     -----
-#     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
-#     oneolod_arcsec = 1.0 / lod_arcsec
-#     stellar_diam_lod = angdiamstar_arcsec * oneolod_arcsec
-#     # Usage:
-#     # Assuming Istar and noisefloor are 3D NumPy arrays with shape
-#     # (npix, npix, ndiams)
-#     # and angdiams is a 1D NumPy array
-#     Istar_interp, noisefloor_interp = interpolate_arrays(Istar, noisefloor,
-#                         npix, ndiams, stellar_diam_lod, angdiams)
-
-#     """
-#     Istar_interp = np.zeros((npix, npix)) * DIMENSIONLESS
-#     noisefloor_interp = np.zeros((npix, npix)) * DIMENSIONLESS
-
-#     k = np.searchsorted(angdiams, stellar_diam_lod)
-
-#     if k < ndiams:
-#         # Interpolation
-#         weight = (stellar_diam_lod - angdiams[k - 1]) / (angdiams[k] - angdiams[k - 1])
-#         Istar_interp = (1 - weight) * Istar[:, :, k - 1] + weight * Istar[:, :, k]
-#         noisefloor_interp = (1 - weight) * noisefloor[
-#             :, :, k - 1
-#         ] + weight * noisefloor[:, :, k]
-#     else:
-#         # Extrapolation
-#         weight = (stellar_diam_lod - angdiams[k - 1]) / (
-#             angdiams[k - 1] - angdiams[k - 2]
-#         )
-#         Istar_interp = Istar[:, :, k - 1] + weight * (
-#             Istar[:, :, k - 1] - Istar[:, :, k - 2]
-#         )
-#         noisefloor_interp = noisefloor[:, :, k - 1] + weight * (
-#             noisefloor[:, :, k - 1] - noisefloor[:, :, k - 2]
-#         )
-
-#     # Ensure non-negative values
-#     Istar_interp = np.maximum(Istar_interp, 0)
-#     noisefloor_interp = np.maximum(noisefloor_interp, 0)
-
-#     return Istar_interp, noisefloor_interp
 
 
 def measure_coronagraph_performance_at_IWA(

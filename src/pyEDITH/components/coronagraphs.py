@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import parse_input
+from .. import utils
 from astropy import units as u
 from ..units import *
 from scipy.interpolate import interp1d
@@ -248,49 +248,19 @@ class ToyModelCoronagraph(Coronagraph):
         -------
         None
         """
-
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    # TODO Implement conversion of units from the input file
 
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
 
         # Convert to numpy array when appropriate
         array_params = ["coronagraph_throughput"]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
-
+        utils.convert_to_numpy_array(self, array_params)
+        
         # Get PSF Truncation ratio from Observation
-        self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
+        # self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
 
         # Derived parameters
-        self.npsfratios = len(self.psf_trunc_ratio)
+        self.npsfratios = 1
         self.npix = int(2 * 60 / self.pixscale)  # TODO check units here
         self.xcenter = self.npix / 2.0 * PIXEL
         self.ycenter = self.npix / 2.0 * PIXEL
@@ -439,12 +409,11 @@ class CoronagraphYIP(Coronagraph):
                 mediator.get_observation_parameter("wavelength")
                 * (1 + 0.5 * self.bandwidth),
             ]
-            print(instrument_params)
-            instrument_params = parse_input.average_over_bandpass(
+            instrument_params = utils.average_over_bandpass(
                 instrument_params, wavelength_range
             )
         elif parameters["observing_mode"] == "IFS":
-            instrument_params = parse_input.interpolate_over_bandpass(
+            instrument_params = utils.interpolate_over_bandpass(
                 instrument_params, mediator.get_observation_parameter("wavelength")
             )
         else:
@@ -694,19 +663,5 @@ class CoronagraphYIP(Coronagraph):
         # TODO for coronagraph, allow replacement only in terms of scaling factors?
         # NOTE what should be allowed to be replaced?
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
+
