@@ -31,7 +31,7 @@ class Telescope(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):
+    def load_configuration(self):  # pragma: no cover
         pass
 
     def validate_configuration(self):
@@ -49,16 +49,18 @@ class Telescope(ABC):
             "Tcontam": DIMENSIONLESS,
         }
 
-        for arg, expected_unit in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Telescope is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if not isinstance(value, u.Quantity):
-                raise TypeError(f"Telescope attribute {arg} should be a Quantity")
-            if not value.unit == expected_unit:
-                raise ValueError(
-                    f"Telescope attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
-                )
+        utils.validate_attributes(self, expected_args)
+
+        # for arg, expected_unit in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Telescope is missing attribute: {arg}")
+        #     value = getattr(self, arg)
+        #     if not isinstance(value, u.Quantity):
+        #         raise TypeError(f"Telescope attribute {arg} should be a Quantity")
+        #     if not value.unit == expected_unit:
+        #         raise ValueError(
+        #             f"Telescope attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
+        #         )
 
 
 class ToyModelTelescope(Telescope):
@@ -99,14 +101,14 @@ class ToyModelTelescope(Telescope):
         None
         """
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
-        
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+
         # Convert to numpy array when appropriate
         array_params = [
             "telescope_throughput",
         ]
         utils.convert_to_numpy_array(self, array_params)
-       
+
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar
         self.Area = np.single(np.pi) / 4.0 * self.diameter**2.0 * self.unobscured_area
@@ -197,9 +199,7 @@ class EACTelescope(Telescope):
         # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
-        
-
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar

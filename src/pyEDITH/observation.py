@@ -1,5 +1,6 @@
 import numpy as np
 from .units import *
+from . import utils
 
 
 class Observation:
@@ -138,30 +139,32 @@ class Observation:
             raise AttributeError(
                 "Observation must have either 'photap_rad' or 'psf_trunc_ratio' attribute"
             )
-        for arg, expected_type in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Observation is missing attribute: {arg}")
-            value = getattr(self, arg)
 
-            if expected_type is int:
-                if not isinstance(value, (int, np.integer)):
-                    raise TypeError(f"Observation attribute {arg} should be an integer")
-            elif expected_type is float:
-                if not isinstance(value, (float, np.floating)):
-                    raise TypeError(f"Observation attribute {arg} should be a float")
-            elif expected_type in ALL_UNITS:
-                if not isinstance(value, u.Quantity):
-                    raise TypeError(f"Observation attribute {arg} should be a Quantity")
-                if not value.unit == expected_type:
-                    raise ValueError(f"Observation attribute {arg} has incorrect units")
-            else:
-                raise ValueError(f"Unexpected type specification for {arg}")
+        utils.validate_attributes(self, expected_args)
+        # for arg, expected_type in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Observation is missing attribute: {arg}")
+        #     value = getattr(self, arg)
 
-            # Additional check for numerical values
-            if isinstance(value, u.Quantity):
-                if not np.issubdtype(value.value.dtype, np.number):
-                    raise TypeError(
-                        f"Observation attribute {arg} should contain numerical values"
-                    )
-            elif not np.issubdtype(type(value), np.number):
-                raise TypeError(f"Observation attribute {arg} should be a number")
+        #     if expected_type is int:
+        #         if not isinstance(value, (int, np.integer)):
+        #             raise TypeError(f"Observation attribute {arg} should be an integer")
+        #     elif expected_type is float:
+        #         if not isinstance(value, (float, np.floating)):
+        #             raise TypeError(f"Observation attribute {arg} should be a float")
+        #     elif expected_type in ALL_UNITS:
+        #         if not isinstance(value, u.Quantity):
+        #             raise TypeError(f"Observation attribute {arg} should be a Quantity")
+        #         if not value.unit == expected_type:
+        #             raise ValueError(f"Observation attribute {arg} has incorrect units")
+        #     else:
+        #         raise ValueError(f"Unexpected type specification for {arg}")
+
+        #     # Additional check for numerical values
+        #     if isinstance(value, u.Quantity):
+        #         if not np.issubdtype(value.value.dtype, np.number):
+        #             raise TypeError(
+        #                 f"Observation attribute {arg} should contain numerical values"
+        #             )
+        #     elif not np.issubdtype(type(value), np.number):
+        #         raise TypeError(f"Observation attribute {arg} should be a number")

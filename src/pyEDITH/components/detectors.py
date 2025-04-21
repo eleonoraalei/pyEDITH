@@ -33,7 +33,7 @@ class Detector(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):
+    def load_configuration(self):  # pragma: no cover
         pass
 
     def validate_configuration(self):
@@ -51,17 +51,17 @@ class Detector(ABC):
             "QE": QUANTUM_EFFICIENCY,
             "dQE": DIMENSIONLESS,
         }
-
-        for arg, expected_unit in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Detector is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if not isinstance(value, u.Quantity):
-                raise TypeError(f"Detector attribute {arg} should be a Quantity")
-            if not value.unit == expected_unit:
-                raise ValueError(
-                    f"Detector attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
-                )
+        utils.validate_attributes(self, expected_args)
+        # for arg, expected_unit in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Detector is missing attribute: {arg}")
+        #     value = getattr(self, arg)
+        #     if not isinstance(value, u.Quantity):
+        #         raise TypeError(f"Detector attribute {arg} should be a Quantity")
+        #     if not value.unit == expected_unit:
+        #         raise ValueError(
+        #             f"Detector attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
+        #         )
 
 
 class ToyModelDetector(Detector):
@@ -119,7 +119,7 @@ class ToyModelDetector(Detector):
         ).to(MAS)
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # # Convert to numpy array when appropriate
         array_params = [
@@ -132,7 +132,7 @@ class ToyModelDetector(Detector):
             "dQE",
         ]
         utils.convert_to_numpy_array(self, array_params)
-        
+
 
 class EACDetector(Detector):
     """
@@ -320,8 +320,8 @@ class EACDetector(Detector):
         )
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
-        
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+
         # ***** Convert to numpy array when appropriate *****
         array_params = [
             "npix_multiplier",
@@ -333,7 +333,7 @@ class EACDetector(Detector):
             "dQE",
         ]
         utils.convert_to_numpy_array(self, array_params)
-        
+
         # Ensure npix_multiplier has the same length as wavelength (the other ones are taken care of by EACy)
         if len(self.npix_multiplier) != len(
             mediator.get_observation_parameter("wavelength")

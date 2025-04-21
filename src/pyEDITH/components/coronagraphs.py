@@ -153,7 +153,7 @@ class Coronagraph(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):
+    def load_configuration(self):  # pragma: no cover
         pass
 
     def validate_configuration(self):
@@ -181,25 +181,7 @@ class Coronagraph(ABC):
             "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
 
-        for arg, expected_type in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Coronagraph is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if expected_type is int:
-                if not isinstance(value, (int, np.integer)):
-                    raise TypeError(f"Coronagraph attribute {arg} should be an integer")
-            elif expected_type is float:
-                if not isinstance(value, (float, np.floating)):
-                    raise TypeError(f"Coronagraph attribute {arg} should be a float")
-            elif isinstance(expected_type, u.UnitBase):
-                if not isinstance(value, u.Quantity):
-                    raise TypeError(f"Coronagraph attribute {arg} should be a Quantity")
-                if not value.unit == expected_type:
-                    raise ValueError(
-                        f"Coronagraph attribute {arg} has incorrect units. Expected {expected_type}, got {value.unit}"
-                    )
-            else:
-                raise ValueError(f"Unexpected type specification for {arg}")
+        utils.validate_attributes(self, expected_args)
 
 
 class ToyModelCoronagraph(Coronagraph):
@@ -250,12 +232,12 @@ class ToyModelCoronagraph(Coronagraph):
         """
         # Load parameters, use defaults if not provided
 
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Convert to numpy array when appropriate
         array_params = ["coronagraph_throughput"]
         utils.convert_to_numpy_array(self, array_params)
-        
+
         # Get PSF Truncation ratio from Observation
         # self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
 
@@ -663,5 +645,4 @@ class CoronagraphYIP(Coronagraph):
         # TODO for coronagraph, allow replacement only in terms of scaling factors?
         # NOTE what should be allowed to be replaced?
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self,parameters, self.DEFAULT_CONFIG)
-
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
