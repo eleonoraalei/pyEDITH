@@ -744,6 +744,10 @@ def calculate_exposure_time_or_snr(
         Verbose flag.
     """
 
+    # Check modes
+    if mode not in ["exposure_time", "signal_to_noise"]:
+        raise ValueError("Invalid mode. Use 'exposure_time' or 'signal_to_noise'.")
+
     observation.validation_variables = {}
     observation.photon_counts = {
         "CRp": np.empty(observation.nlambd),
@@ -1061,11 +1065,6 @@ def calculate_exposure_time_or_snr(
                         ],
                     )
 
-                else:
-                    raise ValueError(
-                        "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                    )
-
                 # multiply by omega at that point
                 CRnf *= observatory.coronagraph.omega_lod[
                     int(np.floor(iy)), int(np.floor(ix)), iratio
@@ -1307,19 +1306,6 @@ def calculate_exposure_time_or_snr(
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
                         # [electron]/[electron] = []
 
-                        if observation.fullsnr[ilambd] < 0:
-                            # time is past the systematic noise
-                            # floor limit
-                            observation.fullsnr[ilambd] = 0 * DIMENSIONLESS
-                        if observation.fullsnr[ilambd] > 100:
-                            # treat as unobservable if beyond
-                            # exposure time limit
-                            observation.fullsnr[ilambd] = 100 * DIMENSIONLESS
-                    else:
-                        raise ValueError(
-                            "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                        )
-
                     # Store the variables of interest
                     observation.validation_variables[ilambd] = {
                         "F0": scene.F0[ilambd],
@@ -1420,10 +1406,6 @@ def calculate_exposure_time_or_snr(
                         observation.exptime[ilambd] = np.inf
                     elif mode == "signal_to_noise":
                         observation.fullsnr[ilambd] = np.inf
-                    else:
-                        raise ValueError(
-                            "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                        )
 
         else:
             print(
@@ -1433,10 +1415,6 @@ def calculate_exposure_time_or_snr(
                 observation.exptime[ilambd] = np.inf
             elif mode == "signal_to_noise":
                 observation.fullsnr[ilambd] = np.inf
-            else:
-                raise ValueError(
-                    "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                )
 
         if verbose:
             utils.print_all_variables(

@@ -14,6 +14,8 @@ from pyEDITH.units import (
     WAVELENGTH,
     LENGTH,
     ARCSEC,
+    SECOND,
+    FRAME,
 )
 
 
@@ -262,6 +264,33 @@ def test_eac_detector_load_configuration(
     parameters = {"observing_mode": "test"}
     mediator = MockMediator("test")
     with pytest.raises(KeyError, match="Unsupported observing mode: test"):
+        detector.load_configuration(parameters, mediator)
+
+
+@pytest.mark.parametrize("observing_mode", ["IMAGER", "IFS"])
+def test_eac_detector_etc_validation_inputs(observing_mode):
+    detector = EACDetector()
+    mediator = MockMediator(observing_mode)
+
+    parameters = {
+        "observing_mode": observing_mode,
+        "t_photon_count_input": 0.7,
+        "det_npix_input": 200,
+    }
+    detector.load_configuration(parameters, mediator)
+    assert hasattr(detector, "t_photon_count_input")
+    assert hasattr(detector, "det_npix_input")
+    assert detector.t_photon_count_input == 0.7 * SECOND / FRAME
+    assert detector.det_npix_input == 200 * DIMENSIONLESS
+
+
+def test_eac_detector_load_configuration_invalid():
+
+    detector = EACDetector()
+    parameters = {"observing_mode": "INVALID"}
+    mediator = MockMediator("IMAGER")
+
+    with pytest.raises(KeyError, match="Unsupported observing mode: INVALID"):
         detector.load_configuration(parameters, mediator)
 
 

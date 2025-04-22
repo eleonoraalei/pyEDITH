@@ -153,8 +153,8 @@ class Coronagraph(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):  # pragma: no cover
-        pass
+    def load_configuration(self):
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -369,6 +369,11 @@ class CoronagraphYIP(Coronagraph):
         -------
         None
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
 
         from eacy import load_instrument, load_telescope
 
@@ -398,8 +403,6 @@ class CoronagraphYIP(Coronagraph):
             instrument_params = utils.interpolate_over_bandpass(
                 instrument_params, mediator.get_observation_parameter("wavelength")
             )
-        else:
-            raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
         # Ensure coronagraph_throughput has dimensions nlambda
         if np.isscalar(instrument_params["total_inst_refl"]):
@@ -431,25 +434,6 @@ class CoronagraphYIP(Coronagraph):
             * self.DEFAULT_CONFIG["pixscale"]
         )
 
-        # instantiate omega_lod and photap_frac
-        self.DEFAULT_CONFIG["npsfratios"] = len(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
-        )
-        omega_lod = np.zeros(
-            (
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npsfratios"],
-            )
-        )
-        photap_frac = np.zeros(
-            (
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npsfratios"],
-            )
-        )
-
         # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
         if (
             mediator.get_observation_parameter("psf_trunc_ratio") is None
@@ -472,9 +456,25 @@ class CoronagraphYIP(Coronagraph):
                 [mediator.get_observation_parameter("psf_trunc_ratio")]
             )  # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
 
-            self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
+            # instantiate omega_lod and photap_frac
+            self.DEFAULT_CONFIG["npsfratios"] = len(
                 [mediator.get_observation_parameter("psf_trunc_ratio")]
             )
+            omega_lod = np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npsfratios"],
+                )
+            )
+            photap_frac = np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npsfratios"],
+                )
+            )
+
             offsets = np.sqrt(
                 yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2
             )
@@ -538,6 +538,13 @@ class CoronagraphYIP(Coronagraph):
             # Use the photap_rad method of calculating Omega.
             # this method also requires you to set Tcore (does not use the YIP to calculate this)
 
+            # ALLOW TO READ Tcore if it is available ### TODO in what capacity should we apply user customization for YIP files?
+            if "Tcore" in parameters.keys():
+                subparams = {"Tcore": parameters["Tcore"]}
+                utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+            else:
+                self.Tcore = self.DEFAULT_CONFIG["Tcore"]
+
             # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
 
             omega_lod = (
@@ -552,7 +559,7 @@ class CoronagraphYIP(Coronagraph):
             photap_frac = (
                 np.full(
                     (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
-                    self.DEFAULT_CONFIG["Tcore"],
+                    self.Tcore,
                 )
                 * self.DEFAULT_CONFIG["Tcore"].unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
@@ -593,33 +600,47 @@ class CoronagraphYIP(Coronagraph):
             np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
         )
 
-        if self.DEFAULT_CONFIG["noisefloor_contrast"] is not None:
+        # ALLOW TO READ noisefloor terms if it is available ### TODO in what capacity should we apply user customization for YIP files?
+        if "noisefloor_contrast" in parameters.keys():
+            subparams = {"noisefloor_contrast": parameters["noisefloor_contrast"]}
+            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+        else:
+            self.noisefloor_contrast = self.DEFAULT_CONFIG["noisefloor_contrast"]
+
+        if "noisefloor_PPF" in parameters.keys():
+            subparams = {"noisefloor_PPF": parameters["noisefloor_PPF"]}
+            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+        else:
+            self.noisefloor_PPF = self.DEFAULT_CONFIG["noisefloor_PPF"]
+
+        if self.noisefloor_contrast is not None:
             print("Setting the noise floor via user-supplied noisefloor_contrast...")
             self.DEFAULT_CONFIG["noisefloor"] = (
                 (
                     self.DEFAULT_CONFIG["pixscale"] ** 2
                     / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
                 )
-                * self.DEFAULT_CONFIG["noisefloor_contrast"]
+                * self.noisefloor_contrast
                 * self.DEFAULT_CONFIG["photap_frac"][:, :, 0]
             )
 
-        if self.DEFAULT_CONFIG["noisefloor_PPF"] is not None:
+        if self.noisefloor_PPF is not None:
             print("Setting the noise floor via user-supplied noisefloor_PPF...")
             self.DEFAULT_CONFIG["noisefloor"] = (
-                self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
+                self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
             )
 
-        if (
-            self.DEFAULT_CONFIG["noisefloor_contrast"] is None
-            and self.DEFAULT_CONFIG["noisefloor_PPF"] is None
-        ):
-            print(
-                "Specify either noisefloor_contrast or noisefloor_PPF to set the noise floor."
-            )
-            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
-                self.DEFAULT_CONFIG["Istar"]
-            )
+        # SHOULD NEVER HAPPEN BECAUSE THE PPF VALUE HAS A DEFAULT
+        # if (
+        #     self.noisefloor_contrast is None
+        #     and self.noisefloor_PPF is None
+        # ):
+        #     print(
+        #         "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
+        #     )
+        #     self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
+        #         self.DEFAULT_CONFIG["Istar"]
+        #     )
 
         if self.DEFAULT_CONFIG["az_avg"]:
             # azimuthally average the stellar intensity to smooth it out

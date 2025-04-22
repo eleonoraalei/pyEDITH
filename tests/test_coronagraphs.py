@@ -28,7 +28,7 @@ class MockMediator_IMAGER:
             return 0.7 * LAMBDA_D
         else:
             return 1.0
-        
+
     def get_coronagraph_parameter(self, param):
         return 0.2 if param == "bandwidth" else 1.0
 
@@ -38,10 +38,11 @@ class MockMediator_IMAGER:
         else:
             return 1.0
 
+
 class MockMediator_IFS:
     def get_observation_parameter(self, param):
         if param == "wavelength":
-            return [0.5,0.6,0.7] * WAVELENGTH
+            return [0.5, 0.6, 0.7] * WAVELENGTH
         elif param == "psf_trunc_ratio":
             return [0.3] * DIMENSIONLESS
         elif param == "photap_rad":
@@ -57,6 +58,15 @@ class MockMediator_IFS:
             return 0.1 * ARCSEC
         else:
             return 1.0
+
+
+class MockMediatorWithPhotapRad(MockMediator_IMAGER):
+    def get_observation_parameter(self, param):
+        if param == "psf_trunc_ratio":
+            return None
+        if param == "photap_rad":
+            return 0.7 * LAMBDA_D
+        return super().get_observation_parameter(param)
 
 
 def test_generate_radii():
@@ -270,11 +280,23 @@ def mock_yippy_object():
 @pytest.fixture
 def mock_instrument():
     mock = MagicMock()
-    mock.lam=np.linspace(0.3,1.6,10) * WAVELENGTH
-    mock.total_inst_refl = np.array([4.80759739e-29, 4.05330898e-01, 4.40641747e-01, 3.94770896e-01,
-        4.12956241e-01, 5.15044124e-01, 5.76293823e-01, 5.38605236e-01,
-        6.27117118e-01, 6.63022075e-01])
+    mock.lam = np.linspace(0.3, 1.6, 10) * WAVELENGTH
+    mock.total_inst_refl = np.array(
+        [
+            4.80759739e-29,
+            4.05330898e-01,
+            4.40641747e-01,
+            3.94770896e-01,
+            4.12956241e-01,
+            5.15044124e-01,
+            5.76293823e-01,
+            5.38605236e-01,
+            6.27117118e-01,
+            6.63022075e-01,
+        ]
+    )
     return mock
+
 
 @pytest.fixture
 def mock_telescope():
@@ -285,7 +307,7 @@ def mock_telescope():
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-@patch("pyEDITH.components.coronagraphs.yippycoro")  
+@patch("pyEDITH.components.coronagraphs.yippycoro")
 def test_coronagraph_yip_load_configuration_IMAGER(
     mock_yippycoro,
     mock_load_telescope,
@@ -293,12 +315,12 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     mock_yippy_object,
     mock_instrument,
     mock_telescope,
+    capsys,
 ):
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
     mock_yippycoro.return_value = mock_yippy_object
 
-    
     coronagraph = CoronagraphYIP(path="test_path")
     parameters = {
         "observing_mode": "IMAGER",
@@ -346,28 +368,72 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     # Check omega_lod
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
     assert coronagraph.omega_lod.unit == LAMBDA_D**2
+    assert not np.all(coronagraph.omega_lod == 0)
 
     # Check skytrans
     assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
     assert np.all(
         coronagraph.skytrans == mock_yippy_object.sky_trans.return_value * DIMENSIONLESS
     )
+    assert not np.all(coronagraph.skytrans == 0)
 
     # Check photap_frac
     assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
-    # TODO evaluate photap_frac
+    assert not np.all(coronagraph.photap_frac == 0)
 
     # Check Istar
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
-    # TODO evaluate Istar
+    assert not np.all(coronagraph.Istar == 0)
 
-    # Check noisefloor
+    # Test with noisefloor_contrast
+    base_parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+    }
+    parameters_contrast = base_parameters.copy()
+    parameters_contrast["noisefloor_contrast"] = 1e-10 * DIMENSIONLESS
+    coronagraph.load_configuration(parameters_contrast, mediator)
+
+    captured = capsys.readouterr()
+    assert (
+        "Setting the noise floor via user-supplied noisefloor_contrast..."
+        in captured.out
+    )
+
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    # TODO evaluate noisefloor
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    assert not np.all(coronagraph.noisefloor == 0)
+
+    # Test with noisefloor_PPF
+    parameters_ppf = base_parameters.copy()
+    parameters_ppf["noisefloor_PPF"] = 300.0
+    coronagraph.load_configuration(parameters_ppf, mediator)
+
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    assert not np.all(coronagraph.noisefloor == 0)
+
+    captured = capsys.readouterr()
+    assert "Setting the noise floor via user-supplied noisefloor_PPF..." in captured.out
+
+    # # Test with neither noisefloor_contrast nor noisefloor_PPF
+    # coronagraph.load_configuration(parameters, mediator)
+
+    # assert np.all(coronagraph.noisefloor == 0)
+    # assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    # assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    # captured = capsys.readouterr()
+    # assert (
+    #     "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
+    #     in captured.out
+    # )
 
     # Check coronagraph_throughput
-    assert len(coronagraph.coronagraph_throughput)==1
-    assert np.isclose(coronagraph.coronagraph_throughput.value,0.394770896)
+    assert len(coronagraph.coronagraph_throughput) == 1
+    assert np.isclose(coronagraph.coronagraph_throughput.value, 0.394770896)
 
     # Check other attributes
     assert hasattr(coronagraph, "psf_trunc_ratio")
@@ -375,10 +441,10 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     assert hasattr(coronagraph, "coronagraph_throughput")
     assert hasattr(coronagraph, "coronagraph_spectral_resolution")
 
-    #### IFS MODE
+
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-@patch("pyEDITH.components.coronagraphs.yippycoro")  
+@patch("pyEDITH.components.coronagraphs.yippycoro")
 def test_coronagraph_yip_load_configuration_IFS(
     mock_yippycoro,
     mock_load_telescope,
@@ -386,6 +452,7 @@ def test_coronagraph_yip_load_configuration_IFS(
     mock_yippy_object,
     mock_instrument,
     mock_telescope,
+    capsys,
 ):
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
@@ -404,14 +471,23 @@ def test_coronagraph_yip_load_configuration_IFS(
     mediator_ifs = MockMediator_IFS()
 
     coronagraph.load_configuration(parameters, mediator_ifs)
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+        in captured.out
+    )
+    assert "Using psf_trunc_ratio to calculate Omega..." in captured.out
 
     # Check coronagraph_throughput
-    assert len(coronagraph.coronagraph_throughput)==3
-    assert np.isclose(coronagraph.coronagraph_throughput.value,[0.41891199, 0.43711322, 0.40535648]).all()
+    assert len(coronagraph.coronagraph_throughput) == 3
+    assert np.isclose(
+        coronagraph.coronagraph_throughput.value, [0.41891199, 0.43711322, 0.40535648]
+    ).all()
+
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-@patch("pyEDITH.components.coronagraphs.yippycoro")  
+@patch("pyEDITH.components.coronagraphs.yippycoro")
 def test_coronagraph_yip_load_configuration_INVALID(
     mock_yippycoro,
     mock_load_telescope,
@@ -424,7 +500,6 @@ def test_coronagraph_yip_load_configuration_INVALID(
     mock_load_telescope.return_value = mock_telescope
     mock_yippycoro.return_value = mock_yippy_object
 
-    
     coronagraph = CoronagraphYIP(path="test_path")
     parameters = {
         "observing_mode": "Invalid",
@@ -437,5 +512,128 @@ def test_coronagraph_yip_load_configuration_INVALID(
 
     mediator = MockMediator_IMAGER()
 
-    with pytest.raises(ValueError,match="Invalid observing mode. Must be 'IMAGER' or 'IFS'."):
+    with pytest.raises(KeyError, match="Unsupported observing mode: Invalid"):
         coronagraph.load_configuration(parameters, mediator)
+
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")
+def test_coronagraph_yip_load_configuration_no_psf_trunc_ratio_no_photap_rad(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object,
+    mock_instrument,
+    mock_telescope,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object
+
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+    }
+
+    class MockMediatorNoParams(MockMediator_IMAGER):
+        def get_observation_parameter(self, param):
+            if param in ["psf_trunc_ratio", "photap_rad"]:
+                return None
+            return super().get_observation_parameter(param)
+
+    mediator = MockMediatorNoParams()
+
+    with pytest.raises(
+        KeyError,
+        match="WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega.",
+    ):
+        coronagraph.load_configuration(parameters, mediator)
+
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")
+def test_coronagraph_yip_load_configuration_with_photap_rad(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object,
+    mock_instrument,
+    mock_telescope,
+    capsys,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object
+
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "Tcore": 0.5 * DIMENSIONLESS,
+    }
+
+    mediator = MockMediatorWithPhotapRad()
+
+    coronagraph.load_configuration(parameters, mediator)
+    captured = capsys.readouterr()
+    assert "Using photap_rad to calculate Omega..." in captured.out
+
+    # Check that omega_lod and photap_frac are calculated correctly
+    assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert np.all(coronagraph.omega_lod == np.pi * 0.7**2 * LAMBDA_D**2)
+
+    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert np.all(
+        (coronagraph.photap_frac == 0.5 * DIMENSIONLESS)
+        | (coronagraph.photap_frac == 0.0 * DIMENSIONLESS)
+    )
+    assert np.all(
+        coronagraph.photap_frac[coronagraph.r < coronagraph.minimum_IWA]
+        == 0.0 * DIMENSIONLESS
+    )
+    assert np.all(
+        coronagraph.photap_frac[coronagraph.r > coronagraph.maximum_OWA]
+        == 0.0 * DIMENSIONLESS
+    )
+
+    # SAME TEST but no Tcore available, use default
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+    }
+    mediator = MockMediatorWithPhotapRad()
+
+    coronagraph.load_configuration(parameters, mediator)
+    captured = capsys.readouterr()
+    assert "Using photap_rad to calculate Omega..." in captured.out
+
+    # Check that omega_lod and photap_frac are calculated correctly
+    assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert np.all(coronagraph.omega_lod == np.pi * 0.7**2 * LAMBDA_D**2)
+
+    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert np.all(
+        (coronagraph.photap_frac == 0.2968371 * DIMENSIONLESS)
+        | (coronagraph.photap_frac == 0.0 * DIMENSIONLESS)
+    )
+    assert np.all(
+        coronagraph.photap_frac[coronagraph.r < coronagraph.minimum_IWA]
+        == 0.0 * DIMENSIONLESS
+    )
+    assert np.all(
+        coronagraph.photap_frac[coronagraph.r > coronagraph.maximum_OWA]
+        == 0.0 * DIMENSIONLESS
+    )

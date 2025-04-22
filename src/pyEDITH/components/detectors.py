@@ -33,8 +33,8 @@ class Detector(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):  # pragma: no cover
-        pass
+    def load_configuration(self):
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -176,6 +176,12 @@ class EACDetector(Detector):
         None
 
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
+
         from eacy import load_detector
 
         # ****** Update Default Config when necessary ******
@@ -196,10 +202,6 @@ class EACDetector(Detector):
         elif parameters["observing_mode"] == "IFS":
             detector_params = utils.interpolate_over_bandpass(
                 detector_params, mediator.get_observation_parameter("wavelength")
-            )
-        else:
-            raise KeyError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
             )
 
         dc_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
@@ -268,10 +270,6 @@ class EACDetector(Detector):
             ]
             # make sure qe_arr does not contain NaNs
             assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
-        else:
-            raise ValueError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
 
         self.DEFAULT_CONFIG["QE"] = qe_arr * QUANTUM_EFFICIENCY
         # self.DEFAULT_CONFIG["QE"] = [

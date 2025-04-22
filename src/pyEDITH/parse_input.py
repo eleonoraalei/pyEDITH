@@ -15,6 +15,8 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
     -----------
     file_path : Union[Path,str]
         Path to the input file.
+    secondary_flag : bool
+        Flag indicating whether secondary variables are expected.
 
     Returns:
     --------
@@ -42,6 +44,8 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
 
     variables = {}
     secondary_variables = {}
+    has_secondary = False
+
     for line in lines:
         if "=" in line:
             key, value = line.split("=", 1)
@@ -58,17 +62,23 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
                 value = value[1:-1]
             # Handle numbers
             else:
-                try:
-                    value = float(value)
-                    if value.is_integer():
-                        value = int(value)
-                except ValueError:
-                    pass  # Keep as string if it's not a number
+                value = float(value)
+                if value.is_integer():
+                    value = int(value)
 
-            if "secondary" in key and secondary_flag:
-                secondary_variables[key[10:]] = value  # it replaces the default value
+            if "secondary" in key:
+                has_secondary = True
+                if secondary_flag:
+                    secondary_variables[key[10:]] = (
+                        value  # it replaces the default value
+                    )
             else:
                 variables[key] = value
+
+    if secondary_flag and not has_secondary:
+        raise KeyError(
+            "Secondary flag is True but no secondary variables found in the input file."
+        )
 
     # Handle IFS mode
     if variables.get("observing_mode") == "IFS":
@@ -94,8 +104,6 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
             # Check if the file exists and is readable
             if not os.path.isfile(spectrum_file):
                 raise FileNotFoundError(f"Spectrum file not found: {spectrum_file}")
-            if not os.access(spectrum_file, os.R_OK):
-                raise PermissionError(f"Spectrum file is not readable: {spectrum_file}")
 
             # Read the spectrum file
             spectrum_df = pd.read_csv(variables["spectrum_file"])
@@ -125,9 +133,8 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
                 "Required parameters 'wavelength', 'Fstar_10pc', and 'Fp/Fs' are not provided. Please write them explicitly or provide a spectrum_file path."
             )
 
-    if (
-        variables.get("observing_mode") == "IMAGER"
-        and isinstance(variables["wavelength"], list)
+    if variables.get("observing_mode") == "IMAGER" and isinstance(
+        variables["wavelength"], list
     ):
         raise KeyError(
             "In IMAGER mode you can only use one wavelength at a time. If you are simulating photometry, please run every single wavelength separately. If you want to model a spectrum, please use IFS mode."
@@ -172,38 +179,58 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
                 return np.array(v, dtype=np.float64)
 
         if default_len > 1:
-            # If it's supposed to be a list but given as a single value, convert to a list
-            if not isinstance(value, (list, np.ndarray, u.Quantity)) or (
-                isinstance(value, u.Quantity) and value.isscalar
-            ):
-                return to_float_array([value] * default_len)
-
-            # If it's already a list or Quantity array, check its length
-            if len(value) != default_len:
+            # Case 1 & 1a: default_len > 1 but value is a pure scalar (including Quantity scalar)
+            if np.isscalar(value) or (isinstance(value, u.Quantity) and value.isscalar):
                 print(
-                    f"WARNING: {key} should be a list of length {default_len}. pyEDITH will create one assuming the input value for all the elements of the list. "
+                    f"WARNING: {key} should be a list of length {default_len}. pyEDITH will create one assuming the input value for all the elements of the list."
                 )
                 if isinstance(value, u.Quantity):
                     return u.Quantity(np.full(default_len, value.value), value.unit)
                 else:
                     return np.full(default_len, value)
 
+            # Case 2: default_len > 1 but value has a length > 1 and != default_len
+            elif (
+                isinstance(value, (list, np.ndarray, u.Quantity))
+                and len(value) != default_len
+            ):
+                raise ValueError(
+                    f"{key} should be a list of length {default_len}, but it has length {len(value)}."
+                )
+
+            # If value is already correct length, just convert to float array
             return to_float_array(value)
+
         else:
-            # For single values, always return a single-element array
-            if isinstance(value, (list, np.ndarray, u.Quantity)) and len(value) > 0:
+            # Case 3: default_len == 1, return a single element array
+            if isinstance(value, u.Quantity):
+                if value.size > 1:
+                    print(
+                        f"WARNING: {key} should be a list of length 1 but you assigned multiple values. pyEDITH will create a list assuming only the first input value."
+                    )
+                    return u.Quantity([value[0].value], value.unit)
+                else:
+                    return u.Quantity([value.value], value.unit)
+            elif isinstance(value, (list, np.ndarray)) and len(value) > 1:
+                print(
+                    f"WARNING: {key} should be a list of length 1 but you assigned multiple values. pyEDITH will create a list assuming only the first input value."
+                )
                 return to_float_array([value[0]])
             else:
                 return to_float_array([value])
 
     parsed_params = {}
 
-    # CONSTANTS
+    # NLAMBDA
     if "wavelength" in parameters.keys():
-        if isinstance(parameters["wavelength"], list):
-            parsed_params["nlambda"] = len(parameters["wavelength"])
-        else:
+        if np.isscalar(parameters["wavelength"]) or (
+            isinstance(parameters["wavelength"], u.Quantity)
+            and np.isscalar(parameters["wavelength"].value)
+        ):
             parsed_params["nlambda"] = 1
+
+        else:
+            parsed_params["nlambda"] = len(parameters["wavelength"])
         parsed_params["wavelength"] = parse_list_param(
             "wavelength", parsed_params["nlambda"]
         )
@@ -217,6 +244,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
 
     # Use the determined or provided nlambda for array standardization
     nlambda = parsed_params["nlambda"]
+
     # ------ ARRAYS OF LENGTH NLAMBDA ------
 
     wavelength_params = [
@@ -258,14 +286,11 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "dec",  # used to be [ntargs]
         "delta_mag_min",  # used to be [ntargs]
         "Fp_min/Fs",
+        "separation",  # used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1
     ]
 
     for key in list(set(target_params) & set(parameters.keys())):
         parsed_params[key] = float(parameters[key])
-
-    # ---- MORE SCALARS (used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1)
-    if "separation" in parameters.keys():
-        parsed_params["separation"] = float(parameters["separation"])
 
     # ----- SCALARS ----
     scalar_params = [
@@ -290,7 +315,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
     for key in list(set(scalar_params) & set(parameters.keys())):
         parsed_params[key] = float(parameters[key])
 
-    # ---- CORONAGRAPH SPECS---
+    # ---- INTEGERS ---
     if "nrolls" in parameters.keys():
         parsed_params["nrolls"] = int(parameters["nrolls"])
 
@@ -387,4 +412,3 @@ def print_observatory_config(config: Union[str, Dict[str, str]]) -> None:
         print(f"  Coronagraph: {config['coronagraph']}")
         print(f"  Detector:    {config['detector']}")
     print()  # Add a blank line for better readability
-

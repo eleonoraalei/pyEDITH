@@ -194,7 +194,7 @@ def test_calc_zodi_flux():
     assert np.isclose(zodi_flux.value, 3.52136205e-10, rtol=1e-4)
 
 
-def test_astrophysical_scene_load_configuration():
+def test_astrophysical_scene_load_configuration(capsys):
     scene = AstrophysicalScene()
 
     # Test with magnitude inputs
@@ -328,6 +328,55 @@ def test_astrophysical_scene_load_configuration():
     scene.load_configuration(single_wavelength_params)
     assert len(scene.mag) == 1
     assert len(scene.Fstar) == 1
+
+    # FstarV_10pc is missing: if IFS mode, it can be calculated
+    parameters = {
+        "wavelength": [0.5, 0.55, 0.6],
+        "Lstar": 0.86,
+        "distance": 10.0,
+        "Fstar_10pc": [1.128e02, 1.244e02, 1.13e02],
+        "Fp/Fs": [6.3e-8, 6.4e-8, 6.5e-8],
+        "Fp_min/Fs": 1e-10,
+        "angular_diameter": 0.01,
+        "nzodis": 3.0,
+        "ra": 236.0075773682300,
+        "dec": 02.5151668316500,
+        "separation": 0.1,
+        "observing_mode": "IFS",
+    }
+
+    # Capture warnings
+    scene.load_configuration(parameters)
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: `FstarV_10pc` not specified in parameters. Calculating internally..."
+        in captured.out
+    )
+
+    # The interpolated value at 0.55 um should be close to 1.244e02
+    expected_fstarv = 1.244e02 * PHOTON_FLUX_DENSITY
+    calculated_fstarv = scene.Fstar[1] * scene.F0[1]  # At 0.55 um
+    assert np.isclose(calculated_fstarv, expected_fstarv, rtol=1e-6)
+
+    # FstarV_10pc is missing: in IMAGER mode, just fail
+    parameters = {
+        "wavelength": 0.5,
+        "Lstar": 0.86,
+        "distance": 10.0,
+        "Fstar_10pc": 1.128e02,
+        "Fp/Fs": 6.3e-8,
+        "Fp_min/Fs": 1e-10,
+        "angular_diameter": 0.01,
+        "nzodis": 3.0,
+        "ra": 236.0075773682300,
+        "dec": 02.5151668316500,
+        "separation": 0.1,
+        "observing_mode": "IMAGER",
+    }
+
+    # Capture warnings
+    with pytest.raises(ValueError, match="FstarV_10pc missing in parameters."):
+        scene.load_configuration(parameters)
 
 
 def test_calculate_zodi_exozodi():

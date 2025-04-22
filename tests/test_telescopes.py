@@ -122,6 +122,16 @@ def test_eac_telescope_load_configuration(
         assert telescope.Area.unit == LENGTH**2
 
 
+def test_eac_detector_load_configuration_invalid():
+
+    detector = EACTelescope()
+    parameters = {"observing_mode": "INVALID"}
+    mediator = MockMediator("IMAGER")
+
+    with pytest.raises(KeyError, match="Unsupported observing mode: INVALID"):
+        detector.load_configuration(parameters, mediator)
+
+
 def test_telescope_validate_configuration():
     telescope = ToyModelTelescope()
     parameters = {

@@ -31,8 +31,8 @@ class Telescope(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):  # pragma: no cover
-        pass
+    def load_configuration(self):
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -154,6 +154,12 @@ class EACTelescope(Telescope):
         -------
         None
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
+
         from eacy import load_telescope
 
         # **** LOAD DEFAULTS FROM EAC YAML FILES AND UPDATE DEFAULT CONFIG ****
@@ -178,10 +184,7 @@ class EACTelescope(Telescope):
             telescope_params = utils.interpolate_over_bandpass(
                 telescope_params, mediator.get_observation_parameter("wavelength")
             )
-        else:
-            raise ValueError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
+
         # Load parameters that you need from the YAML files
         self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
 

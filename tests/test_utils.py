@@ -7,6 +7,7 @@ from pyEDITH.units import (
     FRAME,
     INV_SQUARE_ARCSEC,
     QUANTUM_EFFICIENCY,
+    LENGTH,
 )
 import pytest
 import os
@@ -45,6 +46,128 @@ def test_interpolate_over_bandpass():
     assert np.allclose(result["value"], np.array([1.5, 2.5, 3.5, 4.5]))
 
 
+class TestObject:
+    pass
+
+
+def test_convert_to_numpy_array():
+    obj = TestObject()
+
+    # Test with Quantity array
+    obj.quantity_array = [1, 2, 3] * u.m
+
+    # Test with non-Quantity array
+    obj.regular_array = [4, 5, 6]
+
+    array_params = [
+        "quantity_array",
+        "regular_array",
+    ]
+
+    convert_to_numpy_array(obj, array_params)
+
+    # Check Quantity array
+    assert isinstance(obj.quantity_array, u.Quantity)
+    assert isinstance(obj.quantity_array.value, np.ndarray)
+    assert obj.quantity_array.unit == u.m
+    assert np.array_equal(obj.quantity_array.value, np.array([1, 2, 3]))
+    assert obj.quantity_array.dtype == np.float64
+
+    # Check non-Quantity array
+    assert isinstance(obj.regular_array, np.ndarray)
+    assert np.array_equal(obj.regular_array, np.array([4, 5, 6]))
+    assert obj.regular_array.dtype == np.float64
+
+    # Test with empty list
+    obj.empty_list = []
+    convert_to_numpy_array(obj, ["empty_list"])
+    assert isinstance(obj.empty_list, np.ndarray)
+    assert obj.empty_list.size == 0
+    assert obj.empty_list.dtype == np.float64
+
+
+def test_validate_attributes():
+    obj = TestObject()
+    obj.int_attr = 1
+    obj.float_attr = 1.0
+    obj.quantity_attr = 1.0 * u.m
+    obj.array_attr = np.array([1, 2, 3]) * u.m
+
+    expected_args = {
+        "int_attr": int,
+        "float_attr": float,
+        "quantity_attr": u.m,
+        "array_attr": u.m,
+    }
+
+    # Test valid case
+    validate_attributes(obj, expected_args)
+
+    # Test missing attribute
+    with pytest.raises(
+        AttributeError, match="TestObject is missing attribute: missing_attr"
+    ):
+        validate_attributes(obj, {**expected_args, "missing_attr": int})
+
+    # Test incorrect type for int
+    obj.int_attr = 1.0
+    with pytest.raises(
+        TypeError, match="TestObject attribute int_attr should be an integer"
+    ):
+        validate_attributes(obj, expected_args)
+    obj.int_attr = 1  # Reset to correct type
+
+    # Test incorrect type for float
+    obj.float_attr = 1
+    with pytest.raises(
+        TypeError, match="TestObject attribute float_attr should be a float"
+    ):
+        validate_attributes(obj, expected_args)
+    obj.float_attr = 1.0  # Reset to correct type
+
+    # Test incorrect type for Quantity
+    obj.quantity_attr = 1.0
+    with pytest.raises(
+        TypeError, match="TestObject attribute quantity_attr should be a Quantity"
+    ):
+        validate_attributes(obj, expected_args)
+    obj.quantity_attr = 1.0 * u.m  # Reset to correct type
+
+    # Test incorrect units for Quantity
+    obj.quantity_attr = 1.0 * u.s
+    with pytest.raises(
+        ValueError, match="TestObject attribute quantity_attr has incorrect units"
+    ):
+        validate_attributes(obj, expected_args)
+    obj.quantity_attr = 1.0 * u.m  # Reset to correct units
+
+    # Test unexpected attribute
+    with pytest.raises(
+        AttributeError, match="TestObject is missing attribute: unexpected_attr"
+    ):
+        validate_attributes(obj, {**expected_args, "unexpected_attr": "unexpected"})
+
+    # Test unexpected type specification
+    with pytest.raises(
+        ValueError, match="Unexpected type specification for unexpected_attr"
+    ):
+        obj.unexpected_attr = 10
+        validate_attributes(obj, {**expected_args, "unexpected_attr": "unexpected"})
+
+    # Test array of Quantity
+    validate_attributes(
+        obj, expected_args
+    )  # This should pass as array_attr is already defined correctly
+
+    # Test array of non-Quantity
+    obj.array_attr = np.array([1, 2, 3])
+    with pytest.raises(
+        TypeError, match="TestObject attribute array_attr should be a Quantity"
+    ):
+        validate_attributes(obj, expected_args)
+    obj.array_attr = np.array([1, 2, 3]) * u.m
+
+
 ### TESTING THE PLOTTING FUNCTIONS
 
 
@@ -67,6 +190,34 @@ def test_print_array_info():
     assert "Shape: (3,)" in output
     assert "Max value: 3" in output
     assert "Min value: 1" in output
+
+    # Test with an empty numpy array
+    empty_array = np.array([])
+    file = StringIO()
+    print_array_info(file, "empty_numpy_array", empty_array, mode="full_info")
+    output = file.getvalue()
+    assert "empty_numpy_array:" in output
+    assert "Shape: (0,)" in output
+    assert "Array is empty" in output
+
+    # Test with an empty list
+    empty_list = []
+    file = StringIO()
+    print_array_info(file, "empty_list", empty_list, mode="full_info")
+    output = file.getvalue()
+    assert "empty_list:" in output
+    assert "Shape: (0,)" in output
+    assert "Array is empty" in output
+
+    # Test with an empty Quantity array
+    empty_quantity = u.Quantity([], unit=u.m)
+    file = StringIO()
+    print_array_info(file, "empty_quantity", empty_quantity, mode="full_info")
+    output = file.getvalue()
+    assert "empty_quantity:" in output
+    assert "Unit: m" in output
+    assert "Shape: (0,)" in output
+    assert "Array is empty" in output
 
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])

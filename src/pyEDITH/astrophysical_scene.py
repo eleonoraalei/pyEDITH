@@ -596,7 +596,7 @@ class AstrophysicalScene:
 
             elif (
                 "FstarV_10pc" not in parameters
-                and parameters["observing_mode"] == "IMAGING"
+                and parameters["observing_mode"] == "IMAGER"
             ):
                 raise ValueError("FstarV_10pc missing in parameters.")
             else:
@@ -736,36 +736,3 @@ class AstrophysicalScene:
             "Fstar": DIMENSIONLESS,
         }
         utils.validate_attributes(self, expected_args)
-        # for arg, expected_type in expected_args.items():
-        #     if not hasattr(self, arg):
-        #         raise AttributeError(f"AstrophysicalScene is missing attribute: {arg}")
-
-        #     value = getattr(self, arg)
-
-        #     if expected_type is int:
-        #         if not isinstance(value, (int, np.integer)):
-        #             raise TypeError(
-        #                 f"AstrophysicalScene attribute {arg} should be an integer"
-        #             )
-        #     elif expected_type in ALL_UNITS:
-        #         if not isinstance(value, u.Quantity):
-        #             raise TypeError(
-        #                 f"AstrophysicalScene attribute {arg} should be a Quantity"
-        #             )
-        #         if not value.unit == (expected_type):
-        #             raise ValueError(
-        #                 f"AstrophysicalScene attribute {arg} has incorrect units"
-        #             )
-        #     else:
-        #         raise ValueError(f"Unexpected type specification for {arg}")
-
-        #     # Additional check for numerical values
-        #     if isinstance(value, u.Quantity):
-        #         if not np.issubdtype(value.value.dtype, np.number):
-        #             raise TypeError(
-        #                 f"AstrophysicalScene attribute {arg} should contain numerical values"
-        #             )
-        #     elif not np.issubdtype(type(value), np.number):
-        #         raise TypeError(
-        #             f"AstrophysicalScene attribute {arg} should be a number"
-        #         )

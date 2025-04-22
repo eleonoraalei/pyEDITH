@@ -113,14 +113,6 @@ def validate_attributes(obj: Any, expected_args: Dict[str, Any]) -> None:
                     f"{class_name} attribute {arg} has incorrect units. "
                     f"Expected {expected_type}, got {value.unit}"
                 )
-            # Check for numerical values in Quantity
-            if not np.issubdtype(value.value.dtype, np.number):
-                raise TypeError(
-                    f"{class_name} attribute {arg} should contain numerical values"
-                )
-        elif expected_type in (float, int):
-            if not np.issubdtype(type(value), np.number):
-                raise TypeError(f"{class_name} attribute {arg} should be a number")
         else:
             raise ValueError(f"Unexpected type specification for {arg}")
 
