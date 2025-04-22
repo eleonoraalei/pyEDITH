@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from .units import *
+from . import utils
 
 
 class Observatory(ABC):  # abstract class
@@ -122,21 +123,21 @@ class Observatory(ABC):  # abstract class
 
         # Observatory-related args
         expected_args = {
-            "total_throughput": QE,
+            "total_throughput": QUANTUM_EFFICIENCY,
             "optics_throughput": DIMENSIONLESS,
             "epswarmTrcold": DIMENSIONLESS,
         }
-
-        for arg, expected_unit in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Observatory is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if not isinstance(value, u.Quantity):
-                raise TypeError(f"Observatory attribute {arg} should be a Quantity")
-            if not value.unit.is_equivalent(expected_unit):
-                raise ValueError(
-                    f"Observatory attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
-                )
+        utils.validate_attributes(self, expected_args)
+        # for arg, expected_unit in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Observatory is missing attribute: {arg}")
+        #     value = getattr(self, arg)
+        #     if not isinstance(value, u.Quantity):
+        #         raise TypeError(f"Observatory attribute {arg} should be a Quantity")
+        #     if not value.unit.is_equivalent(expected_unit):
+        #         raise ValueError(
+        #             f"Observatory attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
+        #         )
 
 
 class ObservatoryMediator:

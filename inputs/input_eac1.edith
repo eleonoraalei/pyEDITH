@@ -14,7 +14,7 @@
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-wavelegth = 0.5              ;   wavelength (micron)
+wavelength = 0.5              ;   wavelength (micron)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 CRb_multiplier  = 2.          ; factor to multiply to remove background
 psf_trunc_ratio = 0.35      ; truncation ratio of the PSF 

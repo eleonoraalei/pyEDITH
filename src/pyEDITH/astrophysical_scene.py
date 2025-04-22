@@ -3,6 +3,7 @@ from scipy.interpolate import interp1d
 import astropy.units as u
 import astropy.constants as const
 from .units import *
+from . import utils
 from astropy.coordinates import SkyCoord
 
 
@@ -561,36 +562,42 @@ class AstrophysicalScene:
             self.Fp0 = 10 ** (-0.4 * self.deltamag.value) * DIMENSIONLESS
             self.Fp0_min = 10 ** (-0.4 * self.min_deltamag.value) * DIMENSIONLESS
 
-        elif all(
-            param in parameters
-            for param in ["Fstar_10pc", "Fp/Fs", "Fp_min/Fs"]
-        ):
+        elif all(param in parameters for param in ["Fstar_10pc", "Fp/Fs", "Fp_min/Fs"]):
 
             # Load fluxes
             Fstar_10pc = parameters["Fstar_10pc"] * PHOTON_FLUX_DENSITY
 
-            if "FstarV_10pc" not in parameters and parameters["observing_mode"] == "IFS":
-                print("WARNING: `FstarV_10pc` not specified in parameters. Calculating internally...")
+            if (
+                "FstarV_10pc" not in parameters
+                and parameters["observing_mode"] == "IFS"
+            ):
+                print(
+                    "WARNING: `FstarV_10pc` not specified in parameters. Calculating internally..."
+                )
                 # from synphot import SourceSpectrum, SpectralElement, Observation
                 # from synphot.models import Empirical1D
                 # # if given a spectrum, calculate the v-band flux using synphot
                 # tempSpec = SourceSpectrum(Empirical1D, points=parameters["wavelength"] * WAVELENGTH, lookup_table=Fstar_10pc)
                 # johnson_v = SpectralElement.from_filter('johnson_v')
                 # obsTemp = Observation(tempSpec, johnson_v)
-                
-                # # unit conversion is necessary because V-band flux is in units of [photons/s/cm^2], 
-                # # and not PHOTON_FLUX_DENSITY since an integration over wavelength was performed. 
+                #
+                # # unit conversion is necessary because V-band flux is in units of [photons/s/cm^2],
+                # # and not PHOTON_FLUX_DENSITY since an integration over wavelength was performed.
                 # # Doing this to make the units line up.
-                # Fstar_V_10pc = obsTemp.integrate(flux_unit=PHOTON_FLUX_DENSITY).value * PHOTON_FLUX_DENSITY 
+                # Fstar_V_10pc = obsTemp.integrate(flux_unit=PHOTON_FLUX_DENSITY).value * PHOTON_FLUX_DENSITY
 
-                # the above is for calculating the zero-point over a bandpass. What is actually going on here is 
-                # that the zeropoint calculation is for a single wavelength, lam=0.55 um. 
+                # the above is for calculating the zero-point over a bandpass. What is actually going on here is
+                # that the zeropoint calculation is for a single wavelength, lam=0.55 um.
                 # let's change this up and interpolate
                 func = interp1d(parameters["wavelength"], Fstar_10pc)
-                Fstar_V_10pc = func(0.55) * PHOTON_FLUX_DENSITY # interpolate to single wavelength, not a bandpass
+                Fstar_V_10pc = (
+                    func(0.55) * PHOTON_FLUX_DENSITY
+                )  # interpolate to single wavelength, not a bandpass
 
-                
-            elif "FstarV_10pc" not in parameters and parameters["observing_mode"] == "IMAGING":
+            elif (
+                "FstarV_10pc" not in parameters
+                and parameters["observing_mode"] == "IMAGER"
+            ):
                 raise ValueError("FstarV_10pc missing in parameters.")
             else:
                 Fstar_V_10pc = parameters["FstarV_10pc"] * PHOTON_FLUX_DENSITY
@@ -607,7 +614,7 @@ class AstrophysicalScene:
             # Calculate vmag (needed for zodi)
             self.vmag = -2.5 * np.log10(Fstar_V_absolute / self.F0V) * MAGNITUDE
             self.mag = -2.5 * np.log10(Fstar_absolute / self.F0) * MAGNITUDE
-            
+
             # Calculate deltamag and min_deltamag (used only to validate)
             self.deltamag = -2.5 * np.log10(self.Fp0) * MAGNITUDE
             self.min_deltamag = -2.5 * np.log10(self.Fp0_min) * MAGNITUDE
@@ -728,37 +735,4 @@ class AstrophysicalScene:
             "Fp0": DIMENSIONLESS,
             "Fstar": DIMENSIONLESS,
         }
-
-        for arg, expected_type in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"AstrophysicalScene is missing attribute: {arg}")
-
-            value = getattr(self, arg)
-
-            if expected_type is int:
-                if not isinstance(value, (int, np.integer)):
-                    raise TypeError(
-                        f"AstrophysicalScene attribute {arg} should be an integer"
-                    )
-            elif expected_type in ALL_UNITS:
-                if not isinstance(value, u.Quantity):
-                    raise TypeError(
-                        f"AstrophysicalScene attribute {arg} should be a Quantity"
-                    )
-                if not value.unit == (expected_type):
-                    raise ValueError(
-                        f"AstrophysicalScene attribute {arg} has incorrect units"
-                    )
-            else:
-                raise ValueError(f"Unexpected type specification for {arg}")
-
-            # Additional check for numerical values
-            if isinstance(value, u.Quantity):
-                if not np.issubdtype(value.value.dtype, np.number):
-                    raise TypeError(
-                        f"AstrophysicalScene attribute {arg} should contain numerical values"
-                    )
-            elif not np.issubdtype(type(value), np.number):
-                raise TypeError(
-                    f"AstrophysicalScene attribute {arg} should be a number"
-                )
+        utils.validate_attributes(self, expected_args)

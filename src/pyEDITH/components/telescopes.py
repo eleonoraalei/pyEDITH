@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import parse_input
+from .. import utils
 import astropy.units as u
 from ..units import *
 
@@ -32,7 +32,7 @@ class Telescope(ABC):
 
     @abstractmethod
     def load_configuration(self):
-        pass
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -49,16 +49,18 @@ class Telescope(ABC):
             "Tcontam": DIMENSIONLESS,
         }
 
-        for arg, expected_unit in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Telescope is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if not isinstance(value, u.Quantity):
-                raise TypeError(f"Telescope attribute {arg} should be a Quantity")
-            if not value.unit == expected_unit:
-                raise ValueError(
-                    f"Telescope attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
-                )
+        utils.validate_attributes(self, expected_args)
+
+        # for arg, expected_unit in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Telescope is missing attribute: {arg}")
+        #     value = getattr(self, arg)
+        #     if not isinstance(value, u.Quantity):
+        #         raise TypeError(f"Telescope attribute {arg} should be a Quantity")
+        #     if not value.unit == expected_unit:
+        #         raise ValueError(
+        #             f"Telescope attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
+        #         )
 
 
 class ToyModelTelescope(Telescope):
@@ -99,43 +101,13 @@ class ToyModelTelescope(Telescope):
         None
         """
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    # TODO Implement conversion of units from the input file
-
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Convert to numpy array when appropriate
         array_params = [
             "telescope_throughput",
         ]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
+        utils.convert_to_numpy_array(self, array_params)
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar
@@ -182,6 +154,12 @@ class EACTelescope(Telescope):
         -------
         None
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
+
         from eacy import load_telescope
 
         # **** LOAD DEFAULTS FROM EAC YAML FILES AND UPDATE DEFAULT CONFIG ****
@@ -197,19 +175,16 @@ class EACTelescope(Telescope):
                 * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             ] * WAVELENGTH
 
-            telescope_params = parse_input.average_over_bandpass(
+            telescope_params = utils.average_over_bandpass(
                 telescope_params, wavelength_range
             )
 
         elif parameters["observing_mode"] == "IFS":
             # interpolate telescope throughput onto native wavelength grid
-            telescope_params = parse_input.interpolate_over_bandpass(
+            telescope_params = utils.interpolate_over_bandpass(
                 telescope_params, mediator.get_observation_parameter("wavelength")
             )
-        else:
-            raise ValueError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
+
         # Load parameters that you need from the YAML files
         self.DEFAULT_CONFIG["diameter"] = telescope_params["diam_circ"] * LENGTH
 
@@ -227,22 +202,7 @@ class EACTelescope(Telescope):
         # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
 
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar

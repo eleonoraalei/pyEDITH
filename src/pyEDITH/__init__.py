@@ -13,6 +13,7 @@ from .components.detectors import Detector
 from .exposure_time_calculator import calculate_exposure_time_or_snr
 from .components.coronagraphs import generate_radii
 from . import parse_input
+from .utils import *
 from .units import *
 
 # Import CLI functions
@@ -33,6 +34,9 @@ __all__ = [
     "calculate_snr",
     "parse_input",
     "generate_radii",
+    "average_over_bandpass",
+    "interpolate_over_bandpass",
+    "validate_attributes",
 ]
 
 __version__ = "0.3.0"

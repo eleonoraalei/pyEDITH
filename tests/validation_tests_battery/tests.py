@@ -81,7 +81,8 @@ def prepare_input_params(df, hpic, hip_name, code):
         "distance": float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]),
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),
-        "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
+        "photap_rad": 0.85,
+        # "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
         "det_npix_input": np.float64(
             df.loc[df["parameter"] == "det_npix", code].iloc[0]
         ),

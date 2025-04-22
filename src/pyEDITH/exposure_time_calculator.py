@@ -6,6 +6,7 @@ import astropy.constants as c
 import astropy.units as u
 from astropy.modeling import models
 from .units import *
+from . import utils
 import pickle
 
 
@@ -194,7 +195,6 @@ def calculate_CRbz(
         +++NOTE: Later added together into tempCRbfactor+++
         +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
-
     return (
         F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
     ).to(
@@ -275,7 +275,6 @@ def calculate_CRbez(
     # Calculate Fexozodi at the separation (scale the value of Fexozodi at 1 AU
     # to the separation in AU)
     scaling_factor = u.AU / arcsec_to_au(sp, dist)
-
     return (
         F0
         * (Fexozodi * scaling_factor**2)
@@ -343,7 +342,6 @@ def calculate_CRbbin(
         +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
 
     """
-
     return (F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels).to(
         u.electron / (u.s),
         equivalencies=u.equivalencies.dimensionless_angles(),
@@ -623,7 +621,6 @@ def calculate_CRnf(
     # CRnoisefloor = tempCRnffactor * omega_lod[index2];
 
     """
-
     return (
         SNR
         * (F0 * Fstar * area * throughput * dlambda * nchannels / (pixscale**2))
@@ -631,84 +628,8 @@ def calculate_CRnf(
     )
 
 
-# def interpolate_arrays(
-#     Istar: u.Quantity,
-#     noisefloor: u.Quantity,
-#     npix: int,
-#     ndiams: int,
-#     stellar_diam_lod: u.Quantity,
-#     angdiams: u.Quantity,
-# ) -> Tuple[u.Quantity, u.Quantity]:
-#     """
-#     Interpolate Istar and noisefloor arrays based on stellar diameter.
-
-#     Parameters
-#     ----------
-#     Istar : u.Quantity
-#         3D array of star intensities. [dimensionless] dimensions: [npix, npix, ndiams]
-#     noisefloor :u.Quantity
-#         3D array of noise floor values. [dimensionless]  dimensions: [npix, npix, ndiams]
-#     npix : int
-#         Number of pixels in each dimension.
-#     ndiams : int
-#         Number of stellar diameters.
-#     stellar_diam_lod : u.Quantity
-#         Stellar diameter. [lambda/D]
-#     angdiams : u.Quantity
-#         Array of angular diameters. [lambda/D]
-
-#     Returns
-#     -------
-#     Tuple[u.Quantity, u.Quantity]
-#         Interpolated Istar and noisefloor arrays. [dimensionless]
-
-
-#     Notes
-#     -----
-#     lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
-#     oneolod_arcsec = 1.0 / lod_arcsec
-#     stellar_diam_lod = angdiamstar_arcsec * oneolod_arcsec
-#     # Usage:
-#     # Assuming Istar and noisefloor are 3D NumPy arrays with shape
-#     # (npix, npix, ndiams)
-#     # and angdiams is a 1D NumPy array
-#     Istar_interp, noisefloor_interp = interpolate_arrays(Istar, noisefloor,
-#                         npix, ndiams, stellar_diam_lod, angdiams)
-
-#     """
-#     Istar_interp = np.zeros((npix, npix)) * DIMENSIONLESS
-#     noisefloor_interp = np.zeros((npix, npix)) * DIMENSIONLESS
-
-#     k = np.searchsorted(angdiams, stellar_diam_lod)
-
-#     if k < ndiams:
-#         # Interpolation
-#         weight = (stellar_diam_lod - angdiams[k - 1]) / (angdiams[k] - angdiams[k - 1])
-#         Istar_interp = (1 - weight) * Istar[:, :, k - 1] + weight * Istar[:, :, k]
-#         noisefloor_interp = (1 - weight) * noisefloor[
-#             :, :, k - 1
-#         ] + weight * noisefloor[:, :, k]
-#     else:
-#         # Extrapolation
-#         weight = (stellar_diam_lod - angdiams[k - 1]) / (
-#             angdiams[k - 1] - angdiams[k - 2]
-#         )
-#         Istar_interp = Istar[:, :, k - 1] + weight * (
-#             Istar[:, :, k - 1] - Istar[:, :, k - 2]
-#         )
-#         noisefloor_interp = noisefloor[:, :, k - 1] + weight * (
-#             noisefloor[:, :, k - 1] - noisefloor[:, :, k - 2]
-#         )
-
-#     # Ensure non-negative values
-#     Istar_interp = np.maximum(Istar_interp, 0)
-#     noisefloor_interp = np.maximum(noisefloor_interp, 0)
-
-#     return Istar_interp, noisefloor_interp
-
-
 def measure_coronagraph_performance_at_IWA(
-    #psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photap_rad for omega calculation. This is not used anyway in this function.
+    # psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photap_rad for omega calculation. This is not used anyway in this function.
     photap_frac: u.Quantity,
     Istar_interp: u.Quantity,
     skytrans: u.Quantity,
@@ -762,11 +683,11 @@ def measure_coronagraph_performance_at_IWA(
     """
 
     # Find psf_trunc_ratio closest to 0.3
-    # Commenting this out for now since this is not used. 
+    # Commenting this out for now since this is not used.
     # bestiratio = np.argmin(
     #     np.abs(psf_trunc_ratio - 0.3)
     # )  # NOT USED, in EDITH only one psf_trunc_ratio
-    bestiratio = 0 # len = 1 array, so only one index to choose
+    bestiratio = 0  # len = 1 array, so only one index to choose
 
     # Find maximum photap_frac in first half of image
     maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter.value), bestiratio])
@@ -822,6 +743,10 @@ def calculate_exposure_time_or_snr(
     verbose : boolean
         Verbose flag.
     """
+
+    # Check modes
+    if mode not in ["exposure_time", "signal_to_noise"]:
+        raise ValueError("Invalid mode. Use 'exposure_time' or 'signal_to_noise'.")
 
     observation.validation_variables = {}
     observation.photon_counts = {
@@ -947,7 +872,7 @@ def calculate_exposure_time_or_snr(
             det_photap_frac,
             det_omega_lod,
         ) = measure_coronagraph_performance_at_IWA(
-            #observation.psf_trunc_ratio, # this is no longer used in the function
+            # observation.psf_trunc_ratio, # this is no longer used in the function
             observatory.coronagraph.photap_frac,
             observatory.coronagraph.Istar,
             observatory.coronagraph.skytrans,
@@ -1138,11 +1063,6 @@ def calculate_exposure_time_or_snr(
                         observatory.coronagraph.noisefloor[
                             int(np.floor(iy)), int(np.floor(ix))
                         ],
-                    )
-
-                else:
-                    raise ValueError(
-                        "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
                     )
 
                 # multiply by omega at that point
@@ -1394,19 +1314,6 @@ def calculate_exposure_time_or_snr(
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
                         # [electron]/[electron] = []
 
-                        if observation.fullsnr[ilambd] < 0:
-                            # time is past the systematic noise
-                            # floor limit
-                            observation.fullsnr[ilambd] = 0 * DIMENSIONLESS
-                        if observation.fullsnr[ilambd] > 100:
-                            # treat as unobservable if beyond
-                            # exposure time limit
-                            observation.fullsnr[ilambd] = 100 * DIMENSIONLESS
-                    else:
-                        raise ValueError(
-                            "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                        )
-
                     # Store the variables of interest
                     observation.validation_variables[ilambd] = {
                         "F0": scene.F0[ilambd],
@@ -1507,10 +1414,6 @@ def calculate_exposure_time_or_snr(
                         observation.exptime[ilambd] = np.inf
                     elif mode == "signal_to_noise":
                         observation.fullsnr[ilambd] = np.inf
-                    else:
-                        raise ValueError(
-                            "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                        )
 
         else:
             print(
@@ -1520,13 +1423,9 @@ def calculate_exposure_time_or_snr(
                 observation.exptime[ilambd] = np.inf
             elif mode == "signal_to_noise":
                 observation.fullsnr[ilambd] = np.inf
-            else:
-                raise ValueError(
-                    "Invalid mode. Use 'exposure_time' or 'signal_to_noise'."
-                )
 
         if verbose:
-            print_all_variables(
+            utils.print_all_variables(
                 observation,
                 scene,
                 observatory,
@@ -1571,373 +1470,3 @@ def calculate_exposure_time_or_snr(
     pickle.dump(observation.photon_counts, open("photon_counts.pk", "wb"))
 
     return
-
-
-def print_array_info(file, name, arr, mode="full_info"):
-    if mode == "full_info":
-        file.write(f"{name}:\n")
-
-        # Handle units
-        if hasattr(arr, "unit"):
-            if arr.unit == u.dimensionless_unscaled:
-                file.write(" Unit: dimensionless\n")
-            else:
-                file.write(f" Unit: {arr.unit}\n")
-        else:
-            file.write(" Unit: N/A\n")
-
-        # Convert to numpy array if it's not already
-        if not isinstance(arr, np.ndarray):
-            arr = np.array(arr)
-
-        # Handle shape
-        if arr.size == 1:
-            file.write(" Shape: scalar\n")
-            if np.issubdtype(arr.dtype, np.integer):
-                file.write(f" Value: {arr.item():d}\n")
-            else:
-                file.write(f" Value: {arr.item():.6e}\n")
-        else:
-            file.write(f" Shape: {arr.shape}\n")
-            if arr.size > 0:
-                max_val = np.max(arr)
-                min_val = np.min(arr)
-                max_coords = np.unravel_index(np.argmax(arr), arr.shape)
-                min_coords = np.unravel_index(np.argmin(arr), arr.shape)
-                file.write(f" Max value: {max_val} at coordinates: {max_coords}\n")
-                file.write(f" Min value: {min_val} at coordinates: {min_coords}\n")
-            else:
-                file.write(" Array is empty\n")
-    else:
-        # C-like output for non-full_info mode
-        file.write(f"{name}: ")
-
-        # Convert to numpy array if it's not already
-        if not isinstance(arr, np.ndarray):
-            arr = np.array(arr)
-
-        is_int = np.issubdtype(arr.dtype, np.integer)
-
-        # Check if the array has units
-        has_units = hasattr(arr, "unit")
-
-        if arr.size == 1:
-            if has_units:
-                if is_int:
-                    file.write(f"value: {arr.value.item():d}\n")
-                else:
-                    file.write(f"value: {arr.value.item():.6e}\n")
-            else:
-                if is_int:
-                    file.write(f"value: {arr.item():d}\n")
-                else:
-                    file.write(f"value: {arr.item():.6e}\n")
-        else:
-            max_val = np.max(arr)
-            min_val = np.min(arr)
-            if has_units:
-                if is_int:
-                    file.write(
-                        f"max value: {max_val.value:d}, min value: {min_val.value:d}\n"
-                    )
-                else:
-                    file.write(
-                        f"max value: {max_val.value:.6e}, min value: {min_val.value:.6e}\n"
-                    )
-            else:
-                if is_int:
-                    file.write(f"max value: {max_val:d}, min value: {min_val:d}\n")
-                else:
-                    file.write(f"max value: {max_val:.6e}, min value: {min_val:.6e}\n")
-
-
-def print_all_variables(
-    observation,
-    scene,
-    observatory,
-    deltalambda_nm,
-    lod,
-    lod_rad,
-    lod_arcsec,
-    area_cm2,
-    detpixscale_lod,
-    stellar_diam_lod,
-    pixscale_rad,
-    oneopixscale_arcsec,
-    det_sep_pix,
-    det_sep,
-    det_Istar,
-    det_skytrans,
-    det_photap_frac,
-    det_omega_lod,
-    det_CRp,
-    det_CRbs,
-    det_CRbz,
-    det_CRbez,
-    det_CRbbin,
-    det_CRbth,
-    det_CR,
-    ix,
-    iy,
-    sp_lod,
-    CRp,
-    CRnf,
-    CRbs,
-    CRbz,
-    CRbez,
-    CRbbin,
-    t_photon_count,
-    CRbd,
-    CRbth,
-    CRb,
-    # cp,
-):
-    for mode in ["validation", "full_info"]:
-        with open("pyedith_" + mode + ".txt", "w") as file:
-            file.write("Input Objects and Their Relevant Properties:\n")
-            file.write("1. Observation:\n")
-            print_array_info(
-                file, "observation.wavelength", observation.wavelength, mode
-            )
-            print_array_info(file, "observation.SNR", observation.SNR, mode)
-            print_array_info(file, "observation.td_limit", observation.td_limit, mode)
-            print_array_info(
-                file, "observation.CRb_multiplier", observation.CRb_multiplier, mode
-            )
-
-            file.write("\n2. Scene:\n")
-            print_array_info(file, "scene.mag", scene.mag, mode)
-            print_array_info(
-                file,
-                "scene.angular_diameter_arcsec",
-                scene.angular_diameter_arcsec,
-                mode,
-            )
-            print_array_info(file, "scene.F0", scene.F0, mode)
-            print_array_info(file, "scene.Fp0", scene.Fp0, mode)
-            print_array_info(file, "scene.Fzodi_list", scene.Fzodi_list, mode)
-            print_array_info(file, "scene.Fexozodi_list", scene.Fexozodi_list, mode)
-            print_array_info(file, "scene.Fbinary_list", scene.Fbinary_list, mode)
-            print_array_info(file, "scene.xp", scene.xp, mode)
-            print_array_info(file, "scene.yp", scene.yp, mode)
-            print_array_info(file, "scene.separation", scene.separation, mode)
-            print_array_info(file, "scene.dist", scene.dist, mode)
-
-            file.write("\n3. Observatory:\n")
-            file.write("Telescope:\n")
-
-            print_array_info(
-                file,
-                "observatory.telescope.diameter",
-                observatory.telescope.diameter,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.telescope.temperature",
-                observatory.telescope.temperature,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.telescope.toverhead_multi",
-                observatory.telescope.toverhead_multi,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.telescope.toverhead_fixed",
-                observatory.telescope.toverhead_fixed,
-                mode,
-            )
-            print_array_info(
-                file, "observatory.total_throughput", observatory.total_throughput, mode
-            )
-            print_array_info(
-                file, "observatory.epswarmTrcold", observatory.epswarmTrcold, mode
-            )
-
-            file.write("\nCoronagraph:\n")
-            print_array_info(
-                file,
-                "observatory.coronagraph.bandwidth",
-                observatory.coronagraph.bandwidth,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.Istar",
-                observatory.coronagraph.Istar,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.noisefloor",
-                observatory.coronagraph.noisefloor,
-                mode,
-            )
-            print_array_info(
-                file, "observatory.coronagraph.npix", observatory.coronagraph.npix, mode
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.pixscale",
-                observatory.coronagraph.pixscale,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observation.psf_trunc_ratio",
-                observation.psf_trunc_ratio,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.photap_frac",
-                observatory.coronagraph.photap_frac,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.skytrans",
-                observatory.coronagraph.skytrans,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.omega_lod",
-                observatory.coronagraph.omega_lod,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.xcenter",
-                observatory.coronagraph.xcenter,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.ycenter",
-                observatory.coronagraph.ycenter,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.nchannels",
-                observatory.coronagraph.nchannels,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.minimum_IWA",
-                observatory.coronagraph.minimum_IWA,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.maximum_OWA",
-                observatory.coronagraph.maximum_OWA,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.npsfratios",
-                observatory.coronagraph.npsfratios,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.coronagraph.nrolls",
-                observatory.coronagraph.nrolls,
-                mode,
-            )
-
-            file.write("\nDetector:\n")
-            print_array_info(
-                file,
-                "observatory.detector.pixscale_mas",
-                observatory.detector.pixscale_mas,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.detector.QE*observatory.detector.dQE",
-                observatory.detector.QE * observatory.detector.dQE,
-                mode,
-            )
-            print_array_info(
-                file,
-                "observatory.detector.npix_multiplier",
-                observatory.detector.npix_multiplier,
-                mode,
-            )
-            print_array_info(
-                file, "observatory.detector.DC", observatory.detector.DC, mode
-            )
-            print_array_info(
-                file, "observatory.detector.RN", observatory.detector.RN, mode
-            )
-            print_array_info(
-                file, "observatory.detector.tread", observatory.detector.tread, mode
-            )
-            print_array_info(
-                file, "observatory.detector.CIC", observatory.detector.CIC, mode
-            )
-
-            file.write("\nCalculated Variables:\n")
-            file.write("\n1. Initial Calculations:\n")
-            print_array_info(file, "Fstar", scene.Fstar, mode)
-            print_array_info(file, "deltalambda_nm", deltalambda_nm, mode)
-            print_array_info(file, "lod", lod, mode)
-            print_array_info(file, "lod_rad", lod_rad, mode)
-            print_array_info(file, "lod_arcsec", lod_arcsec, mode)
-            print_array_info(file, "area_cm2", area_cm2, mode)
-            print_array_info(file, "detpixscale_lod", detpixscale_lod, mode)
-            print_array_info(file, "stellar_diam_lod", stellar_diam_lod, mode)
-
-            file.write("\n2. Interpolated Arrays:\n")
-            print_array_info(file, "Istar_interp", observatory.coronagraph.Istar, mode)
-            print_array_info(
-                file, "noisefloor_interp", observatory.coronagraph.noisefloor, mode
-            )
-
-            file.write("\n3. Coronagraph Performance Measurements:\n")
-            print_array_info(file, "pixscale_rad", pixscale_rad, mode)
-            print_array_info(file, "oneopixscale_arcsec", oneopixscale_arcsec, mode)
-            print_array_info(file, "det_sep_pix", det_sep_pix, mode)
-            print_array_info(file, "det_sep", det_sep, mode)
-            print_array_info(file, "det_Istar", det_Istar, mode)
-            print_array_info(file, "det_skytrans", det_skytrans, mode)
-            print_array_info(file, "det_photap_frac", det_photap_frac, mode)
-            print_array_info(file, "det_omega_lod", det_omega_lod, mode)
-
-            file.write("\n4. Detector Noise Calculations:\n")
-            print_array_info(file, "det_CRp", det_CRp, mode)
-            print_array_info(file, "det_CRbs", det_CRbs, mode)
-            print_array_info(file, "det_CRbz", det_CRbz, mode)
-            print_array_info(file, "det_CRbez", det_CRbez, mode)
-            print_array_info(file, "det_CRbbin", det_CRbbin, mode)
-            print_array_info(file, "det_CRbth", det_CRbth, mode)
-            print_array_info(file, "det_CR", det_CR, mode)
-
-            file.write("\n5. Planet Position and Separation:\n")
-            print_array_info(file, "ix", ix, mode)
-            print_array_info(file, "iy", iy, mode)
-            print_array_info(file, "sp_lod", sp_lod, mode)
-
-            file.write("\n6. Count Rates and Exposure Time Calculation:\n")
-            print_array_info(file, "CRp", CRp, mode)
-            print_array_info(file, "CRnf", CRnf, mode)
-            print_array_info(file, "CRbs", CRbs, mode)
-            print_array_info(file, "CRbz", CRbz, mode)
-            print_array_info(file, "CRbez", CRbez, mode)
-            print_array_info(file, "CRbbin", CRbbin, mode)
-            print_array_info(file, "t_photon_count", t_photon_count, mode)
-            print_array_info(file, "CRbd", CRbd, mode)
-            print_array_info(file, "CRbth", CRbth, mode)
-            print_array_info(file, "CRb", CRb, mode)
-            # print_array_info(file, "cp", cp, mode)
-
-            file.write("\n7. Final Result:\n")
-            print_array_info(file, "observation.exptime", observation.exptime, mode)
-            print_array_info(file, "observation.fullsnr", observation.fullsnr, mode)

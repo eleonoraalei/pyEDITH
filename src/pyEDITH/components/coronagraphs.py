@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import parse_input
+from .. import utils
 from astropy import units as u
 from ..units import *
 from scipy.interpolate import interp1d
@@ -154,7 +154,7 @@ class Coronagraph(ABC):
 
     @abstractmethod
     def load_configuration(self):
-        pass
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -181,25 +181,7 @@ class Coronagraph(ABC):
             "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
 
-        for arg, expected_type in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Coronagraph is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if expected_type is int:
-                if not isinstance(value, (int, np.integer)):
-                    raise TypeError(f"Coronagraph attribute {arg} should be an integer")
-            elif expected_type is float:
-                if not isinstance(value, (float, np.floating)):
-                    raise TypeError(f"Coronagraph attribute {arg} should be a float")
-            elif isinstance(expected_type, u.UnitBase):
-                if not isinstance(value, u.Quantity):
-                    raise TypeError(f"Coronagraph attribute {arg} should be a Quantity")
-                if not value.unit == expected_type:
-                    raise ValueError(
-                        f"Coronagraph attribute {arg} has incorrect units. Expected {expected_type}, got {value.unit}"
-                    )
-            else:
-                raise ValueError(f"Unexpected type specification for {arg}")
+        utils.validate_attributes(self, expected_args)
 
 
 class ToyModelCoronagraph(Coronagraph):
@@ -248,49 +230,19 @@ class ToyModelCoronagraph(Coronagraph):
         -------
         None
         """
-
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    # TODO Implement conversion of units from the input file
 
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Convert to numpy array when appropriate
         array_params = ["coronagraph_throughput"]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
+        utils.convert_to_numpy_array(self, array_params)
 
         # Get PSF Truncation ratio from Observation
-        self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
+        # self.psf_trunc_ratio = mediator.get_observation_parameter("psf_trunc_ratio")
 
         # Derived parameters
-        self.npsfratios = len(self.psf_trunc_ratio)
+        self.npsfratios = 1
         self.npix = int(2 * 60 / self.pixscale)  # TODO check units here
         self.xcenter = self.npix / 2.0 * PIXEL
         self.ycenter = self.npix / 2.0 * PIXEL
@@ -417,6 +369,11 @@ class CoronagraphYIP(Coronagraph):
         -------
         None
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
 
         from eacy import load_instrument, load_telescope
 
@@ -445,16 +402,13 @@ class CoronagraphYIP(Coronagraph):
                 mediator.get_observation_parameter("wavelength")
                 * (1 + 0.5 * self.bandwidth),
             ]
-
-            instrument_params = parse_input.average_over_bandpass(
+            instrument_params = utils.average_over_bandpass(
                 instrument_params, wavelength_range
             )
         elif parameters["observing_mode"] == "IFS":
-            instrument_params = parse_input.interpolate_over_bandpass(
+            instrument_params = utils.interpolate_over_bandpass(
                 instrument_params, mediator.get_observation_parameter("wavelength")
             )
-        else:
-            raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
         # Ensure coronagraph_throughput has dimensions nlambda
         if np.isscalar(instrument_params["total_inst_refl"]):
@@ -486,44 +440,50 @@ class CoronagraphYIP(Coronagraph):
             * self.DEFAULT_CONFIG["pixscale"]
         )
 
-        # instantiate omega_lod and photap_frac
-        self.DEFAULT_CONFIG["npsfratios"] = len([mediator.get_observation_parameter("psf_trunc_ratio")])
-        omega_lod = np.zeros(
-            (
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npsfratios"],
-            )
-        )
-        photap_frac = np.zeros(
-            (
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npix"],
-                self.DEFAULT_CONFIG["npsfratios"],
-            )
-        )
-
         # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
-        if mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is None:
-            print("WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega.")
-            assert False
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is not None:
-            print("WARNING: Both psf_trunc_ratio and photap_rad are specified. Specify one or the other to calculate Omega.")
-            assert False
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None and mediator.get_observation_parameter("photap_rad") is None:
+        if (
+            mediator.get_observation_parameter("psf_trunc_ratio") is None
+            and mediator.get_observation_parameter("photap_rad") is None
+        ):
+            raise KeyError(
+                "WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega."
+            )
+        elif mediator.get_observation_parameter("psf_trunc_ratio") is not None:
+            if mediator.get_observation_parameter("photap_rad") is not None:
+                print(
+                    "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+                )
             print("Using psf_trunc_ratio to calculate Omega...")
 
             # Use the PSF truncation ratio method of calculating Omega with the YIP files
 
             # Get PSF Truncation ratio from Observation
             self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
-            )         # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
+                [mediator.get_observation_parameter("psf_trunc_ratio")]
+            )  # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
 
-            self.DEFAULT_CONFIG["psf_trunc_ratio"] = np.array(
-            [mediator.get_observation_parameter("psf_trunc_ratio")]
+            # instantiate omega_lod and photap_frac
+            self.DEFAULT_CONFIG["npsfratios"] = len(
+                [mediator.get_observation_parameter("psf_trunc_ratio")]
             )
-            offsets = np.sqrt(yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2)
+            omega_lod = np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npsfratios"],
+                )
+            )
+            photap_frac = np.zeros(
+                (
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npix"],
+                    self.DEFAULT_CONFIG["npsfratios"],
+                )
+            )
+
+            offsets = np.sqrt(
+                yippy_obj.offax.x_offsets**2 + yippy_obj.offax.y_offsets**2
+            )
             noffsets = len(offsets)
             peakvals = np.zeros(noffsets)
             temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
@@ -575,30 +535,47 @@ class CoronagraphYIP(Coronagraph):
                     self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
                 ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
 
-        elif mediator.get_observation_parameter("psf_trunc_ratio") is None and mediator.get_observation_parameter("photap_rad") is not None:
+        elif (
+            mediator.get_observation_parameter("psf_trunc_ratio") is None
+            and mediator.get_observation_parameter("photap_rad") is not None
+        ):
             print("Using photap_rad to calculate Omega...")
 
             # Use the photap_rad method of calculating Omega.
             # this method also requires you to set Tcore (does not use the YIP to calculate this)
 
+            # ALLOW TO READ Tcore if it is available ### TODO in what capacity should we apply user customization for YIP files?
+            if "Tcore" in parameters.keys():
+                subparams = {"Tcore": parameters["Tcore"]}
+                utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+            else:
+                self.Tcore = self.DEFAULT_CONFIG["Tcore"]
+
             # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
 
             omega_lod = (
-            np.full(
-                (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
-                float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
-            )
-            * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+                np.full(
+                    (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
+                    float(np.pi)
+                    * mediator.get_observation_parameter("photap_rad") ** 2,
+                )
+                * (mediator.get_observation_parameter("photap_rad").unit) ** 2
             )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
             photap_frac = (
-            np.full((self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1), self.DEFAULT_CONFIG["Tcore"])
-            * self.DEFAULT_CONFIG["Tcore"].unit
+                np.full(
+                    (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
+                    self.Tcore,
+                )
+                * self.DEFAULT_CONFIG["Tcore"].unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
-        
-            photap_frac[self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]] = 0.0  # index 0 is the
-            photap_frac[self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]] = 0.0
 
+            photap_frac[
+                self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]
+            ] = 0.0  # index 0 is the
+            photap_frac[
+                self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]
+            ] = 0.0
 
         omega_lod = np.maximum(omega_lod, 0)
         photap_frac = np.maximum(photap_frac, 0)
@@ -629,33 +606,47 @@ class CoronagraphYIP(Coronagraph):
             np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
         )
 
-        if self.DEFAULT_CONFIG["noisefloor_contrast"] is not None:
+        # ALLOW TO READ noisefloor terms if it is available ### TODO in what capacity should we apply user customization for YIP files?
+        if "noisefloor_contrast" in parameters.keys():
+            subparams = {"noisefloor_contrast": parameters["noisefloor_contrast"]}
+            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+        else:
+            self.noisefloor_contrast = self.DEFAULT_CONFIG["noisefloor_contrast"]
+
+        if "noisefloor_PPF" in parameters.keys():
+            subparams = {"noisefloor_PPF": parameters["noisefloor_PPF"]}
+            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
+        else:
+            self.noisefloor_PPF = self.DEFAULT_CONFIG["noisefloor_PPF"]
+
+        if self.noisefloor_contrast is not None:
             print("Setting the noise floor via user-supplied noisefloor_contrast...")
             self.DEFAULT_CONFIG["noisefloor"] = (
                 (
                     self.DEFAULT_CONFIG["pixscale"] ** 2
                     / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
                 )
-                * self.DEFAULT_CONFIG["noisefloor_contrast"]
+                * self.noisefloor_contrast
                 * self.DEFAULT_CONFIG["photap_frac"][:, :, 0]
             )
 
-        if self.DEFAULT_CONFIG["noisefloor_PPF"] is not None:
+        if self.noisefloor_PPF is not None:
             print("Setting the noise floor via user-supplied noisefloor_PPF...")
             self.DEFAULT_CONFIG["noisefloor"] = (
-                self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
+                self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
             )
 
-        if (
-            self.DEFAULT_CONFIG["noisefloor_contrast"] is None
-            and self.DEFAULT_CONFIG["noisefloor_PPF"] is None
-        ):
-            print(
-                "Specify either noisefloor_contrast or noisefloor_PPF to set the noise floor."
-            )
-            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
-                self.DEFAULT_CONFIG["Istar"]
-            )
+        # SHOULD NEVER HAPPEN BECAUSE THE PPF VALUE HAS A DEFAULT
+        # if (
+        #     self.noisefloor_contrast is None
+        #     and self.noisefloor_PPF is None
+        # ):
+        #     print(
+        #         "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
+        #     )
+        #     self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
+        #         self.DEFAULT_CONFIG["Istar"]
+        #     )
 
         if self.DEFAULT_CONFIG["az_avg"]:
             # azimuthally average the stellar intensity to smooth it out
@@ -681,19 +672,4 @@ class CoronagraphYIP(Coronagraph):
         # TODO for coronagraph, allow replacement only in terms of scaling factors?
         # NOTE what should be allowed to be replaced?
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)

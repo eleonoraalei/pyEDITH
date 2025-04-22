@@ -69,21 +69,18 @@ def main():
 
     if args.subfunction == "etc":
         if not args.edith:
-            print("Error: --edith argument is required for etc subfunction.")
-            parser_a.print_help(sys.stderr)
-            sys.exit(1)
+            raise SyntaxError("--edith argument is required for etc subfunction.")
+
         parameters, _ = parse_input.read_configuration(args.edith)
         texp, _ = calculate_texp(parameters, args.verbose)
         print(texp)
 
     elif args.subfunction == "snr":
         if not args.edith or args.time is None:
-            print(
-                "Error: Both --edith and --time arguments are required for snr \
-                    subfunction."
+            raise SyntaxError(
+                "Both --edith and --time arguments are required for snr subfunction."
             )
-            parser_b.print_help(sys.stderr)
-            sys.exit(1)
+
         parameters, _ = parse_input.read_configuration(args.edith)
         texp = args.time
         snr, _ = calculate_snr(parameters, texp, args.verbose)
@@ -91,9 +88,8 @@ def main():
 
     elif args.subfunction == "etc2snr":
         if not args.edith:
-            print("Error: --edith argument is required for etc2snr subfunction.")
-            parser_c.print_help(sys.stderr)
-            sys.exit(1)
+            raise SyntaxError("--edith argument is required for etc2snr subfunction.")
+
         parameters, secondary_parameters = parse_input.read_configuration(
             args.edith, secondary_flag=True
         )

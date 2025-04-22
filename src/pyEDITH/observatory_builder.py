@@ -54,7 +54,7 @@ class ObservatoryBuilder:
         return registry
 
     @staticmethod
-    def build_component_path(component_type, keyword):
+    def build_component_path(component_type, path):
         if component_type == "telescopes" or component_type == "detectors":
             base_dir = os.environ.get("SCI_ENG_DIR")
             if not base_dir:
@@ -66,7 +66,7 @@ class ObservatoryBuilder:
         else:
             raise ValueError(f"Unknown component type: {component_type}")
 
-        return os.path.join(base_dir, keyword)
+        return os.path.join(base_dir, path)
 
     @staticmethod
     def create_observatory(config):
@@ -133,14 +133,13 @@ class ObservatoryBuilder:
             )
         else:
             path = None
-
         module = globals()[component_type]
 
         # Initalize the component (by specifying the path)
         try:
             component_class = getattr(module, component_info["class"])
             return component_class(path, keyword)
-        except AttributeError:
+        except:
             raise ValueError(f"Unknown component class: {component_info['class']}")
 
     @staticmethod
@@ -183,9 +182,9 @@ class ObservatoryBuilder:
         Raises:
         ValueError: If the preset name already exists.
         """
-        if preset_name.lower() in cls.PRESETS:
+        if preset_name in cls.PRESETS:
             raise ValueError(f"Preset '{preset_name}' already exists")
-        cls.PRESETS[preset_name.lower()] = config
+        cls.PRESETS[preset_name] = config
 
     @classmethod
     def remove_preset(cls, preset_name):
@@ -198,9 +197,9 @@ class ObservatoryBuilder:
         Raises:
         ValueError: If the preset name does not exist.
         """
-        if preset_name.lower() not in cls.PRESETS:
+        if preset_name not in cls.PRESETS:
             raise ValueError(f"Preset '{preset_name}' does not exist")
-        del cls.PRESETS[preset_name.lower()]
+        del cls.PRESETS[preset_name]
 
     @classmethod
     def list_presets(cls):
@@ -226,7 +225,7 @@ class ObservatoryBuilder:
         Raises:
         ValueError: If the preset name does not exist.
         """
-        preset_config = cls.PRESETS.get(preset_name.lower())
+        preset_config = cls.PRESETS.get(preset_name)
         if preset_config is None:
             raise ValueError(f"Preset '{preset_name}' does not exist")
         return (
@@ -265,10 +264,10 @@ class ObservatoryBuilder:
         Raises:
         ValueError: If the preset name does not exist or if invalid keys are provided.
         """
-        if preset_name.lower() not in cls.PRESETS:
+        if preset_name not in cls.PRESETS:
             raise ValueError(f"Preset '{preset_name}' does not exist")
 
-        preset_config = cls.PRESETS[preset_name.lower()]
+        preset_config = cls.PRESETS[preset_name]
         valid_keys = set(preset_config.keys())
 
         for key, value in kwargs.items():

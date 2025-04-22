@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import parse_input
+from .. import utils
 import astropy.units as u
 from ..units import *
 
@@ -34,7 +34,7 @@ class Detector(ABC):
 
     @abstractmethod
     def load_configuration(self):
-        pass
+        pass  # pragma: no cover
 
     def validate_configuration(self):
         """
@@ -47,21 +47,21 @@ class Detector(ABC):
             "DC": DARK_CURRENT,
             "RN": READ_NOISE,
             "tread": READ_TIME,
-            "CIC": CIC,
-            "QE": QE,
+            "CIC": CLOCK_INDUCED_CHARGE,
+            "QE": QUANTUM_EFFICIENCY,
             "dQE": DIMENSIONLESS,
         }
-
-        for arg, expected_unit in expected_args.items():
-            if not hasattr(self, arg):
-                raise AttributeError(f"Detector is missing attribute: {arg}")
-            value = getattr(self, arg)
-            if not isinstance(value, u.Quantity):
-                raise TypeError(f"Detector attribute {arg} should be a Quantity")
-            if not value.unit == expected_unit:
-                raise ValueError(
-                    f"Detector attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
-                )
+        utils.validate_attributes(self, expected_args)
+        # for arg, expected_unit in expected_args.items():
+        #     if not hasattr(self, arg):
+        #         raise AttributeError(f"Detector is missing attribute: {arg}")
+        #     value = getattr(self, arg)
+        #     if not isinstance(value, u.Quantity):
+        #         raise TypeError(f"Detector attribute {arg} should be a Quantity")
+        #     if not value.unit == expected_unit:
+        #         raise ValueError(
+        #             f"Detector attribute {arg} has incorrect units. Expected {expected_unit}, got {value.unit}"
+        #         )
 
 
 class ToyModelDetector(Detector):
@@ -79,8 +79,8 @@ class ToyModelDetector(Detector):
         "RN": [0.0] * READ_NOISE,  # Read noise (counts pix^-1 read^-1, nlambd array)
         "tread": [1000] * READ_TIME,  # Read time (s, nlambd array)
         "CIC": [1.3e-3]
-        * CIC,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array)
-        "QE": [0.9] * QE,  # Quantum efficiency of detector
+        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array)
+        "QE": [0.9] * QUANTUM_EFFICIENCY,  # Quantum efficiency of detector
         "dQE": [0.75]
         * DIMENSIONLESS,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
@@ -119,22 +119,7 @@ class ToyModelDetector(Detector):
         ).to(MAS)
 
         # Load parameters, use defaults if not provided
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # # Convert to numpy array when appropriate
         array_params = [
@@ -146,20 +131,7 @@ class ToyModelDetector(Detector):
             "QE",
             "dQE",
         ]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
+        utils.convert_to_numpy_array(self, array_params)
 
 
 class EACDetector(Detector):
@@ -177,7 +149,7 @@ class EACDetector(Detector):
         "RN": None,  # Read noise (counts pix^-1 read^-1, nlambd array)
         "tread": [1000] * READ_TIME,  # Read time (s, nlambd array) # TO ADD TO YAML
         "CIC": [0]
-        * CIC,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
+        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
         "QE": None,  # Quantum efficiency of detector
         "dQE": None,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
@@ -204,11 +176,18 @@ class EACDetector(Detector):
         None
 
         """
+        # Check on possible modes
+        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
+            raise KeyError(
+                f"Unsupported observing mode: {parameters['observing_mode']}"
+            )
+
         from eacy import load_detector
 
         # ****** Update Default Config when necessary ******
 
         detector_params = load_detector(parameters["observing_mode"]).__dict__
+
         if parameters["observing_mode"] == "IMAGER":
             wavelength_range = [
                 mediator.get_observation_parameter("wavelength")
@@ -217,16 +196,12 @@ class EACDetector(Detector):
                 * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
             ]
 
-            detector_params = parse_input.average_over_bandpass(
+            detector_params = utils.average_over_bandpass(
                 detector_params, wavelength_range
             )
         elif parameters["observing_mode"] == "IFS":
-            detector_params = parse_input.interpolate_over_bandpass(
+            detector_params = utils.interpolate_over_bandpass(
                 detector_params, mediator.get_observation_parameter("wavelength")
-            )
-        else:
-            raise ValueError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
             )
 
         dc_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
@@ -298,19 +273,15 @@ class EACDetector(Detector):
             qe_arr = np.nan_to_num(qe_arr)
             # make sure qe_arr does not contain NaNs
             assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
-        else:
-            raise ValueError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
 
-        self.DEFAULT_CONFIG["QE"] = qe_arr * QE
+        self.DEFAULT_CONFIG["QE"] = qe_arr * QUANTUM_EFFICIENCY
         # self.DEFAULT_CONFIG["QE"] = [
         #     (
         #         detector_params["qe_vis"]
         #         if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
         #         else detector_params["qe_nir"]
         #     )
-        # ] * QE
+        # ] * QUANTUM_EFFICIENCY
 
         dQE_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
 
@@ -346,27 +317,11 @@ class EACDetector(Detector):
                 self.DEFAULT_CONFIG["CIC"][0].value,
                 dtype=np.float64,
             )
-            * CIC
+            * CLOCK_INDUCED_CHARGE
         )
 
-        # ***** Load parameters, use defaults if not provided *****
-        for key, default_value in self.DEFAULT_CONFIG.items():
-            if key in parameters:
-                # User provided a value
-                user_value = parameters[key]
-                if isinstance(default_value, u.Quantity):
-                    # Ensure the user value has the same unit as the default
-                    # TODO Implement conversion of units from the input file
-                    if isinstance(user_value, u.Quantity):
-                        setattr(self, key, user_value.to(default_value.unit))
-                    else:
-                        setattr(self, key, u.Quantity(user_value, default_value.unit))
-                else:
-                    # For non-Quantity values (like integers), use as is
-                    setattr(self, key, user_value)
-            else:
-                # Use default value
-                setattr(self, key, default_value)
+        # Load parameters, use defaults if not provided
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # ***** Convert to numpy array when appropriate *****
         array_params = [
@@ -378,20 +333,7 @@ class EACDetector(Detector):
             "QE",
             "dQE",
         ]
-        for param in array_params:
-            attr_value = getattr(self, param)
-            if isinstance(attr_value, u.Quantity):
-                # If it's already a Quantity, convert to numpy array while preserving units
-                setattr(
-                    self,
-                    param,
-                    u.Quantity(
-                        np.array(attr_value.value, dtype=np.float64), attr_value.unit
-                    ),
-                )
-            else:
-                # If it's not a Quantity, convert to numpy array without units
-                setattr(self, param, np.array(attr_value, dtype=np.float64))
+        utils.convert_to_numpy_array(self, array_params)
 
         # Ensure npix_multiplier has the same length as wavelength (the other ones are taken care of by EACy)
         if len(self.npix_multiplier) != len(
