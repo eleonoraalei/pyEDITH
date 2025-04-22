@@ -760,7 +760,7 @@ def calculate_exposure_time_or_snr(
         "CRnf": np.empty(observation.nlambd),
         "CRb": np.empty(observation.nlambd),
     }
-    
+
     for ilambd in range(observation.nlambd):
 
         # Take the lesser of the desired bandwidth
@@ -1302,6 +1302,7 @@ def calculate_exposure_time_or_snr(
                             * DIMENSIONLESS
                         )
 
+                        print(time_factors, CRbez, CRnf)
                         observation.snr_ez[ilambd] = (
                             np.sqrt(
                                 (time_factors * CRbez**2)
