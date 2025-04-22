@@ -60,11 +60,14 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
                 value = value[1:-1]
             elif value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
-            # Handle numbers
             else:
-                value = float(value)
-                if value.is_integer():
-                    value = int(value)
+                # Handle numbers
+                try:
+                    value = float(value)
+                    if value.is_integer():
+                        value = int(value)
+                except ValueError:
+                    pass  # Keep as string if it's not a number
 
             if "secondary" in key:
                 has_secondary = True

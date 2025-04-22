@@ -17,6 +17,7 @@
 wavelength = 0.5              ;   wavelength (micron)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 psf_trunc_ratio = 0.35      ; truncation ratio of the PSF 
+CRb_multiplier  = 2.          ; factor to multiply to remove background
 
 ;--- STAR PARAMETERS ---
 Lstar = 0.86              ;   luminosity of star (solar luminosities)
@@ -36,7 +37,7 @@ delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting det
 
 ;--- OBSERVATORY PARAMETERS ----
 telescope_type = EAC1
-coronagraph_type = EAC1
+coronagraph_type = LUVOIR
 detector_type = EAC1
 observing_mode = IMAGER
 

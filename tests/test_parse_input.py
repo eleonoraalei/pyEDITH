@@ -20,7 +20,7 @@ def sample_input_file():
         distance = 10
         magV = 5.0
         nzodis = 3.0
-        observing_mode = 'IMAGER'
+        observing_mode = IMAGER
         secondary_wavelength = 1.0
         """
         )
@@ -40,7 +40,7 @@ def sample_input_file_error():
         distance = 10
         magV = 5.0
         nzodis = 3.0
-        observing_mode = 'IMAGER'
+        observing_mode = IMAGER
         """
         )
         tmp.flush()
