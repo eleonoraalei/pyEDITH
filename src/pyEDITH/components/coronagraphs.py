@@ -661,16 +661,17 @@ class CoronagraphYIP(Coronagraph):
             )
 
         # SHOULD NEVER HAPPEN BECAUSE THE PPF VALUE HAS A DEFAULT
-        # if (
-        #     self.noisefloor_contrast is None
-        #     and self.noisefloor_PPF is None
-        # ):
-        #     print(
-        #         "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
-        #     )
-        #     self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
-        #         self.DEFAULT_CONFIG["Istar"]
-        #     )
+        # can happen if user sets both to None (I do in testing.)
+        if (
+            self.noisefloor_contrast is None
+            and self.noisefloor_PPF is None
+        ):
+            print(
+                "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
+            )
+            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
+                self.DEFAULT_CONFIG["Istar"]
+            )
 
         if self.DEFAULT_CONFIG["az_avg"]:
             # azimuthally average the stellar intensity to smooth it out
