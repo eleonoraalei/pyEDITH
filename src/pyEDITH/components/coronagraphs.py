@@ -67,12 +67,11 @@ def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
     if oddy == 1:
         ya -= 0.5
 
-    xb = np.array([xa for i in np.arange(numy)])  # TODO check if type works
-
+    xb = np.array([xa for i in np.arange(numy)])
     yb = np.array([ya for i in np.arange(numx)]).T  # rotate by 90 deg CCW
 
     # FLIPPED BECAUSE IDL WORKS WITH COLUMNS X ROWS AND PYTHON THE OPPOSITE.
-    # TODO consider changing this
+    # TODO Consider changing this (though it does not matter for square images)
 
     x = np.zeros((numy, numx))
 
@@ -120,7 +119,7 @@ class Coronagraph(ABC):
         Star intensity distribution.
     noisefloor : np.ndarray
         Noise floor of the coronagraph.
-    photap_frac : np.ndarray
+    photometric_aperture_throughput : np.ndarray
         Photometric aperture fraction.
     omega_lod : np.ndarray
         Solid angle of the photometric aperture in λ/D units.
@@ -136,7 +135,7 @@ class Coronagraph(ABC):
         Y-coordinate of the image center.
     bandwidth : float
         Bandwidth of the coronagraph.
-    angular_diameter : np.ndarray
+    stellar_angular_diameter : np.ndarray
         Angular diameters of the target objects.
     npsfratios : int
         Number of PSF ratios.
@@ -148,7 +147,7 @@ class Coronagraph(ABC):
         Minimum Inner Working Angle (lambd/D)
     maximum_OWA : float
         Maximum Outer Working Angle (lambd/D)
-    coronagraph_throughput: np.ndarray
+    coronagraph_optical_throughput: np.ndarray
         Throughput for all coronagraph optics in the optical path
     """
 
@@ -164,7 +163,7 @@ class Coronagraph(ABC):
         expected_args = {
             "Istar": DIMENSIONLESS,  # contrast
             "noisefloor": DIMENSIONLESS,  # contrast
-            "photap_frac": DIMENSIONLESS,  # throughput
+            "photometric_aperture_throughput": DIMENSIONLESS,  # throughput
             "omega_lod": LAMBDA_D**2,
             "skytrans": DIMENSIONLESS,  # throughput
             "pixscale": LAMBDA_D,
@@ -177,7 +176,7 @@ class Coronagraph(ABC):
             "nchannels": int,
             "minimum_IWA": LAMBDA_D,
             "maximum_OWA": LAMBDA_D,
-            "coronagraph_throughput": DIMENSIONLESS,
+            "coronagraph_optical_throughput": DIMENSIONLESS,
             "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
 
@@ -207,7 +206,7 @@ class ToyModelCoronagraph(Coronagraph):
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "nrolls": 1,  # number of rolls
         "nchannels": 2,  # number of channels
-        "coronagraph_throughput": [0.44]
+        "coronagraph_optical_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
@@ -235,7 +234,7 @@ class ToyModelCoronagraph(Coronagraph):
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
         # Convert to numpy array when appropriate
-        array_params = ["coronagraph_throughput"]
+        array_params = ["coronagraph_optical_throughput"]
         utils.convert_to_numpy_array(self, array_params)
 
         # Get PSF Truncation ratio from Observation
@@ -243,7 +242,7 @@ class ToyModelCoronagraph(Coronagraph):
 
         # Derived parameters
         self.npsfratios = 1
-        self.npix = int(2 * 60 / self.pixscale)  # TODO check units here
+        self.npix = int(2 * 60 / self.pixscale)
         self.xcenter = self.npix / 2.0 * PIXEL
         self.ycenter = self.npix / 2.0 * PIXEL
 
@@ -254,31 +253,36 @@ class ToyModelCoronagraph(Coronagraph):
         self.omega_lod = (
             np.full(
                 (self.npix, self.npix, self.npsfratios),
-                float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
+                float(np.pi)
+                * mediator.get_observation_parameter("photometric_aperture_radius")
+                ** 2,
             )
-            * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+            * (mediator.get_observation_parameter("photometric_aperture_radius").unit)
+            ** 2
         )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
         self.skytrans = (
             np.full((self.npix, self.npix), self.TLyot) * self.TLyot.unit
         )  # skytrans at all separations
 
-        self.photap_frac = (
+        self.photometric_aperture_throughput = (
             np.full((self.npix, self.npix, self.npsfratios), self.Tcore)
             * self.Tcore.unit
         )  # core throughput at all separations (npix,npix,len(psftruncratio))
-        # TODO check change)
+
         # j = np.where(r lt self.IWA or r gt self.OWA)
         # find separations interior to IWA or exterior to OWA
-        # if j[0] ne -1 then photap_frac1[j] = 0.0
+        # if j[0] ne -1 then photometric_aperture_throughput1[j] = 0.0
 
-        self.photap_frac[self.r < self.minimum_IWA] = 0.0  # index 0 is the
-        self.photap_frac[self.r > self.maximum_OWA] = 0.0
+        self.photometric_aperture_throughput[self.r < self.minimum_IWA] = (
+            0.0  # index 0 is the
+        )
+        self.photometric_aperture_throughput[self.r > self.maximum_OWA] = 0.0
 
         # put in the right dimensions (3d arrays), but third dimension
         # is 1 (number of psf_trunc_ratio)
         # self.omega_lod = np.array([self.omega_lod])
-        # self.photap_frac = np.array([self.photap_frac])
+        # self.photometric_aperture_throughput = np.array([self.photometric_aperture_throughput])
 
         self.PSFpeak = (
             0.025 * self.TLyot
@@ -335,12 +339,12 @@ class CoronagraphYIP(Coronagraph):
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_contrast": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": None,  # divide Istar by this to get the noise floor (unitless)
+        "noisefloor_PPF": 30,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
-        * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photap_rad method of calculating Omega)
-        "coronagraph_throughput": None,
+        * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photometric_aperture_radius method of calculating Omega)
+        "coronagraph_optical_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
         "nchannels": 2,  # number of channels
@@ -410,13 +414,13 @@ class CoronagraphYIP(Coronagraph):
                 instrument_params, mediator.get_observation_parameter("wavelength")
             )
 
-        # Ensure coronagraph_throughput has dimensions nlambda
+        # Ensure coronagraph_optical_throughput has dimensions nlambda
         if np.isscalar(instrument_params["total_inst_refl"]):
-            self.DEFAULT_CONFIG["coronagraph_throughput"] = (
+            self.DEFAULT_CONFIG["coronagraph_optical_throughput"] = (
                 np.array([instrument_params["total_inst_refl"]]) * DIMENSIONLESS
             )
         else:
-            self.DEFAULT_CONFIG["coronagraph_throughput"] = (
+            self.DEFAULT_CONFIG["coronagraph_optical_throughput"] = (
                 np.array(instrument_params["total_inst_refl"]) * DIMENSIONLESS
             )
 
@@ -440,18 +444,22 @@ class CoronagraphYIP(Coronagraph):
             * self.DEFAULT_CONFIG["pixscale"]
         )
 
-        # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
+        # account for the method used to calculate omega (either use psf_trunc_ratio or photometric_aperture_radius, but not both)
         if (
             mediator.get_observation_parameter("psf_trunc_ratio") is None
-            and mediator.get_observation_parameter("photap_rad") is None
+            and mediator.get_observation_parameter("photometric_aperture_radius")
+            is None
         ):
             raise KeyError(
-                "WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega."
+                "WARNING: Neither psf_trunc_ratio or photometric_aperture_radius are specified. Specify one or the other to calculate Omega."
             )
         elif mediator.get_observation_parameter("psf_trunc_ratio") is not None:
-            if mediator.get_observation_parameter("photap_rad") is not None:
+            if (
+                mediator.get_observation_parameter("photometric_aperture_radius")
+                is not None
+            ):
                 print(
-                    "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+                    "WARNING: Both psf_trunc_ratio and photometric_aperture_radius are specified. Preferring psf_trunc_ratio going forward..."
                 )
             print("Using psf_trunc_ratio to calculate Omega...")
 
@@ -462,7 +470,7 @@ class CoronagraphYIP(Coronagraph):
                 [mediator.get_observation_parameter("psf_trunc_ratio")]
             )  # TODO coronagraph needs it as an array, but it will be 1-dimensional. Reduce dimensions
 
-            # instantiate omega_lod and photap_frac
+            # instantiate omega_lod and photometric_aperture_throughput
             self.DEFAULT_CONFIG["npsfratios"] = len(
                 [mediator.get_observation_parameter("psf_trunc_ratio")]
             )
@@ -473,7 +481,7 @@ class CoronagraphYIP(Coronagraph):
                     self.DEFAULT_CONFIG["npsfratios"],
                 )
             )
-            photap_frac = np.zeros(
+            photometric_aperture_throughput = np.zeros(
                 (
                     self.DEFAULT_CONFIG["npix"],
                     self.DEFAULT_CONFIG["npix"],
@@ -487,7 +495,9 @@ class CoronagraphYIP(Coronagraph):
             noffsets = len(offsets)
             peakvals = np.zeros(noffsets)
             temp_omega_lod = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
-            temp_photap_frac = np.zeros((noffsets, self.DEFAULT_CONFIG["npsfratios"]))
+            temp_photometric_aperture_throughput = np.zeros(
+                (noffsets, self.DEFAULT_CONFIG["npsfratios"])
+            )
             resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05))
             temppixomegalod = (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor) ** 2
             resolvedPSFs = np.empty(
@@ -521,7 +531,9 @@ class CoronagraphYIP(Coronagraph):
                     if len(k_idx[0]) == 0:
                         k_idx = np.where(tempPSF_res == maxtempPSF)
                     temp_omega_lod[i, j] = len(k_idx[0]) * temppixomegalod
-                    temp_photap_frac[i, j] = np.sum(tempPSF_res[k_idx])
+                    temp_photometric_aperture_throughput[i, j] = np.sum(
+                        tempPSF_res[k_idx]
+                    )
 
             # interpolate
             f_peak = interp1d(offsets, peakvals, bounds_error=False, fill_value=np.nan)
@@ -531,38 +543,48 @@ class CoronagraphYIP(Coronagraph):
                 omega_lod[:, :, j] = np.interp(
                     self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_omega_lod[:, j]
                 ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
-                photap_frac[:, :, j] = np.interp(
-                    self.DEFAULT_CONFIG["r"].ravel(), offsets, temp_photap_frac[:, j]
+                photometric_aperture_throughput[:, :, j] = np.interp(
+                    self.DEFAULT_CONFIG["r"].ravel(),
+                    offsets,
+                    temp_photometric_aperture_throughput[:, j],
                 ).reshape(self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"])
 
         elif (
             mediator.get_observation_parameter("psf_trunc_ratio") is None
-            and mediator.get_observation_parameter("photap_rad") is not None
+            and mediator.get_observation_parameter("photometric_aperture_radius")
+            is not None
         ):
-            print("Using photap_rad to calculate Omega...")
+            print("Using photometric_aperture_radius to calculate Omega...")
+            self.npsfratios = 1  # Used to determine the 3rd dimension of Omega
 
-            # Use the photap_rad method of calculating Omega.
+            # Use the photometric_aperture_radius method of calculating Omega.
             # this method also requires you to set Tcore (does not use the YIP to calculate this)
 
-            # ALLOW TO READ Tcore if it is available ### TODO in what capacity should we apply user customization for YIP files?
+            # ALLOW TO READ Tcore if it is available
             if "Tcore" in parameters.keys():
                 subparams = {"Tcore": parameters["Tcore"]}
                 utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
             else:
                 self.Tcore = self.DEFAULT_CONFIG["Tcore"]
 
-            # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
+            # simple omega calculation, omega = pi * (photometric_aperture_radius)**2, where photometric_aperture_radius is in lambda/D
 
             omega_lod = (
                 np.full(
                     (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
                     float(np.pi)
-                    * mediator.get_observation_parameter("photap_rad") ** 2,
+                    * mediator.get_observation_parameter("photometric_aperture_radius")
+                    ** 2,
                 )
-                * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+                * (
+                    mediator.get_observation_parameter(
+                        "photometric_aperture_radius"
+                    ).unit
+                )
+                ** 2
             )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
-            photap_frac = (
+            photometric_aperture_throughput = (
                 np.full(
                     (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
                     self.Tcore,
@@ -570,21 +592,23 @@ class CoronagraphYIP(Coronagraph):
                 * self.DEFAULT_CONFIG["Tcore"].unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
 
-            photap_frac[
+            photometric_aperture_throughput[
                 self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]
             ] = 0.0  # index 0 is the
-            photap_frac[
+            photometric_aperture_throughput[
                 self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]
             ] = 0.0
 
         omega_lod = np.maximum(omega_lod, 0)
-        photap_frac = np.maximum(photap_frac, 0)
+        photometric_aperture_throughput = np.maximum(photometric_aperture_throughput, 0)
 
         self.DEFAULT_CONFIG["omega_lod"] = omega_lod * DIMENSIONLESS
-        self.DEFAULT_CONFIG["photap_frac"] = photap_frac * DIMENSIONLESS
+        self.DEFAULT_CONFIG["photometric_aperture_throughput"] = (
+            photometric_aperture_throughput * DIMENSIONLESS
+        )
 
-        angular_diameter_arcsec = mediator.get_scene_parameter(
-            "angular_diameter_arcsec"
+        stellar_angular_diameter_arcsec = mediator.get_scene_parameter(
+            "stellar_angular_diameter_arcsec"
         )
         lam = mediator.get_observation_parameter("wavelength")
 
@@ -593,7 +617,7 @@ class CoronagraphYIP(Coronagraph):
         tele_diam = telescope_params["diam_circ"] * LENGTH
 
         angular_diameter_lod = arcsec_to_lambda_d(
-            angular_diameter_arcsec, 0.55 * WAVELENGTH, tele_diam
+            stellar_angular_diameter_arcsec, 0.55 * WAVELENGTH, tele_diam
         )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Right now, assumes 0.55 um. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
         self.DEFAULT_CONFIG["Istar"] = (
@@ -606,7 +630,7 @@ class CoronagraphYIP(Coronagraph):
             np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
         )
 
-        # ALLOW TO READ noisefloor terms if it is available ### TODO in what capacity should we apply user customization for YIP files?
+        # ALLOW TO READ noisefloor terms if it is available
         if "noisefloor_contrast" in parameters.keys():
             subparams = {"noisefloor_contrast": parameters["noisefloor_contrast"]}
             utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
@@ -627,7 +651,7 @@ class CoronagraphYIP(Coronagraph):
                     / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
                 )
                 * self.noisefloor_contrast
-                * self.DEFAULT_CONFIG["photap_frac"][:, :, 0]
+                * self.DEFAULT_CONFIG["photometric_aperture_throughput"][:, :, 0]
             )
 
         if self.noisefloor_PPF is not None:
@@ -669,7 +693,7 @@ class CoronagraphYIP(Coronagraph):
             self.DEFAULT_CONFIG["noisefloor"] = tempnoisefloor / ntheta
 
         # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES ****
-        # TODO for coronagraph, allow replacement only in terms of scaling factors?
         # NOTE what should be allowed to be replaced?
+        # For coronagraph, allow replacement only in terms of scaling factors?
         # Load parameters, use defaults if not provided
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)

@@ -68,7 +68,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "mag": np.array([df.loc[df["parameter"] == "m_lambda", code].iloc[0]]),
         "Lstar": 10 ** float(hpic[hpic.hip_name == hip_name].st_lum.iloc[0]),
         "magV": float(hpic[hpic.hip_name == hip_name].sy_vmag.iloc[0]),
-        "angular_diameter": np.round(
+        "stellar_angular_diameter": np.round(
             to_arcsec(
                 2
                 * (float(hpic[hpic.hip_name == hip_name].st_rad.iloc[0]) * u.Rsun).to(
@@ -81,8 +81,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "distance": float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]),
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),
-        "photap_rad": 0.85,
-        # "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
+        "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
         "det_npix_input": np.float64(
             df.loc[df["parameter"] == "det_npix", code].iloc[0]
         ),
@@ -102,7 +101,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "CIC": np.array([df.loc[df["parameter"] == "det_CIC", code].iloc[0]]),
         "dQE": np.array([df.loc[df["parameter"] == "dQE", code].iloc[0]]),
         "QE": np.array([df.loc[df["parameter"] == "QE", code].iloc[0]]),
-        "Toptical": np.array([df.loc[df["parameter"] == "T_optical", code].iloc[0]]),
+        "T_optical": np.array([df.loc[df["parameter"] == "T_optical", code].iloc[0]]),
         "ra": float(hpic[hpic.hip_name == hip_name].ra.iloc[0]),
         "dec": float(hpic[hpic.hip_name == hip_name].dec.iloc[0]),
         "separation": lambda_d_to_arcsec(
@@ -112,7 +111,7 @@ def prepare_input_params(df, hpic, hip_name, code):
             diameter=df.loc[df["parameter"] == "D", code].iloc[0] * u.m,
         ).value,
         "CRb_multiplier": 2.0,
-        "Fstar": np.array([df.loc[df["parameter"] == "F_star", code].iloc[0]]),
+        "Fs_over_F0": np.array([df.loc[df["parameter"] == "F_star", code].iloc[0]]),
         "Fp": np.array([df.loc[df["parameter"] == "F_p", code].iloc[0]]),
         "observatory_preset": "EAC1",
         "observing_mode": "IMAGER",
@@ -127,7 +126,9 @@ def prepare_input_params(df, hpic, hip_name, code):
         "noisefloor_PPF": 1 / 0.029,
     }
 
-    input["delta_mag"] = fluxes_to_magnitudes(input["Fstar"], input["Fp"], input["F0"])
+    input["delta_mag"] = fluxes_to_magnitudes(
+        input["Fs_over_F0"], input["Fp"], input["F0"]
+    )
 
     return input
 
@@ -159,14 +160,14 @@ def get_expected_output(df, code):
         ),
         "dQE": np.float64(df.loc[df["parameter"] == "dQE", code].iloc[0]),
         "QE": np.float64(df.loc[df["parameter"] == "QE", code].iloc[0]),
-        "Toptical": np.float64(df.loc[df["parameter"] == "T_optical", code].iloc[0]),
-        "Fstar": np.float64(df.loc[df["parameter"] == "F_star", code].iloc[0]),
+        "T_optical": np.float64(df.loc[df["parameter"] == "T_optical", code].iloc[0]),
+        "Fs_over_F0": np.float64(df.loc[df["parameter"] == "F_star", code].iloc[0]),
         "Fp": np.float64(df.loc[df["parameter"] == "F_p", code].iloc[0]),
         "Fzodi": np.float64(df.loc[df["parameter"] == "F_zodi", code].iloc[0]),
         "Fexozodi": np.array(df.loc[df["parameter"] == "F_exozodi", code]),
         "sp_lod": np.array(df.loc[df["parameter"] == "sp", code]),
         "omega_lod": np.float64(df.loc[df["parameter"] == "Ω_core", code].iloc[0]),
-        "T_core or photap_frac": np.float64(
+        "T_core or photometric_aperture_throughput": np.float64(
             df.loc[df["parameter"] == "T_core", code].iloc[0]
         ),
         "Istar*oneopixscale2 in (l/D)^-2": np.float64(
@@ -229,11 +230,11 @@ def compare_all_codes(name, wavelength, pyedith_output, df):
     print(f"Comparing with all codes for {name} at {wavelength}")
 
     key_translation = {
-        "Fstar": "F_star",
+        "Fs_over_F0": "F_star",
         "Fp": "F_p",
         "Fzodi": "F_zodi",
         "Fexozodi": "F_exozodi",
-        "T_core or photap_frac": "T_core",
+        "T_core or photometric_aperture_throughput": "T_core",
         "Istar*oneopixscale2 in (l/D)^-2": "I_star",
         "skytrans*oneopixscale2  in (l/D)^-2": "skytrans",
         "det_npix": "det_npix",

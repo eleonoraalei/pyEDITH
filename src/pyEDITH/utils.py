@@ -201,7 +201,7 @@ def print_all_variables(
     det_sep,
     det_Istar,
     det_skytrans,
-    det_photap_frac,
+    det_photometric_aperture_throughput,
     det_omega_lod,
     det_CRp,
     det_CRbs,
@@ -240,9 +240,12 @@ def print_all_variables(
             file.write("\n2. Scene:\n")
             for item_name, item in [
                 ("scene.mag", scene.mag),
-                ("scene.angular_diameter_arcsec", scene.angular_diameter_arcsec),
+                (
+                    "scene.stellar_angular_diameter_arcsec",
+                    scene.stellar_angular_diameter_arcsec,
+                ),
                 ("scene.F0", scene.F0),
-                ("scene.Fp0", scene.Fp0),
+                ("scene.Fp_over_Fs", scene.Fp_over_Fs),
                 ("scene.Fzodi_list", scene.Fzodi_list),
                 ("scene.Fexozodi_list", scene.Fexozodi_list),
                 ("scene.Fbinary_list", scene.Fbinary_list),
@@ -289,8 +292,8 @@ def print_all_variables(
                 ("observatory.coronagraph.pixscale", observatory.coronagraph.pixscale),
                 ("observation.psf_trunc_ratio", observation.psf_trunc_ratio),
                 (
-                    "observatory.coronagraph.photap_frac",
-                    observatory.coronagraph.photap_frac,
+                    "observatory.coronagraph.photometric_aperture_throughput",
+                    observatory.coronagraph.photometric_aperture_throughput,
                 ),
                 ("observatory.coronagraph.skytrans", observatory.coronagraph.skytrans),
                 (
@@ -343,7 +346,7 @@ def print_all_variables(
             file.write("\nCalculated Variables:\n")
             file.write("\n1. Initial Calculations:\n")
             for item_name, item in [
-                ("Fstar", scene.Fstar),
+                ("Fs_over_F0", scene.Fs_over_F0),
                 ("deltalambda_nm", deltalambda_nm),
                 ("lod", lod),
                 ("lod_rad", lod_rad),
@@ -369,7 +372,10 @@ def print_all_variables(
                 ("det_sep", det_sep),
                 ("det_Istar", det_Istar),
                 ("det_skytrans", det_skytrans),
-                ("det_photap_frac", det_photap_frac),
+                (
+                    "det_photometric_aperture_throughput",
+                    det_photometric_aperture_throughput,
+                ),
                 ("det_omega_lod", det_omega_lod),
             ]:
                 print_array_info(file, item_name, item, mode)

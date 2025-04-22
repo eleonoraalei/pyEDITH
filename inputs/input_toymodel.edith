@@ -14,7 +14,7 @@
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-photap_rad = 0.85       ; photometric aperture radius used for plots and some basic exp time estimates, recommended = 0.7 l/D_inscribed ~ 0.85 l/D
+photometric_aperture_radius = 0.85       ; photometric aperture radius used for plots and some basic exp time estimates, recommended = 0.7 l/D_inscribed ~ 0.85 l/D
 wavelength = 0.5              ;   wavelength (micron)
 snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
 CRb_multiplier  = 2.          ; factor to multiply to remove background
@@ -24,7 +24,7 @@ Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
 magV = 5.84             ;   stellar magnitude at V band
 mag = 6.189576               ;   magnitude at desired lambda (must have same length as lambda)
-angular_diameter = 0.01            ;   angular diameter of star (arcsec)
+stellar_angular_diameter = 0.01            ;   angular diameter of star (arcsec)
 nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
 ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
 dec = 02.5151668316500      ;   declination of target star used to estimate zodi (deg)
@@ -44,9 +44,9 @@ td_limit =                  5.184000E+06   ;(s) {scalar} detection time upper li
 toverhead_fixed = 8381.30  ;   fixed overhead time (seconds)
 toverhead_multi = 1.1     ;  multiplicative overhead time
 temperature = 290.000 ;(K) {scalar} temperature of warm optics
-Tcontam = 0.950000 ;{scalar} effective throughput factor to budget for contamination, scalar value only
-Toptical = 0.362
-;epswarmTrcold = 0.638    ; 1.0-Toptical {scalar OR array of length NLD} product of cummulative warm emissivity and cummulative cold transmission (we assume throughput == Toptical for toymodel)
+T_contamination = 0.950000 ;{scalar} effective throughput factor to budget for contamination, scalar value only
+T_optical = 0.362
+;epswarmTrcold = 0.638    ; 1.0-T_optical {scalar OR array of length NLD} product of cummulative warm emissivity and cummulative cold transmission (we assume throughput == T_optical for toymodel)
 
 ;--- (OVERRIDING DEFAULT) CORONAGRAPH PARAMETERS ---
 type = toymodel           ;   keyword to associate to the default coronagraph type

@@ -50,17 +50,17 @@ class Observatory(ABC):  # abstract class
     def calculate_optics_throughput(self, parameters):
         """
         This function calculates the optical throughput. If there is a variable called
-        total_optics_throughput (aka Toptical) in the parameters,
+        total_optics_throughput (aka T_optical) in the parameters,
         use that one instead of telescope*coronagraph.
         """
-        if "Toptical" in parameters.keys():
+        if "T_optical" in parameters.keys():
             print("Calculating optics_throughput from input...")
-            self.optics_throughput = parameters["Toptical"] * DIMENSIONLESS
+            self.optics_throughput = parameters["T_optical"] * DIMENSIONLESS
         else:
             print("Calculating optics throughput from preset...")
             self.optics_throughput = (
-                self.telescope.telescope_throughput
-                * self.coronagraph.coronagraph_throughput
+                self.telescope.telescope_optical_throughput
+                * self.coronagraph.coronagraph_optical_throughput
             )
 
         if parameters["observing_mode"] == "IFS":
@@ -92,14 +92,14 @@ class Observatory(ABC):  # abstract class
         """
         This function calculates the optical (telescope + instrument path) + detector
         throughput, which is used as multiplicative factor when calculating the noise terms.
-        If there is a variable called total_optics_throughput (aka Toptical) in the parameters,
+        If there is a variable called total_optics_throughput (aka T_optical) in the parameters,
         use that one instead of telescope*coronagraph.
         """
         self.total_throughput = (
             self.optics_throughput
             * self.detector.dQE
             * self.detector.QE
-            * self.telescope.Tcontam
+            * self.telescope.T_contamination
         )
 
     def load_configuration(self, parameters, observation, scene):

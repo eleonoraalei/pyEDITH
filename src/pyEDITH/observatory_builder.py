@@ -157,7 +157,7 @@ class ObservatoryBuilder:
         observatory.load_configuration(config, observation, scene)
         return observatory
 
-    # TODO we can use this to have the user add more components from command line
+    # EXTRA: we can use this to have the user add more components from command line
     #  @staticmethod
     # def add_component(component_type, keyword, class_name, path=None):
     #     if keyword.lower() == "toymodel":

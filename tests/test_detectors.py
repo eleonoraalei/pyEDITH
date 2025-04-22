@@ -24,7 +24,7 @@ class MockMediator:
         self.observing_mode = observing_mode
 
     def get_scene_parameter(self, param):
-        if param == "angular_diameter_arcsec":
+        if param == "stellar_angular_diameter_arcsec":
             return 0.05 * ARCSEC
         return 1.0
 

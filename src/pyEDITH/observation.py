@@ -20,7 +20,7 @@ class Observation:
         Number of wavelength points.
     SNR : np.ndarray
         Signal-to-noise ratio array.
-    photap_rad : float
+    photometric_aperture_radius : float
         Photometric aperture radius (in units of lambda/D).
     psf_trunc_ratio : np.ndarray
         PSF truncation ratio.
@@ -68,29 +68,35 @@ class Observation:
 
         self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
 
+        # Set defaults, replace if you can
+        self.photometric_aperture_radius = None
+        self.psf_trunc_ratio = None
         if "psf_trunc_ratio" in parameters.keys():
             self.psf_trunc_ratio = (
                 parameters["psf_trunc_ratio"] * DIMENSIONLESS
             )  # scalar
-        elif "photap_rad" in parameters.keys():
-            self.photap_rad = parameters["photap_rad"] * LAMBDA_D  # (lambd/D) # scalar
+        elif "photometric_aperture_radius" in parameters.keys():
+            self.photometric_aperture_radius = (
+                parameters["photometric_aperture_radius"] * LAMBDA_D
+            )  # (lambd/D) # scalar
 
         else:
             raise KeyError(
-                "Either 'photap_rad' or 'psf_trunc_ratio' must be provided in the parameters."
+                "Either 'photometric_aperture_radius' or 'psf_trunc_ratio' must be provided in the parameters."
             )
-        # If both are provided, we'll use psf_trunc_ratio and ignore photap_rad
+        # If both are provided, we'll use psf_trunc_ratio and ignore photometric_aperture_radius
         if (
-            "photap_rad" in parameters
+            "photometric_aperture_radius" in parameters
             and "psf_trunc_ratio" in parameters
-            and parameters["photap_rad"] is not None
+            and parameters["photometric_aperture_radius"] is not None
             and parameters["psf_trunc_ratio"] is not None
         ):
             print(
-                "Warning: Both 'photap_rad' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photap_rad'."
+                "Warning: Both 'photometric_aperture_radius' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photometric_aperture_radius'."
             )
-            self.photap_rad = None  # ignore photap_rad by setting to None
-            # TODO goes with coronagraph implementation of photap_rad function.
+            self.photometric_aperture_radius = (
+                None  # ignore photometric_aperture_radius by setting to None
+            )
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
@@ -134,9 +140,12 @@ class Observation:
             "CRb_multiplier": float,
         }
 
-        # Either photap_rad or psf_trunc_ratio must be present
-        if hasattr(self, "photap_rad") and getattr(self, "photap_rad") is not None:
-            expected_args["photap_rad"] = LAMBDA_D
+        # Either photometric_aperture_radius or psf_trunc_ratio must be present
+        if (
+            hasattr(self, "photometric_aperture_radius")
+            and getattr(self, "photometric_aperture_radius") is not None
+        ):
+            expected_args["photometric_aperture_radius"] = LAMBDA_D
         elif (
             hasattr(self, "psf_trunc_ratio")
             and getattr(self, "psf_trunc_ratio") is not None
@@ -144,7 +153,7 @@ class Observation:
             expected_args["psf_trunc_ratio"] = DIMENSIONLESS
         else:
             raise AttributeError(
-                "Observation must have either 'photap_rad' or 'psf_trunc_ratio' attribute"
+                "Observation must have either 'photometric_aperture_radius' or 'psf_trunc_ratio' attribute"
             )
 
         utils.validate_attributes(self, expected_args)

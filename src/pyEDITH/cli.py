@@ -7,8 +7,7 @@ import sys
 import os
 
 # Declare the environment variable
-# TODO: this should go in your zshrc file as an export statement
-# os.environ["SCI_ENG_DIR"] = "/Users/ealei/Coding/pyEDITH/Sci-Eng-Interface/hwo_sci_eng"
+# os.environ["SCI_ENG_DIR"] = "/path/to/Sci-Eng-Interface/hwo_sci_eng"
 
 
 def main():

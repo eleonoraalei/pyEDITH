@@ -72,7 +72,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | ----------------------- | ---------------------------- | ------------------------ | ------------------------------------------------- | --- |
 | Istar                   | Dimensionless                | [npix, npix]             | Star intensity distribution (on-axis PSF)         |     |
 | noisefloor              | Dimensionless                | [npix, npix]             | Noise floor of the coronagraph                    |     |
-| photap_frac             | Dimensionless                | [npix, npix, npsfratios] | Photometric aperture fraction                     |     |
+| photometric_aperture_throughput             | Dimensionless                | [npix, npix, npsfratios] | Photometric aperture throughput                     |     |
 | omega_lod               | (λ/D)²                       | [npix, npix, npsfratios] | Solid angle of the photometric aperture           |     |
 | skytrans                | Dimensionless                | [npix, npix]             | Sky transmission                                  |     |
 | pixscale                | λ/D                          | Scalar                   | Pixel scale of the coronagraph                    |     |
@@ -85,15 +85,15 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | nchannels               | Integer                      | Scalar                   | Number of channels                                |     |
 | minimum_IWA             | λ/D                          | Scalar                   | Minimum Inner Working Angle                       |     |
 | maximum_OWA             | λ/D                          | Scalar                   | Maximum Outer Working Angle                       |     |
-| coronagraph_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
+| coronagraph_optical_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
 | diameter                | Length                       | Scalar                   | Circumscribed diameter of telescope aperture      |     |
 | Area                    | Length²                      | Scalar                   | Effective collecting area of telescope            |     |
 | unobscured_area         | Dimensionless                | Scalar                   | Unobscured area percentage                        |     |
 | toverhead_fixed         | Time                         | Scalar                   | Fixed overhead time                               |     |
 | toverhead_multi         | Dimensionless                | Scalar                   | Multiplicative overhead time                      |     |
-| telescope_throughput    | Dimensionless                | [nlambda]                | Optical throughput of telescope                   |     |
+| telescope_optical_throughput    | Dimensionless                | [nlambda]                | Optical throughput of telescope                   |     |
 | temperature             | Temperature                  | Scalar                   | Temperature of the warm optics                    |     |
-| Tcontam                 | Dimensionless                | Scalar                   | Effective throughput factor for contamination     |     |
+| T_contamination                 | Dimensionless                | Scalar                   | Effective throughput factor for contamination     |     |
 | pixscale_mas            | Milliarcsecond               | Scalar                   | Detector pixel scale                              |     |
 | npix_multiplier         | Dimensionless                | [nlambda]                | Number of detector pixels per image plane "pixel" |     |
 | DC                      | Electron / (Pixel * Second)  | [nlambda]                | Dark current                                      |     |
@@ -104,7 +104,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | dQE                     | Dimensionless                | [nlambda]                | Effective QE due to degradation                   |     |
 | wavelength              | Length                       | [nlambda]                | Observation wavelengths                           |     |
 | SNR                     | Dimensionless                | [nlambda]                | Signal-to-noise ratio                             |     |
-| photap_rad              | λ/D                          | Scalar                   | Photometric aperture radius                       |     |
+| photometric_aperture_radius              | λ/D                          | Scalar                   | Photometric aperture radius                       |     |
 | psf_trunc_ratio         | Dimensionless                | Scalar                   | PSF truncation ratio                              |     |
 | CRb_multiplier          | Dimensionless                | Scalar                   | Factor to multiply to remove background           |     |
 | td_limit                | Time                         | Scalar                   | Limit placed on exposure times                    |     |
@@ -117,7 +117,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | dist                    | Length                       | Scalar                   | Distance to star                                  |     |
 | vmag                    | Magnitude                    | Scalar                   | Stellar magnitude at V band                       |     |
 | mag                     | Magnitude                    | [nlambda]                | Stellar magnitude at desired wavelengths          |     |
-| angular_diameter_arcsec | Arcsecond                    | Scalar                   | Angular diameter of star                          |     |
+| stellar_angular_diameter_arcsec | Arcsecond                    | Scalar                   | Angular diameter of star                          |     |
 | nzodis                  | Zodi                         | Scalar                   | Amount of exozodi around target star              |     |
 | ra                      | Degree                       | Scalar                   | Right ascension of target star                    |     |
 | dec                     | Degree                       | Scalar                   | Declination of target star                        |     |
@@ -130,7 +130,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | Fzodi_list              | Dimensionless                | [nlambda]                | Zodiacal light fluxes                             |     |
 | Fexozodi_list           | Dimensionless                | [nlambda]                | Exozodiacal light fluxes                          |     |
 | Fbinary_list            | Dimensionless                | [nlambda]                | Binary star fluxes                                |     |
-| Fp0                     | Dimensionless                | Scalar                   | Flux of planet relative to star                   |     |
+| Fp_over_Fs                     | Dimensionless                | Scalar                   | Flux of planet relative to star                   |     |
 |                         |                              |                          |                                                   |     |
 |                         |                              |                          |                                                   |     |
 |                         |                              |                          |                                                   |     |
@@ -141,7 +141,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | ------------------------------- | ------------------------ | ------------- | ------------------------------------------------------------ | ------------- |
 | Istar                           | [npix, npix]             | Dimensionless | Star intensity distribution (on-axis PSF)                                 | No            |
 | noisefloor                      | [npix, npix]             | Dimensionless | Noise floor of the coronagraph                               | No            |
-| photap_frac                     | [npix, npix, npsfratios] | Dimensionless | fraction of light entering the coronagraph that ends up within the photometric core of the off-axis (planet) PSF assuming perfectly reflecting/transmitting optics, where the core is the solid angle area `Omega` and is set by either `psf_trunc_ratio` or `photap_rad`.                                 | No            |
+| photometric_aperture_throughput                     | [npix, npix, npsfratios] | Dimensionless | fraction of light entering the coronagraph that ends up within the photometric core of the off-axis (planet) PSF assuming perfectly reflecting/transmitting optics, where the core is the solid angle area `Omega` and is set by either `psf_trunc_ratio` or `photometric_aperture_radius`.                                 | No            |
 | omega_lod                       | [npix, npix, npsfratios] | (λ/D)²        | Solid angle of the photometric aperture                      | No            |
 | skytrans                        | [npix, npix]             | Dimensionless | Sky transmission; the coronagraph’s performance when observing an infinitely extended source                                           | No            |
 | pixscale                        | Scalar                   | λ/D           | Pixel scale of the coronagraph model                              | No            |
@@ -149,27 +149,27 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | xcenter                         | Scalar                   | Pixel         | X-coordinate of the image center                             | No            |
 | ycenter                         | Scalar                   | Pixel         | Y-coordinate of the image center                             | No            |
 | bandwidth                       | Scalar                   | Dimensionless | Fractional bandwidth of coronagraph                          | Yes           |
-| angular_diameter                | [ntargs]**CHECK**        | λ/D           | angular diameter of the star                                                   | No            |
+| stellar_angular_diameter                | Scalar        | λ/D           | angular diameter of the star                                                   | No            |
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
 | nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |
 | minimum_IWA                     | Scalar                   | λ/D           | Minimum Inner Working Angle                                  | Yes           |
 | maximum_OWA                     | Scalar                   | λ/D           | Maximum Outer Working Angle                                  | Yes           |
-| coronagraph_throughput          | [nlambda]                | Dimensionless | Throughput for all coronagraph optics                        | Yes           |
+| coronagraph_optical_throughput          | [nlambda]                | Dimensionless | Throughput for all coronagraph optics                        | Yes           |
 | coronagraph_spectral_resolution | Scalar                   | Dimensionless | Spectral resolution of the coronagraph                       | Yes           |
 | contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes           |
 | noisefloor_factor               | Scalar                   | Dimensionless | Systematic noise floor factor                                | Yes           |
-| Tcore                           | Scalar                   | Dimensionless | Core throughput of coronagraph (used in ToyModel only, or if photap_rad is specified for omega_lod calculation)       | Yes           |
+| Tcore                           | Scalar                   | Dimensionless | Core throughput of coronagraph (used in ToyModel only, or if photometric_aperture_radius is specified for omega_lod calculation)       | Yes           |
 | TLyot                           | Scalar                   | Dimensionless | Lyot transmission of the coronagraph (used in ToyModel only) | Yes           |
 | PSFpeak                         | Scalar                   | Dimensionless | Peak value of the off-axis PSF                                        | No            |
 
 ### A note on calculating `omega_lod`:
 The photometric aperture `omega_lod` can be calculated via two methods, and the user should specify 
-either the `psf_trunc_ratio` or `photap_rad` parameters to do so.
-- photap_rad` simply sets a radius for the photometric aperture, such that `omega_lod = \pi * (photap_rad * (lambda/D))^2`, 
+either the `psf_trunc_ratio` or `photometric_aperture_radius` parameters to do so.
+- photometric_aperture_radius` simply sets a radius for the photometric aperture, such that `omega_lod = \pi * (photometric_aperture_radius * (lambda/D))^2`, 
 where `omega_lod` is the solid angle of the photometric aperture. 
-- In contrast, `psf_trunc_ratio` is a more complex way of calculating the photometric aperture solid angle `omega_lod`, necessary because the off-axis PSF is not always going to be a perfect circle, and can be misshapen. In principle, this method takes an off-axis PSF and calculates `omega_lod` as all pixels in the PSF that are above the threshold `psf_trunc_ratio * max(off-axis PSF)`, accounting for imperfect PSF shapes. Note: If the off-axis PSF shape is a perfect airy disk, then `psf_trunc_ratio` is simply `1 - photap_rad`. 
-- Finally, `photap_frac` is an entirely different, but related, parameter, not to be confused with the two parameters above. This parameter is essentially the core throughput of the off-axis PSF. In other words, this is the fraction of light entering the coronagraph that ends up within the photometric core of the off-axis (planet) PSF assuming perfectly reflecting/transmitting optics, where the core is the solid angle area `omega_lod` and is set by either `psf_trunc_ratio` or `photap_rad`. 
+- In contrast, `psf_trunc_ratio` is a more complex way of calculating the photometric aperture solid angle `omega_lod`, necessary because the off-axis PSF is not always going to be a perfect circle, and can be misshapen. In principle, this method takes an off-axis PSF and calculates `omega_lod` as all pixels in the PSF that are above the threshold `psf_trunc_ratio * max(off-axis PSF)`, accounting for imperfect PSF shapes. Note: If the off-axis PSF shape is a perfect airy disk, then `psf_trunc_ratio` is simply `1 - photometric_aperture_radius`. 
+- Finally, `photometric_aperture_throughput` is an entirely different, but related, parameter, not to be confused with the two parameters above. This parameter is essentially the core throughput of the off-axis PSF. In other words, this is the fraction of light entering the coronagraph that ends up within the photometric core of the off-axis (planet) PSF assuming perfectly reflecting/transmitting optics, where the core is the solid angle area `omega_lod` and is set by either `psf_trunc_ratio` or `photometric_aperture_radius`. 
 
 
 ## Within `telescopes.py`
@@ -180,9 +180,9 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | unobscured_area      | Scalar    | Dimensionless | Unobscured area percentage                    | Yes           |
 | toverhead_fixed      | Scalar    | Time          | Fixed overhead time                           | Yes           |
 | toverhead_multi      | Scalar    | Dimensionless | Multiplicative overhead time                  | Yes           |
-| telescope_throughput | [nlambda] | Dimensionless | Optical throughput of telescope               | Yes           |
+| telescope_optical_throughput | [nlambda] | Dimensionless | Optical throughput of telescope               | Yes           |
 | temperature          | Scalar    | Temperature   | Temperature of the warm optics                | Yes           |
-| Tcontam              | Scalar    | Dimensionless | Effective throughput factor for contamination | Yes           |
+| T_contamination              | Scalar    | Dimensionless | Effective throughput factor for contamination | Yes           |
 
 ## Within `detectors.py`
 | Variable Name   | Length    | Unit                        | Meaning                                           | User Editable |
@@ -202,7 +202,7 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | --------------- | --------- | ------------- | --------------------------------------- | ------------- |
 | wavelength      | [nlambda] | um      | Observation wavelengths                 | Yes           |
 | SNR             | [nlambda] | Dimensionless | Signal-to-noise ratio                   | Yes           |
-| photap_rad      | Scalar    | λ/D           | Photometric aperture radius             | Yes           |
+| photometric_aperture_radius      | Scalar    | λ/D           | Photometric aperture radius             | Yes           |
 | psf_trunc_ratio | Scalar    | Dimensionless | truncate the off-axis PSF at a threshold (thresh = psf_trunc_ratio * max(off-axis PSF))             | Yes           |
 | CRb_multiplier  | Scalar    | Dimensionless | Factor to multiply assuming differential imaging to remove background | Yes           |
 | td_limit        | Scalar    | s        | Limit placed on exposure times          | No            |
@@ -216,7 +216,7 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | dist                    | Scalar    | pc                       | Distance to star                                  | Yes           |
 | vmag                    | Scalar    | Magnitude                    | Stellar magnitude at V band                       | Yes           |
 | mag                     | [nlambda] | Magnitude                    | Stellar magnitude at desired wavelengths          | Yes           |
-| angular_diameter_arcsec | Scalar    | Arcsecond                    | Angular diameter of star                          | Yes           |
+| stellar_angular_diameter_arcsec | Scalar    | Arcsecond                    | Angular diameter of star                          | Yes           |
 | nzodis                  | Scalar    | Zodi                         | Amount of exozodi around target star              | Yes           |
 | ra                      | Scalar    | Degree                       | Right ascension of target star                    | Yes           |
 | dec                     | Scalar    | Degree                       | Declination of target star                        | Yes           |
@@ -231,8 +231,8 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | Fzodi_list              | [nlambda] | Dimensionless                | Zodiacal light fluxes                             | No            |
 | Fexozodi_list           | [nlambda] | Dimensionless                | Exozodiacal light fluxes                          | No            |
 | Fbinary_list            | [nlambda] | Dimensionless                | Binary star fluxes                                | No            |
-| Fp0                     | [nlambda] | Dimensionless                | Flux of planet relative to star                   | Yes           |
-| Fstar                   | [nlambda] | Dimensionless                | Stellar flux relative to F0                       | No            |
+| Fp_over_Fs                     | [nlambda] | Dimensionless                | Flux of planet relative to star                   | Yes           |
+| Fs_over_F0                   | [nlambda] | Dimensionless                | Stellar flux relative to F0                       | No            |
 
 ## Within `observatory.py`
 | Variable Name | Length | Unit | Meaning | User Editable |
@@ -266,8 +266,8 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | det_sep          | Scalar | Arcsecond     | Separation at IWA in arcseconds                     | No            |
 | det_Istar        | Scalar | Dimensionless | Max stellar intensity at IWA                        | No            |
 | det_skytrans     | Scalar | Dimensionless | Max sky transmission at IWA                         | No            |
-| det_photap_frac  | Scalar | Dimensionless | Max photometric aperture fraction at IWA            | No            |
-| det_omega_lod    | Scalar | (λ/D)²        | Solid angle corresponding to max photap_frac at IWA | No            |
+| det_photometric_aperture_throughput  | Scalar | Dimensionless | Max photometric aperture fraction at IWA            | No            |
+| det_omega_lod    | Scalar | (λ/D)²        | Solid angle corresponding to max photometric_aperture_throughput at IWA | No            |
 | det_npix         | Scalar | Pixel         | Number of pixels in detector                        | No            |
 | CRp              | Scalar | Electron/s    | Planet count rate                                   | No            |
 | CRbs             | Scalar | Electron/s    | Stellar leakage count rate                          | No            |

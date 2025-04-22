@@ -13,7 +13,7 @@ def test_observation_init():
 def test_load_configuration(capsys):
     obs = Observation()
 
-    # Test no photap_rad nor psf_trunc_ratio case
+    # Test no photometric_aperture_radius nor psf_trunc_ratio case
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
@@ -22,32 +22,35 @@ def test_load_configuration(capsys):
     with pytest.raises(KeyError):
         obs.load_configuration(parameters)
 
-    # Test photap_rad case
+    # Test photometric_aperture_radius case
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
-        "photap_rad": 0.85,
+        "photometric_aperture_radius": 0.85,
         "CRb_multiplier": 2.0,
     }
     obs.load_configuration(parameters)
 
     assert np.all(obs.wavelength == parameters["wavelength"] * WAVELENGTH)
     assert np.all(obs.SNR == parameters["snr"] * DIMENSIONLESS)
-    assert obs.photap_rad == parameters["photap_rad"] * LAMBDA_D
+    assert (
+        obs.photometric_aperture_radius
+        == parameters["photometric_aperture_radius"] * LAMBDA_D
+    )
     assert obs.CRb_multiplier == parameters["CRb_multiplier"]
 
     # Test case when both are available
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
-        "photap_rad": 0.85,
+        "photometric_aperture_radius": 0.85,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
     }
     obs.load_configuration(parameters)
     captured = capsys.readouterr()
     assert (
-        "Warning: Both 'photap_rad' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photap_rad'."
+        "Warning: Both 'photometric_aperture_radius' and 'psf_trunc_ratio' provided. Using 'psf_trunc_ratio' and ignoring 'photometric_aperture_radius'."
         in captured.out
     )
 
@@ -88,7 +91,7 @@ def test_set_output_arrays():
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
-        "photap_rad": 0.85,
+        "photometric_aperture_radius": 0.85,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
     }
@@ -105,7 +108,7 @@ def test_set_output_arrays():
 def test_validate_configuration():
     obs = Observation()
 
-    # Missing photap_rad and psf_trunc_ratio
+    # Missing photometric_aperture_radius and psf_trunc_ratio
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
@@ -133,7 +136,7 @@ def test_validate_configuration():
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
         "snr": [7.0, 7.0, 7.0],
-        "photap_rad": 0.7,
+        "photometric_aperture_radius": 0.7,
         "CRb_multiplier": 2.0,
     }
     obs.load_configuration(parameters)

@@ -51,7 +51,7 @@ def test_toy_model_telescope_load_configuration():
         "unobscured_area": 0.9,
         "toverhead_fixed": 9000,
         "toverhead_multi": 1.2,
-        "telescope_throughput": [0.85],
+        "telescope_optical_throughput": [0.85],
     }
     mediator = MockMediator()
 
@@ -61,9 +61,9 @@ def test_toy_model_telescope_load_configuration():
     assert telescope.unobscured_area == 0.9
     assert telescope.toverhead_fixed == 9000 * TIME
     assert telescope.toverhead_multi == 1.2 * DIMENSIONLESS
-    assert np.all(telescope.telescope_throughput == [0.85] * DIMENSIONLESS)
+    assert np.all(telescope.telescope_optical_throughput == [0.85] * DIMENSIONLESS)
     assert telescope.temperature == 290 * TEMPERATURE  # Test default
-    assert telescope.Tcontam == 0.95 * DIMENSIONLESS  # Test default
+    assert telescope.T_contamination == 0.95 * DIMENSIONLESS  # Test default
     assert np.isclose(telescope.Area.value, 45.2389, rtol=1e-4)
     assert telescope.Area.unit == LENGTH**2
 
@@ -85,7 +85,7 @@ def test_eac_telescope_load_configuration(
         assert telescope.toverhead_fixed == 8.25e3 * TIME
         assert telescope.toverhead_multi == 1.1 * DIMENSIONLESS
         assert telescope.temperature == 290 * TEMPERATURE
-        assert telescope.Tcontam == 1.0 * DIMENSIONLESS
+        assert telescope.T_contamination == 1.0 * DIMENSIONLESS
 
         if observing_mode == "IFS":
             wavelengths = mediator.get_observation_parameter("wavelength")
@@ -98,7 +98,9 @@ def test_eac_telescope_load_configuration(
             )["total_tele_refl"]
             print(expected_throughput)
             assert np.allclose(
-                telescope.telescope_throughput.value, expected_throughput, rtol=1e-5
+                telescope.telescope_optical_throughput.value,
+                expected_throughput,
+                rtol=1e-5,
             )
         elif observing_mode == "IMAGER":
             wavelength = mediator.get_observation_parameter("wavelength")
@@ -115,7 +117,9 @@ def test_eac_telescope_load_configuration(
                 wavelength_range,
             )["total_tele_refl"]
             assert np.isclose(
-                telescope.telescope_throughput[0].value, expected_throughput, rtol=1e-5
+                telescope.telescope_optical_throughput[0].value,
+                expected_throughput,
+                rtol=1e-5,
             )
 
         assert np.isclose(telescope.Area.value, 50.2655, rtol=1e-4)
@@ -139,9 +143,9 @@ def test_telescope_validate_configuration():
         "unobscured_area": 0.9,
         "toverhead_fixed": 9000,
         "toverhead_multi": 1.2,
-        "telescope_throughput": [0.85],
+        "telescope_optical_throughput": [0.85],
         "temperature": 280,
-        "Tcontam": 0.98,
+        "T_contamination": 0.98,
     }
     mediator = MockMediator()
     telescope.load_configuration(parameters, mediator)

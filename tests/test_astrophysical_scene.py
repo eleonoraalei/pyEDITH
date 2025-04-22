@@ -204,7 +204,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "distance": 10,
         "magV": 5.0,
         "mag": [5.1, 5.2],
-        "angular_diameter": 0.001,
+        "stellar_angular_diameter": 0.001,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
@@ -217,7 +217,7 @@ def test_astrophysical_scene_load_configuration(capsys):
     assert scene.Lstar == 1.0 * LUMINOSITY
     assert scene.dist == 10 * DISTANCE
     assert scene.vmag == 5.0 * MAGNITUDE
-    assert scene.angular_diameter_arcsec == 0.001 * ARCSEC
+    assert scene.stellar_angular_diameter_arcsec == 0.001 * ARCSEC
     assert scene.nzodis == 3.0 * ZODI
     assert scene.ra == 180.0 * DEG
     assert scene.dec == 0.0 * DEG
@@ -229,8 +229,8 @@ def test_astrophysical_scene_load_configuration(capsys):
     assert scene.mag.unit == MAGNITUDE
     assert np.allclose(scene.mag.value, [5.1, 5.2])
 
-    # Test Fstar calculation
-    assert np.allclose(scene.Fstar.value, 10 ** (-0.4 * np.array([5.1, 5.2])))
+    # Test Fs_over_F0 calculation
+    assert np.allclose(scene.Fs_over_F0.value, 10 ** (-0.4 * np.array([5.1, 5.2])))
 
     # Test case where F0 was provided
     parameters["F0"] = 13400
@@ -246,7 +246,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "FstarV_10pc": 1.244e02,
         "Fp/Fs": [6.3e-8, 6.4e-8],
         "Fp_min/Fs": 1e-10,
-        "angular_diameter": 0.01,
+        "stellar_angular_diameter": 0.01,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -256,19 +256,24 @@ def test_astrophysical_scene_load_configuration(capsys):
 
     assert scene.Lstar == flux_parameters["Lstar"] * LUMINOSITY
     assert scene.dist == flux_parameters["distance"] * DISTANCE
-    assert np.all(scene.Fp0 == np.array(flux_parameters["Fp/Fs"]) * DIMENSIONLESS)
-    assert scene.Fp0_min == flux_parameters["Fp_min/Fs"] * DIMENSIONLESS
-    assert isinstance(scene.Fstar, u.Quantity)
-    assert len(scene.Fstar) == 2
-    assert scene.Fstar.unit == DIMENSIONLESS
-    assert scene.angular_diameter_arcsec == flux_parameters["angular_diameter"] * ARCSEC
+    assert np.all(
+        scene.Fp_over_Fs == np.array(flux_parameters["Fp/Fs"]) * DIMENSIONLESS
+    )
+    assert scene.Fp_min_over_Fs == flux_parameters["Fp_min/Fs"] * DIMENSIONLESS
+    assert isinstance(scene.Fs_over_F0, u.Quantity)
+    assert len(scene.Fs_over_F0) == 2
+    assert scene.Fs_over_F0.unit == DIMENSIONLESS
+    assert (
+        scene.stellar_angular_diameter_arcsec
+        == flux_parameters["stellar_angular_diameter"] * ARCSEC
+    )
     assert scene.nzodis == flux_parameters["nzodis"] * ZODI
     assert scene.ra == flux_parameters["ra"] * DEG
     assert scene.dec == flux_parameters["dec"] * DEG
     assert scene.separation == flux_parameters["separation"] * ARCSEC
 
     assert np.allclose(
-        scene.Fstar.value,
+        scene.Fs_over_F0.value,
         np.array(flux_parameters["Fstar_10pc"])
         * (10 * DISTANCE / scene.dist) ** 2
         / scene.F0.value,
@@ -309,7 +314,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "distance": 10,
         "magV": 5.0,
         "Fstar_10pc": [1.128e02, 1.13e02],
-        "angular_diameter": 0.001,
+        "stellar_angular_diameter": 0.001,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
@@ -327,7 +332,7 @@ def test_astrophysical_scene_load_configuration(capsys):
     single_wavelength_params["mag"] = [5.1]
     scene.load_configuration(single_wavelength_params)
     assert len(scene.mag) == 1
-    assert len(scene.Fstar) == 1
+    assert len(scene.Fs_over_F0) == 1
 
     # FstarV_10pc is missing: if IFS mode, it can be calculated
     parameters = {
@@ -337,7 +342,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "Fstar_10pc": [1.128e02, 1.244e02, 1.13e02],
         "Fp/Fs": [6.3e-8, 6.4e-8, 6.5e-8],
         "Fp_min/Fs": 1e-10,
-        "angular_diameter": 0.01,
+        "stellar_angular_diameter": 0.01,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -355,7 +360,7 @@ def test_astrophysical_scene_load_configuration(capsys):
 
     # The interpolated value at 0.55 um should be close to 1.244e02
     expected_fstarv = 1.244e02 * PHOTON_FLUX_DENSITY
-    calculated_fstarv = scene.Fstar[1] * scene.F0[1]  # At 0.55 um
+    calculated_fstarv = scene.Fs_over_F0[1] * scene.F0[1]  # At 0.55 um
     assert np.isclose(calculated_fstarv, expected_fstarv, rtol=1e-6)
 
     # FstarV_10pc is missing: in IMAGER mode, just fail
@@ -366,7 +371,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "Fstar_10pc": 1.128e02,
         "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
-        "angular_diameter": 0.01,
+        "stellar_angular_diameter": 0.01,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -390,7 +395,7 @@ def test_calculate_zodi_exozodi():
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
-        "angular_diameter": 0.01,
+        "stellar_angular_diameter": 0.01,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -464,7 +469,7 @@ def test_validate_configuration():
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
-        "angular_diameter": 0.01,
+        "stellar_angular_diameter": 0.01,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -493,7 +498,7 @@ def test_validate_configuration():
     for attr in [
         "Lstar",
         "dist",
-        "angular_diameter_arcsec",
+        "stellar_angular_diameter_arcsec",
         "nzodis",
         "ra",
         "dec",
@@ -503,8 +508,8 @@ def test_validate_configuration():
         "Fzodi_list",
         "Fexozodi_list",
         "Fbinary_list",
-        "Fp0",
-        "Fstar",
+        "Fp_over_Fs",
+        "Fs_over_F0",
     ]:
         temp = getattr(scene, attr)
         delattr(scene, attr)
@@ -518,7 +523,7 @@ def test_validate_configuration():
     incorrect_type_tests = [
         ("Lstar", 1),
         ("dist", 10),
-        ("angular_diameter_arcsec", 0.01),
+        ("stellar_angular_diameter_arcsec", 0.01),
         ("nzodis", 3),
         ("ra", 236),
         ("dec", 2),
@@ -528,8 +533,8 @@ def test_validate_configuration():
         ("Fzodi_list", [1e-7, 1e-7, 1e-7]),
         ("Fexozodi_list", [1e-8, 1e-8, 1e-8]),
         ("Fbinary_list", [0, 0, 0]),
-        ("Fp0", [1e-5, 1e-5, 1e-5]),
-        ("Fstar", [1, 1, 1]),
+        ("Fp_over_Fs", [1e-5, 1e-5, 1e-5]),
+        ("Fs_over_F0", [1, 1, 1]),
     ]
 
     for attr, incorrect_value in incorrect_type_tests:
@@ -545,7 +550,7 @@ def test_validate_configuration():
     incorrect_unit_tests = [
         ("Lstar", 1 * u.kg),
         ("dist", 10 * u.km),
-        ("angular_diameter_arcsec", 0.01 * u.rad),
+        ("stellar_angular_diameter_arcsec", 0.01 * u.rad),
         ("nzodis", 3 * u.m),
         ("ra", 236 * u.rad),
         ("dec", 2 * u.rad),
@@ -555,8 +560,8 @@ def test_validate_configuration():
         ("Fzodi_list", [1e-7, 1e-7, 1e-7] * u.W / (u.m**2)),
         ("Fexozodi_list", [1e-8, 1e-8, 1e-8] * u.W / (u.m**2)),
         ("Fbinary_list", [0, 0, 0] * u.m),
-        ("Fp0", [1e-5, 1e-5, 1e-5] * u.m),
-        ("Fstar", [1, 1, 1] * u.m),
+        ("Fp_over_Fs", [1e-5, 1e-5, 1e-5] * u.m),
+        ("Fs_over_F0", [1, 1, 1] * u.m),
     ]
 
     for attr, incorrect_value in incorrect_unit_tests:
@@ -582,7 +587,7 @@ def test_validate_configuration():
     attributes_to_test = [
         "Lstar",
         "dist",
-        "angular_diameter_arcsec",
+        "stellar_angular_diameter_arcsec",
         "nzodis",
         "ra",
         "dec",
@@ -592,8 +597,8 @@ def test_validate_configuration():
         "Fzodi_list",
         "Fexozodi_list",
         "Fbinary_list",
-        "Fp0",
-        "Fstar",
+        "Fp_over_Fs",
+        "Fs_over_F0",
     ]
 
     for attr in attributes_to_test:

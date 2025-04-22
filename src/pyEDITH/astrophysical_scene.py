@@ -170,7 +170,7 @@ def calc_exozodi_flux(
     )  # V band surface brightness of 1 zodi in mag arcsec^-2
     vflux_1zodi = 10.0 ** (
         -0.4 * vmag_1zodi.value
-    )  # V band flux (modulo the F0 factor out front) #TODO check that it is correctly interpreted as dimensionless
+    )  # V band flux (modulo the F0 factor out front)
 
     M_V_sun = 4.83 * MAGNITUDE  # V band absolute magnitude of Sun
 
@@ -335,10 +335,7 @@ def calc_zodi_flux(
 
     interp = interp1d(
         np.sin(beta_vector),
-        table17[j]
-        / table17[
-            k, 0
-        ],  # TODO: Is this where the factor 1e-8 in the original table disappears?
+        table17[j] / table17[k, 0],
         kind="cubic",
         fill_value="extrapolate",
     )
@@ -437,7 +434,7 @@ class AstrophysicalScene:
         Stellar magnitudes at V band
     mag : ndarray
         Stellar magnitudes at desired wavelengths
-    angular_diameter_arcsec : float
+    stellar_angular_diameter_arcsec : float
         Angular diameter of stars in arcseconds
     nzodis : float
         Amount of exozodi around target stars in "zodis"
@@ -467,7 +464,7 @@ class AstrophysicalScene:
         Exozodiacal light fluxes
     Fbinary_list : ndarray
         Binary star fluxes (currently ignored)
-    Fp0 : ndarray
+    Fp_over_Fs : ndarray
         Flux of planets
 
     Methods
@@ -558,9 +555,9 @@ class AstrophysicalScene:
             self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
 
             # Convert magnitudes to RELATIVE fluxes (modulo F0)
-            self.Fstar = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
-            self.Fp0 = 10 ** (-0.4 * self.deltamag.value) * DIMENSIONLESS
-            self.Fp0_min = 10 ** (-0.4 * self.min_deltamag.value) * DIMENSIONLESS
+            self.Fs_over_F0 = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
+            self.Fp_over_Fs = 10 ** (-0.4 * self.deltamag.value) * DIMENSIONLESS
+            self.Fp_min_over_Fs = 10 ** (-0.4 * self.min_deltamag.value) * DIMENSIONLESS
 
         elif all(param in parameters for param in ["Fstar_10pc", "Fp/Fs", "Fp_min/Fs"]):
 
@@ -606,18 +603,18 @@ class AstrophysicalScene:
 
             Fstar_V_absolute = Fstar_V_10pc * (10 * DISTANCE / self.dist) ** 2
 
-            self.Fp0 = parameters["Fp/Fs"] * DIMENSIONLESS
-            self.Fp0_min = parameters["Fp_min/Fs"] * DIMENSIONLESS
+            self.Fp_over_Fs = parameters["Fp/Fs"] * DIMENSIONLESS
+            self.Fp_min_over_Fs = parameters["Fp_min/Fs"] * DIMENSIONLESS
             # Convert to relative fluxes (used internally)
-            self.Fstar = (Fstar_absolute / self.F0).to(u.dimensionless_unscaled)
+            self.Fs_over_F0 = (Fstar_absolute / self.F0).to(u.dimensionless_unscaled)
 
             # Calculate vmag (needed for zodi)
             self.vmag = -2.5 * np.log10(Fstar_V_absolute / self.F0V) * MAGNITUDE
             self.mag = -2.5 * np.log10(Fstar_absolute / self.F0) * MAGNITUDE
 
             # Calculate deltamag and min_deltamag (used only to validate)
-            self.deltamag = -2.5 * np.log10(self.Fp0) * MAGNITUDE
-            self.min_deltamag = -2.5 * np.log10(self.Fp0_min) * MAGNITUDE
+            self.deltamag = -2.5 * np.log10(self.Fp_over_Fs) * MAGNITUDE
+            self.min_deltamag = -2.5 * np.log10(self.Fp_min_over_Fs) * MAGNITUDE
         else:
             missing_mag_params = [
                 param
@@ -639,9 +636,11 @@ class AstrophysicalScene:
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
-        self.angular_diameter_arcsec = parameters["angular_diameter"] * ARCSEC
+        self.stellar_angular_diameter_arcsec = (
+            parameters["stellar_angular_diameter"] * ARCSEC
+        )
 
-        # amount of exozodi around target star ("zodis") # used to be (ntargs array) now scalar #TODO maybe this will become [nlambda] for IFS?
+        # amount of exozodi around target star ("zodis") # used to be (ntargs array) now scalar
         self.nzodis = parameters["nzodis"] * ZODI
 
         # right ascension of target star used to estimate zodi (deg) # used to be (ntargs array) now scalar
@@ -684,9 +683,6 @@ class AstrophysicalScene:
 
         # calculate flux at zero point for the V band and the prescribed lambda
 
-        # TODO done now to preserve the output of calc_flux_zero_point compared
-        # to Chris's code. Consider converting to the right units directly.
-
         self.M_V = (
             self.vmag - 5.0 * np.log10(self.dist.value) * MAGNITUDE + 5.0 * MAGNITUDE
         )  # calculate absolute V band mag of target
@@ -717,7 +713,7 @@ class AstrophysicalScene:
             "dist": DISTANCE,
             # "vmag": MAGNITUDE,
             # "mag": MAGNITUDE,
-            "angular_diameter_arcsec": ARCSEC,
+            "stellar_angular_diameter_arcsec": ARCSEC,
             "nzodis": ZODI,
             "ra": DEG,
             "dec": DEG,
@@ -732,7 +728,7 @@ class AstrophysicalScene:
             "Fzodi_list": INV_SQUARE_ARCSEC,
             "Fexozodi_list": INV_SQUARE_ARCSEC,
             "Fbinary_list": DIMENSIONLESS,
-            "Fp0": DIMENSIONLESS,
-            "Fstar": DIMENSIONLESS,
+            "Fp_over_Fs": DIMENSIONLESS,
+            "Fs_over_F0": DIMENSIONLESS,
         }
         utils.validate_attributes(self, expected_args)

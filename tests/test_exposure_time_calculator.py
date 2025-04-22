@@ -36,7 +36,7 @@ class MockObservation:
         self.td_limit = 1.0e20 * u.s
         self.wavelength = u.Quantity([0.5], u.micron)
         self.SNR = u.Quantity([7], DIMENSIONLESS)
-        self.photap_rad = 0.85 * LAMBDA_D
+        self.photometric_aperture_radius = 0.85 * LAMBDA_D
         self.CRb_multiplier = 2
         self.nlambd = 1
         self.tp = 0.0 * u.s
@@ -55,10 +55,10 @@ class MockScene:
         self.mag = u.Quantity([6.189576], u.mag)
         self.deltamag = u.Quantity([25.5], u.mag)
         self.min_deltamag = 25 * u.mag
-        self.Fstar = u.Quantity([0.00334326], DIMENSIONLESS)
-        self.Fp0 = u.Quantity([6.30957344e-11], DIMENSIONLESS)
-        self.Fp0_min = 1.0e-10 * DIMENSIONLESS
-        self.angular_diameter_arcsec = 0.01 * ARCSEC
+        self.Fs_over_F0 = u.Quantity([0.00334326], DIMENSIONLESS)
+        self.Fp_over_Fs = u.Quantity([6.30957344e-11], DIMENSIONLESS)
+        self.Fp_min_over_Fs = 1.0e-10 * DIMENSIONLESS
+        self.stellar_angular_diameter_arcsec = 0.01 * ARCSEC
         self.nzodis = 3 * ZODI
         self.ra = 236.00757737 * u.deg
         self.dec = 2.51516683 * u.deg
@@ -84,9 +84,9 @@ class MockObservatory:
         self.telescope.unobscured_area = 0.879
         self.telescope.toverhead_fixed = 8381.3 * u.s
         self.telescope.toverhead_multi = 1.1 * DIMENSIONLESS
-        self.telescope.telescope_throughput = u.Quantity([0.823], DIMENSIONLESS)
+        self.telescope.telescope_optical_throughput = u.Quantity([0.823], DIMENSIONLESS)
         self.telescope.temperature = 290.0 * u.K
-        self.telescope.Tcontam = 0.95 * DIMENSIONLESS
+        self.telescope.T_contamination = 0.95 * DIMENSIONLESS
         self.telescope.Area = 42.75906827 * u.m**2
 
         self.detector = ToyModelDetector()
@@ -114,7 +114,9 @@ class MockObservatory:
         self.coronagraph.TLyot = 0.65 * DIMENSIONLESS
         self.coronagraph.nrolls = 2
         self.coronagraph.nchannels = 2
-        self.coronagraph.coronagraph_throughput = u.Quantity([0.44], DIMENSIONLESS)
+        self.coronagraph.coronagraph_optical_throughput = u.Quantity(
+            [0.44], DIMENSIONLESS
+        )
         self.coronagraph.coronagraph_spectral_resolution = 1.0 * DIMENSIONLESS
         self.coronagraph.npsfratios = 1
         self.coronagraph.npix = 4
@@ -149,7 +151,7 @@ class MockObservatory:
             ],
             DIMENSIONLESS,
         )
-        self.coronagraph.photap_frac = u.Quantity(
+        self.coronagraph.photometric_aperture_throughput = u.Quantity(
             [
                 [[0.0], [0.2968371], [0.2968371], [0.0]],
                 [[0.2968371], [0.2968371], [0.2968371], [0.2968371]],
@@ -181,8 +183,8 @@ class MockObservatory:
 
 def test_calculate_CRp():
     F0 = 13400.0 * PHOTON_FLUX_DENSITY
-    Fstar = 0.005311289818550127 * DIMENSIONLESS
-    Fp0 = 1e-9 * DIMENSIONLESS
+    Fs_over_F0 = 0.005311289818550127 * DIMENSIONLESS
+    Fp_over_Fs = 1e-9 * DIMENSIONLESS
     area = 427590.68268120557 * u.cm**2
     Upsilon = 0.2968371 * DIMENSIONLESS
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
@@ -190,7 +192,7 @@ def test_calculate_CRp():
     nchannels = 2
 
     result = calculate_CRp(
-        F0, Fstar, Fp0, area, Upsilon, throughput, dlambda, nchannels
+        F0, Fs_over_F0, Fp_over_Fs, area, Upsilon, throughput, dlambda, nchannels
     )
     assert result.unit == (u.electron / (u.s))
     assert np.isclose(result.value, 0.64877874)
@@ -198,7 +200,7 @@ def test_calculate_CRp():
 
 def test_calculate_CRbs():
     F0 = 13400.0 * PHOTON_FLUX_DENSITY
-    Fstar = 0.005311289818550127 * DIMENSIONLESS
+    Fs_over_F0 = 0.005311289818550127 * DIMENSIONLESS
     Istar = 2.3272595994978797e-14 * DIMENSIONLESS
     area = 427590.68268120557 * u.cm**2
     pixscale = 0.25 * LAMBDA_D
@@ -207,7 +209,7 @@ def test_calculate_CRbs():
     nchannels = 2
 
     result = calculate_CRbs(
-        F0, Fstar, Istar, area, pixscale, throughput, dlambda, nchannels
+        F0, Fs_over_F0, Istar, area, pixscale, throughput, dlambda, nchannels
     )
     assert result.unit == (u.electron / (u.s))
     assert np.isclose(result.value, 0.0008138479)
@@ -306,7 +308,7 @@ def test_calculate_CRbd():
 
 def test_calculate_CRnf():
     F0 = 13400.0 * PHOTON_FLUX_DENSITY
-    Fstar = 0.005311289818550127 * DIMENSIONLESS
+    Fs_over_F0 = 0.005311289818550127 * DIMENSIONLESS
     area = 427590.68268120557 * u.cm**2
     pixscale = 0.25 * LAMBDA_D
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
@@ -316,7 +318,7 @@ def test_calculate_CRnf():
     noisefloor = 7.25659425003725e-18 * DIMENSIONLESS
 
     result = calculate_CRnf(
-        F0, Fstar, area, pixscale, throughput, dlambda, nchannels, SNR, noisefloor
+        F0, Fs_over_F0, area, pixscale, throughput, dlambda, nchannels, SNR, noisefloor
     )
     assert result.unit == (u.electron / (u.s))
     assert np.isclose(result.value, 1.7763531e-6)
@@ -559,7 +561,9 @@ def test_calculate_exposure_time_or_snr(capsys):
 def test_measure_coronagraph_performance_at_IWA():
     # Create a mock coronagraph
     coronagraph = MagicMock()
-    coronagraph.photap_frac = np.ones((100, 100, 1)) * 0.5 * DIMENSIONLESS
+    coronagraph.photometric_aperture_throughput = (
+        np.ones((100, 100, 1)) * 0.5 * DIMENSIONLESS
+    )
     coronagraph.Istar = np.ones((100, 100)) * 1e-10 * DIMENSIONLESS
     coronagraph.skytrans = np.ones((100, 100)) * 0.9 * DIMENSIONLESS
     coronagraph.omega_lod = np.ones((100, 100, 1)) * 2 * LAMBDA_D**2
@@ -571,7 +575,7 @@ def test_measure_coronagraph_performance_at_IWA():
 
     # Run the function
     result = measure_coronagraph_performance_at_IWA(
-        coronagraph.photap_frac,
+        coronagraph.photometric_aperture_throughput,
         coronagraph.Istar,
         coronagraph.skytrans,
         coronagraph.omega_lod,

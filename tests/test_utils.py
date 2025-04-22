@@ -240,11 +240,11 @@ def test_print_all_variables(mode):
     mock_observation.exptime = [1000, 1200, 1400] * u.s
 
     mock_scene.mag = 5.0
-    mock_scene.angular_diameter_arcsec = 0.1 * u.arcsec
+    mock_scene.stellar_angular_diameter_arcsec = 0.1 * u.arcsec
     mock_scene.F0 = [1e-8, 1e-8, 1e-8] * u.photon / (u.s * u.cm**2 * u.nm)
-    mock_scene.Fp0 = [1e-10, 1e-10, 1e-10] * DIMENSIONLESS
+    mock_scene.Fp_over_Fs = [1e-10, 1e-10, 1e-10] * DIMENSIONLESS
     mock_scene.dist = 10 * u.pc
-    mock_scene.Fstar = [1e-5, 1e-5, 1e-5]
+    mock_scene.Fs_over_F0 = [1e-5, 1e-5, 1e-5]
     mock_scene.Fzodi_list = [1e-7, 1e-7, 1e-7] * INV_SQUARE_ARCSEC
     mock_scene.Fexozodi_list = [1e-8, 1e-8, 1e-8] * INV_SQUARE_ARCSEC
     mock_scene.Fbinary_list = [1e-9, 1e-9, 1e-9] * DIMENSIONLESS
@@ -264,7 +264,7 @@ def test_print_all_variables(mode):
     mock_observatory.coronagraph.noisefloor = np.ones((10, 10)) * 1e-11 * DIMENSIONLESS
     mock_observatory.coronagraph.npix = 100
     mock_observatory.coronagraph.pixscale = 0.1 * u.arcsec / u.pix
-    mock_observatory.coronagraph.photap_frac = (
+    mock_observatory.coronagraph.photometric_aperture_throughput = (
         np.ones((10, 10, 1)) * 0.5 * DIMENSIONLESS
     )
     mock_observatory.coronagraph.skytrans = np.ones((10, 10)) * 0.9 * DIMENSIONLESS
@@ -301,7 +301,7 @@ def test_print_all_variables(mode):
         "det_sep": 1 * u.arcsec,
         "det_Istar": 1 * u.dimensionless_unscaled,
         "det_skytrans": 1 * u.dimensionless_unscaled,
-        "det_photap_frac": 1 * u.dimensionless_unscaled,
+        "det_photometric_aperture_throughput": 1 * u.dimensionless_unscaled,
         "det_omega_lod": 1 * LAMBDA_D**2,
         "det_CRp": 1 * u.electron / u.s,
         "det_CRbs": 1 * u.electron / u.s,

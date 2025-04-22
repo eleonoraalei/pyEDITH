@@ -249,7 +249,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
 
     wavelength_params = [
         "snr",
-        "Toptical",
+        "T_optical",
         "epswarmTrcold",
         "npix_multiplier",
         "DC",
@@ -280,7 +280,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "distance",  # used to be [ntargs]
         "magV",  # used to be [ntargs]
         "FstarV_10pc",
-        "angular_diameter",  # used to be [ntargs]
+        "stellar_angular_diameter",  # used to be [ntargs]
         "nzodis",  # used to be [ntargs]
         "ra",  # used to be [ntargs]
         "dec",  # used to be [ntargs]
@@ -294,7 +294,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
 
     # ----- SCALARS ----
     scalar_params = [
-        "photap_rad",
+        "photometric_aperture_radius",
         "psf_trunc_ratio",
         "diameter",
         "toverhead_fixed",
@@ -307,7 +307,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "Tcore",
         "TLyot",
         "temperature",
-        "Tcontam",
+        "T_contamination",
         "CRb_multiplier",
         "t_photon_count_input",  # only for ETC validation
     ]

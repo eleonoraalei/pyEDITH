@@ -24,7 +24,7 @@ class MockMediator_IMAGER:
             return [0.7] * WAVELENGTH
         elif param == "psf_trunc_ratio":
             return [0.3] * DIMENSIONLESS
-        elif param == "photap_rad":
+        elif param == "photometric_aperture_radius":
             return 0.7 * LAMBDA_D
         else:
             return 1.0
@@ -33,7 +33,7 @@ class MockMediator_IMAGER:
         return 0.2 if param == "bandwidth" else 1.0
 
     def get_scene_parameter(self, param):
-        if param == "angular_diameter_arcsec":
+        if param == "stellar_angular_diameter_arcsec":
             return 0.1 * ARCSEC
         else:
             return 1.0
@@ -45,7 +45,7 @@ class MockMediator_IFS:
             return [0.5, 0.6, 0.7] * WAVELENGTH
         elif param == "psf_trunc_ratio":
             return [0.3] * DIMENSIONLESS
-        elif param == "photap_rad":
+        elif param == "photometric_aperture_radius":
             return 0.7 * LAMBDA_D
         else:
             return 1.0
@@ -54,7 +54,7 @@ class MockMediator_IFS:
         return 0.2 if param == "bandwidth" else 1.0
 
     def get_scene_parameter(self, param):
-        if param == "angular_diameter_arcsec":
+        if param == "stellar_angular_diameter_arcsec":
             return 0.1 * ARCSEC
         else:
             return 1.0
@@ -64,8 +64,24 @@ class MockMediatorWithPhotapRad(MockMediator_IMAGER):
     def get_observation_parameter(self, param):
         if param == "psf_trunc_ratio":
             return None
-        if param == "photap_rad":
+        if param == "photometric_aperture_radius":
             return 0.7 * LAMBDA_D
+        return super().get_observation_parameter(param)
+
+
+class MockMediatorWithHighPSFTruncRatio(MockMediator_IMAGER):
+    def get_observation_parameter(self, param):
+        if param == "psf_trunc_ratio":
+            return [1] * DIMENSIONLESS
+        if param == "photometric_aperture_radius":
+            return None
+        return super().get_observation_parameter(param)
+
+
+class MockMediatorNoParams(MockMediator_IMAGER):
+    def get_observation_parameter(self, param):
+        if param in ["psf_trunc_ratio", "photometric_aperture_radius"]:
+            return None
         return super().get_observation_parameter(param)
 
 
@@ -91,7 +107,7 @@ def test_validate_configuration():
     # Set up a valid configuration
     coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
     coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.photap_frac = np.ones((100, 100, 1)) * DIMENSIONLESS
+    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
     coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
     coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
     coronagraph.pixscale = 0.1 * LAMBDA_D
@@ -104,7 +120,7 @@ def test_validate_configuration():
     coronagraph.nchannels = 1
     coronagraph.minimum_IWA = 2 * LAMBDA_D
     coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_throughput = np.array([0.5]) * DIMENSIONLESS
+    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
     # Test valid configuration
@@ -186,7 +202,7 @@ def test_toy_model_coronagraph_load_configuration():
     assert coronagraph.nrolls == 2
     assert coronagraph.nchannels == 1
     assert (
-        coronagraph.coronagraph_throughput == [0.44] * DIMENSIONLESS
+        coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
     )  # should grab from default values
     assert (
         coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
@@ -200,7 +216,7 @@ def test_toy_model_coronagraph_load_configuration():
     assert hasattr(coronagraph, "r")
     assert hasattr(coronagraph, "omega_lod")
     assert hasattr(coronagraph, "skytrans")
-    assert hasattr(coronagraph, "photap_frac")
+    assert hasattr(coronagraph, "photometric_aperture_throughput")
     assert hasattr(coronagraph, "PSFpeak")
     assert hasattr(coronagraph, "Istar")
     assert hasattr(coronagraph, "noisefloor")
@@ -225,18 +241,26 @@ def test_toy_model_coronagraph_load_configuration():
     assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
     assert np.all(coronagraph.skytrans == 0.7 * DIMENSIONLESS)
 
-    # Check photap_frac
-    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
-    assert np.all(
-        (coronagraph.photap_frac == 0.3 * DIMENSIONLESS)
-        | (coronagraph.photap_frac == 0.0 * DIMENSIONLESS)
+    # Check photometric_aperture_throughput
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        1,
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r < coronagraph.minimum_IWA]
+        (coronagraph.photometric_aperture_throughput == 0.3 * DIMENSIONLESS)
+        | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
+    )
+    assert np.all(
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r < coronagraph.minimum_IWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r > coronagraph.maximum_OWA]
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r > coronagraph.maximum_OWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
 
@@ -357,7 +381,7 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     assert hasattr(coronagraph, "r")
     assert hasattr(coronagraph, "omega_lod")
     assert hasattr(coronagraph, "skytrans")
-    assert hasattr(coronagraph, "photap_frac")
+    assert hasattr(coronagraph, "photometric_aperture_throughput")
     assert hasattr(coronagraph, "Istar")
     assert hasattr(coronagraph, "noisefloor")
 
@@ -377,9 +401,13 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     )
     assert not np.all(coronagraph.skytrans == 0)
 
-    # Check photap_frac
-    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
-    assert not np.all(coronagraph.photap_frac == 0)
+    # Check photometric_aperture_throughput
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        1,
+    )
+    assert not np.all(coronagraph.photometric_aperture_throughput == 0)
 
     # Check Istar
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
@@ -431,14 +459,14 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     #     in captured.out
     # )
 
-    # Check coronagraph_throughput
-    assert len(coronagraph.coronagraph_throughput) == 1
-    assert np.isclose(coronagraph.coronagraph_throughput.value, 0.394770896)
+    # Check coronagraph_optical_throughput
+    assert len(coronagraph.coronagraph_optical_throughput) == 1
+    assert np.isclose(coronagraph.coronagraph_optical_throughput.value, 0.394770896)
 
     # Check other attributes
     assert hasattr(coronagraph, "psf_trunc_ratio")
     assert hasattr(coronagraph, "npsfratios")
-    assert hasattr(coronagraph, "coronagraph_throughput")
+    assert hasattr(coronagraph, "coronagraph_optical_throughput")
     assert hasattr(coronagraph, "coronagraph_spectral_resolution")
 
 
@@ -473,15 +501,16 @@ def test_coronagraph_yip_load_configuration_IFS(
     coronagraph.load_configuration(parameters, mediator_ifs)
     captured = capsys.readouterr()
     assert (
-        "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+        "WARNING: Both psf_trunc_ratio and photometric_aperture_radius are specified. Preferring psf_trunc_ratio going forward..."
         in captured.out
     )
     assert "Using psf_trunc_ratio to calculate Omega..." in captured.out
 
-    # Check coronagraph_throughput
-    assert len(coronagraph.coronagraph_throughput) == 3
+    # Check coronagraph_optical_throughput
+    assert len(coronagraph.coronagraph_optical_throughput) == 3
     assert np.isclose(
-        coronagraph.coronagraph_throughput.value, [0.41891199, 0.43711322, 0.40535648]
+        coronagraph.coronagraph_optical_throughput.value,
+        [0.41891199, 0.43711322, 0.40535648],
     ).all()
 
 
@@ -519,7 +548,7 @@ def test_coronagraph_yip_load_configuration_INVALID(
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
 @patch("pyEDITH.components.coronagraphs.yippycoro")
-def test_coronagraph_yip_load_configuration_no_psf_trunc_ratio_no_photap_rad(
+def test_coronagraph_yip_load_configuration_no_psf_trunc_ratio_no_photometric_aperture_radius(
     mock_yippycoro,
     mock_load_telescope,
     mock_load_instrument,
@@ -540,17 +569,11 @@ def test_coronagraph_yip_load_configuration_no_psf_trunc_ratio_no_photap_rad(
         "nchannels": 1,
     }
 
-    class MockMediatorNoParams(MockMediator_IMAGER):
-        def get_observation_parameter(self, param):
-            if param in ["psf_trunc_ratio", "photap_rad"]:
-                return None
-            return super().get_observation_parameter(param)
-
     mediator = MockMediatorNoParams()
 
     with pytest.raises(
         KeyError,
-        match="WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega.",
+        match="WARNING: Neither psf_trunc_ratio or photometric_aperture_radius are specified. Specify one or the other to calculate Omega.",
     ):
         coronagraph.load_configuration(parameters, mediator)
 
@@ -558,7 +581,7 @@ def test_coronagraph_yip_load_configuration_no_psf_trunc_ratio_no_photap_rad(
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
 @patch("pyEDITH.components.coronagraphs.yippycoro")
-def test_coronagraph_yip_load_configuration_with_photap_rad(
+def test_coronagraph_yip_load_configuration_with_photometric_aperture_radius(
     mock_yippycoro,
     mock_load_telescope,
     mock_load_instrument,
@@ -585,23 +608,31 @@ def test_coronagraph_yip_load_configuration_with_photap_rad(
 
     coronagraph.load_configuration(parameters, mediator)
     captured = capsys.readouterr()
-    assert "Using photap_rad to calculate Omega..." in captured.out
+    assert "Using photometric_aperture_radius to calculate Omega..." in captured.out
 
-    # Check that omega_lod and photap_frac are calculated correctly
+    # Check that omega_lod and photometric_aperture_throughput are calculated correctly
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
     assert np.all(coronagraph.omega_lod == np.pi * 0.7**2 * LAMBDA_D**2)
 
-    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
-    assert np.all(
-        (coronagraph.photap_frac == 0.5 * DIMENSIONLESS)
-        | (coronagraph.photap_frac == 0.0 * DIMENSIONLESS)
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        1,
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r < coronagraph.minimum_IWA]
+        (coronagraph.photometric_aperture_throughput == 0.5 * DIMENSIONLESS)
+        | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
+    )
+    assert np.all(
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r < coronagraph.minimum_IWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r > coronagraph.maximum_OWA]
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r > coronagraph.maximum_OWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
 
@@ -618,22 +649,67 @@ def test_coronagraph_yip_load_configuration_with_photap_rad(
 
     coronagraph.load_configuration(parameters, mediator)
     captured = capsys.readouterr()
-    assert "Using photap_rad to calculate Omega..." in captured.out
+    assert "Using photometric_aperture_radius to calculate Omega..." in captured.out
 
-    # Check that omega_lod and photap_frac are calculated correctly
+    # Check that omega_lod and photometric_aperture_throughput are calculated correctly
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
     assert np.all(coronagraph.omega_lod == np.pi * 0.7**2 * LAMBDA_D**2)
 
-    assert coronagraph.photap_frac.shape == (coronagraph.npix, coronagraph.npix, 1)
-    assert np.all(
-        (coronagraph.photap_frac == 0.2968371 * DIMENSIONLESS)
-        | (coronagraph.photap_frac == 0.0 * DIMENSIONLESS)
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        1,
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r < coronagraph.minimum_IWA]
+        (coronagraph.photometric_aperture_throughput == 0.2968371 * DIMENSIONLESS)
+        | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
+    )
+    assert np.all(
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r < coronagraph.minimum_IWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
     assert np.all(
-        coronagraph.photap_frac[coronagraph.r > coronagraph.maximum_OWA]
+        coronagraph.photometric_aperture_throughput[
+            coronagraph.r > coronagraph.maximum_OWA
+        ]
         == 0.0 * DIMENSIONLESS
     )
+
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")
+def test_coronagraph_yip_load_configuration_high_psf_trunc_ratio(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object,
+    mock_instrument,
+    mock_telescope,
+    capsys,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object
+
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "Tcore": 0.5 * DIMENSIONLESS,
+    }
+
+    mediator = MockMediatorWithHighPSFTruncRatio()
+
+    coronagraph.load_configuration(parameters, mediator)
+    captured = capsys.readouterr()
+    assert "Using psf_trunc_ratio to calculate Omega..." in captured.out
+    assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert coronagraph.omega_lod.unit == LAMBDA_D**2
+    assert np.allclose(coronagraph.omega_lod.value, 0.0025, rtol=1e-6, atol=1e-9)
+    # 0.0025 is (1*  (self.DEFAULT_CONFIG["pixscale"] / resolvingfactor) ** 2)    where resolvingfactor = int(np.ceil(self.DEFAULT_CONFIG["pixscale"] / 0.05)

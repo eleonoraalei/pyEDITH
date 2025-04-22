@@ -12,8 +12,8 @@ import pickle
 
 def calculate_CRp(
     F0: u.Quantity,
-    Fstar: u.Quantity,
-    Fp0: u.Quantity,
+    Fs_over_F0: u.Quantity,
+    Fp_over_Fs: u.Quantity,
     area: u.Quantity,
     Upsilon: u.Quantity,
     throughput: u.Quantity,
@@ -27,9 +27,9 @@ def calculate_CRp(
     ----------
     F0 : u.Quantity
         Flux zero point. [photons / (s * cm^2 * nm)]
-    Fstar : u.Quantity
+    Fs_over_F0 : u.Quantity
         Stellar flux. [dimensionless]
-    Fp0 : u.Quantity
+    Fp_over_Fs : u.Quantity
         Planet flux relative to star. [dimensionless]
     area : u.Quantity
         Collecting area of the telescope. [cm^2]
@@ -60,12 +60,14 @@ def calculate_CRp(
     in AYO:
 
     FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    Fstar = 10**(-0.4 * magstar)
-    CRpfactor = Fstar * FATDL
-    tempCRpfactor = Fp0[iplanetpistartnp] * CRpfactor
-    CRp = tempCRpfactor * photap_frac[index2]
+    Fs_over_F0 = 10**(-0.4 * magstar)
+    CRpfactor = Fs_over_F0 * FATDL
+    tempCRpfactor = Fp_over_Fs[iplanetpistartnp] * CRpfactor
+    CRp = tempCRpfactor * photometric_aperture_throughput[index2]
     """
-    return (F0 * Fstar * Fp0 * area * Upsilon * throughput * dlambda * nchannels).to(
+    return (
+        F0 * Fs_over_F0 * Fp_over_Fs * area * Upsilon * throughput * dlambda * nchannels
+    ).to(
         u.electron / (u.s),
         equivalencies=u.equivalencies.dimensionless_angles(),
     )
@@ -73,7 +75,7 @@ def calculate_CRp(
 
 def calculate_CRbs(
     F0: u.Quantity,
-    Fstar: u.Quantity,
+    Fs_over_F0: u.Quantity,
     Istar: u.Quantity,
     area: u.Quantity,
     pixscale: u.Quantity,
@@ -88,7 +90,7 @@ def calculate_CRbs(
     ----------
     F0 : u.Quantity
         Flux zero point. [photons / (s * cm^2 * nm)]
-    Fstar : u.Quantity
+    Fs_over_F0 : u.Quantity
         Stellar flux. [dimensionless]
     Istar : u.Quantity
         Stellar intensity at the given pixel. [dimensionless]
@@ -120,9 +122,9 @@ def calculate_CRbs(
     CRbs = F_0 * F_{star} *(zeta * PSF_{peak}) * A * Omega * T * Deltalambda
 
     IN AYO:
-    Fstar = pow((double) 10., -0.4*magstar);
+    Fs_over_F0 = pow((double) 10., -0.4*magstar);
     FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels;
-    CRbsfactor = Fstar * oneopixscale2 * FATDL;
+    CRbsfactor = Fs_over_F0 * oneopixscale2 * FATDL;
     -- DETECTOR:
        det_CRbs = CRbsfactor * det_Istar;
        +++ NOTE: Later used to calculate photon counting time +++
@@ -132,7 +134,14 @@ def calculate_CRbs(
        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
     """
     return (
-        F0 * Fstar * Istar * area * throughput * dlambda * nchannels / (pixscale**2)
+        F0
+        * Fs_over_F0
+        * Istar
+        * area
+        * throughput
+        * dlambda
+        * nchannels
+        / (pixscale**2)
     ).to(
         u.electron / (u.s),
         equivalencies=u.equivalencies.dimensionless_angles(),
@@ -536,7 +545,6 @@ def calculate_CRbd(
 
     """
     # Using the variance of the read noise but keeping the same units as det_RN alone.
-    # TODO verify
     read_noise_variance = det_RN * det_RN.value
     return (
         (det_DC + read_noise_variance / det_tread + det_CIC / t_photon_count) * det_npix
@@ -548,7 +556,7 @@ def calculate_CRbd(
 
 def calculate_CRnf(
     F0: u.Quantity,
-    Fstar: u.Quantity,
+    Fs_over_F0: u.Quantity,
     area: u.Quantity,
     pixscale: u.Quantity,
     throughput: u.Quantity,
@@ -564,7 +572,7 @@ def calculate_CRnf(
     ----------
     F0 : u.Quantity
         Flux zero point. [photons / (s * cm^2 * nm)]
-    Fstar : u.Quantity
+    Fs_over_F0 : u.Quantity
         Stellar flux. [dimensionless]
     area : u.Quantity
         Collecting area of the telescope. [cm^2]
@@ -609,9 +617,9 @@ def calculate_CRnf(
     in AYO:
 
     FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    CRbsfactor = Fstar * oneopixscale2 * FATDL  # for stellar leakage count
+    CRbsfactor = Fs_over_F0 * oneopixscale2 * FATDL  # for stellar leakage count
     rate calculation
-    Fstar = 10**(-0.4 * magstar)
+    Fs_over_F0 = 10**(-0.4 * magstar)
         tempCRnffactor = SNR * CRbsfactor * noisefloor_interp[index];
 
 
@@ -623,14 +631,14 @@ def calculate_CRnf(
     """
     return (
         SNR
-        * (F0 * Fstar * area * throughput * dlambda * nchannels / (pixscale**2))
+        * (F0 * Fs_over_F0 * area * throughput * dlambda * nchannels / (pixscale**2))
         * noisefloor
     )
 
 
 def measure_coronagraph_performance_at_IWA(
-    # psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photap_rad for omega calculation. This is not used anyway in this function.
-    photap_frac: u.Quantity,
+    # psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photometric_aperture_radius for omega calculation. This is not used anyway in this function.
+    photometric_aperture_throughput: u.Quantity,
     Istar_interp: u.Quantity,
     skytrans: u.Quantity,
     omega_lod: u.Quantity,
@@ -645,15 +653,15 @@ def measure_coronagraph_performance_at_IWA(
     This function determines the IWA and calculates various parameters at that point:
 
     1. Finds the psf_trunc_ratio closest to 0.3
-    2. Determines the IWA by finding where photap_frac falls to half its maximum value
-    3. Calculates maximum values of Istar, skytrans, photap_frac, and omega_lod in a 2-pixel annulus at the IWA
+    2. Determines the IWA by finding where photometric_aperture_throughput falls to half its maximum value
+    3. Calculates maximum values of Istar, skytrans, photometric_aperture_throughput, and omega_lod in a 2-pixel annulus at the IWA
 
 
      Parameters
     ----------
     psf_trunc_ratio : u.Quantity
         PSF truncation ratios. [dimensionless]
-    photap_frac : u.Quantity
+    photometric_aperture_throughput : u.Quantity
         Photometric aperture fractions. [dimensionless]
     Istar_interp : u.Quantity
         Interpolated stellar intensity. [dimensionless]
@@ -677,8 +685,8 @@ def measure_coronagraph_performance_at_IWA(
         det_sep: Separation at the IWA. [arcsec]
         det_Istar: Maximum stellar intensity at the IWA. [dimensionless]
         det_skytrans: Maximum sky transmission at the IWA. [dimensionless]
-        det_photap_frac: Maximum photometric aperture fraction at the IWA. [dimensionless]
-        det_omega_lod: Solid angle corresponding to max photap_frac at the IWA. [lambda/D]^2
+        det_photometric_aperture_throughput: Maximum photometric aperture fraction at the IWA. [dimensionless]
+        det_omega_lod: Solid angle corresponding to max photometric_aperture_throughput at the IWA. [lambda/D]^2
 
     """
 
@@ -689,12 +697,16 @@ def measure_coronagraph_performance_at_IWA(
     # )  # NOT USED, in EDITH only one psf_trunc_ratio
     bestiratio = 0  # len = 1 array, so only one index to choose
 
-    # Find maximum photap_frac in first half of image
-    maxphotap_frac = np.max(photap_frac[: npix // 2, int(ycenter.value), bestiratio])
+    # Find maximum photometric_aperture_throughput in first half of image
+    maxphotometric_aperture_throughput = np.max(
+        photometric_aperture_throughput[: npix // 2, int(ycenter.value), bestiratio]
+    )
 
-    # Find IWA = where photap_frac is half the value of the maximum
-    row = photap_frac[:, int(ycenter.value), bestiratio]
-    iwa_index = np.where(row[: int(xcenter.value)] > 0.5 * maxphotap_frac)[0][-1]
+    # Find IWA = where photometric_aperture_throughput is half the value of the maximum
+    row = photometric_aperture_throughput[:, int(ycenter.value), bestiratio]
+    iwa_index = np.where(
+        row[: int(xcenter.value)] > 0.5 * maxphotometric_aperture_throughput
+    )[0][-1]
     det_sep_pix = abs((iwa_index + 0.5) - xcenter.value) * PIXEL
     det_sep = det_sep_pix / oneopixscale_arcsec  # translates to arcsec
 
@@ -710,11 +722,24 @@ def measure_coronagraph_performance_at_IWA(
     det_Istar = np.max(Istar_interp[mask]) * DIMENSIONLESS
     det_skytrans = np.max(skytrans[mask]) * DIMENSIONLESS
 
-    photap_frac_masked = photap_frac[:, :, bestiratio][mask]
-    det_photap_frac = np.max(photap_frac_masked) * DIMENSIONLESS
-    det_omega_lod = omega_lod[:, :, bestiratio][mask][np.argmax(photap_frac_masked)]
+    photometric_aperture_throughput_masked = photometric_aperture_throughput[
+        :, :, bestiratio
+    ][mask]
+    det_photometric_aperture_throughput = (
+        np.max(photometric_aperture_throughput_masked) * DIMENSIONLESS
+    )
+    det_omega_lod = omega_lod[:, :, bestiratio][mask][
+        np.argmax(photometric_aperture_throughput_masked)
+    ]
 
-    return det_sep_pix, det_sep, det_Istar, det_skytrans, det_photap_frac, det_omega_lod
+    return (
+        det_sep_pix,
+        det_sep,
+        det_Istar,
+        det_skytrans,
+        det_photometric_aperture_throughput,
+        det_omega_lod,
+    )
 
 
 def calculate_exposure_time_or_snr(
@@ -831,7 +856,7 @@ def calculate_exposure_time_or_snr(
         )  # LAMBDA_D units
 
         stellar_diam_lod = arcsec_to_lambda_d(
-            scene.angular_diameter_arcsec,
+            scene.stellar_angular_diameter_arcsec,
             observation.wavelength[ilambd].to(LENGTH),
             observatory.telescope.diameter.to(LENGTH),
         )  # LAMBDA_D units
@@ -869,11 +894,11 @@ def calculate_exposure_time_or_snr(
             det_sep,
             det_Istar,
             det_skytrans,
-            det_photap_frac,
+            det_photometric_aperture_throughput,
             det_omega_lod,
         ) = measure_coronagraph_performance_at_IWA(
             # observation.psf_trunc_ratio, # this is no longer used in the function
-            observatory.coronagraph.photap_frac,
+            observatory.coronagraph.photometric_aperture_throughput,
             observatory.coronagraph.Istar,
             observatory.coronagraph.skytrans,
             observatory.coronagraph.omega_lod,
@@ -905,10 +930,10 @@ def calculate_exposure_time_or_snr(
 
         det_CRp = calculate_CRp(
             scene.F0[ilambd],
-            scene.Fstar[ilambd],
-            10 * scene.Fp0_min,
+            scene.Fs_over_F0[ilambd],
+            10 * scene.Fp_min_over_Fs,
             area_cm2,
-            det_photap_frac,
+            det_photometric_aperture_throughput,
             observatory.total_throughput[ilambd],
             deltalambda_nm,
             observatory.coronagraph.nchannels,
@@ -916,7 +941,7 @@ def calculate_exposure_time_or_snr(
 
         det_CRbs = calculate_CRbs(
             scene.F0[ilambd],
-            scene.Fstar[ilambd],
+            scene.Fs_over_F0[ilambd],
             det_Istar,
             area_cm2,
             observatory.coronagraph.pixscale,
@@ -1017,10 +1042,10 @@ def calculate_exposure_time_or_snr(
                 # PLANET COUNT RATE CRP
                 CRp = calculate_CRp(
                     scene.F0[ilambd],
-                    scene.Fstar[ilambd],
-                    scene.Fp0[ilambd],
+                    scene.Fs_over_F0[ilambd],
+                    scene.Fp_over_Fs[ilambd],
                     area_cm2,
-                    observatory.coronagraph.photap_frac[
+                    observatory.coronagraph.photometric_aperture_throughput[
                         int(np.floor(iy)), int(np.floor(ix)), iratio
                     ],
                     observatory.total_throughput[ilambd],
@@ -1034,7 +1059,7 @@ def calculate_exposure_time_or_snr(
                     # NOISE FLOOR CRNF
                     CRnf = calculate_CRnf(
                         scene.F0[ilambd],
-                        scene.Fstar[ilambd],
+                        scene.Fs_over_F0[ilambd],
                         area_cm2,
                         observatory.coronagraph.pixscale,
                         observatory.total_throughput[ilambd],
@@ -1053,7 +1078,7 @@ def calculate_exposure_time_or_snr(
 
                     CRnf = calculate_CRnf(
                         scene.F0[ilambd],
-                        scene.Fstar[ilambd],
+                        scene.Fs_over_F0[ilambd],
                         area_cm2,
                         observatory.coronagraph.pixscale,
                         observatory.total_throughput[ilambd],
@@ -1103,7 +1128,7 @@ def calculate_exposure_time_or_snr(
                     # Calculate CRbs
                     CRbs = calculate_CRbs(
                         scene.F0[ilambd],
-                        scene.Fstar[ilambd],
+                        scene.Fs_over_F0[ilambd],
                         observatory.coronagraph.Istar[
                             int(np.floor(iy)), int(np.floor(ix))
                         ],
@@ -1240,7 +1265,7 @@ def calculate_exposure_time_or_snr(
                             (CRp + observation.CRb_multiplier * CRb)
                             / (CRp * CRp - CRnf * CRnf)
                             * u.electron
-                        )  # TODO CHECK UNITS
+                        )
 
                         # UNITS:
                         # ([electron/s]+[electron/s])/([electron/s]^2+[electron/s]^2) =
@@ -1287,7 +1312,7 @@ def calculate_exposure_time_or_snr(
                         ) / (
                             observatory.telescope.toverhead_multi
                             * ((CRp + observation.CRb_multiplier * CRb))
-                        )  # TODO check units
+                        )
 
                         # UNITS:
                         # ([s]*[]-[s])/([electron/s]+[]*[electron/s])
@@ -1302,7 +1327,6 @@ def calculate_exposure_time_or_snr(
                             * DIMENSIONLESS
                         )
 
-                        print(time_factors, CRbez, CRnf)
                         observation.snr_ez[ilambd] = (
                             np.sqrt(
                                 (time_factors * CRbez**2)
@@ -1336,11 +1360,11 @@ def calculate_exposure_time_or_snr(
                         "det_pixscale_mas": observatory.detector.pixscale_mas,
                         "dQE": observatory.detector.dQE[ilambd],
                         "QE": observatory.detector.QE[ilambd],
-                        "Toptical": observatory.optics_throughput[ilambd],
-                        "Fstar": scene.Fstar[ilambd] * scene.F0[ilambd],
-                        "Fp": scene.Fstar[ilambd]
+                        "T_optical": observatory.optics_throughput[ilambd],
+                        "Fs_over_F0": scene.Fs_over_F0[ilambd] * scene.F0[ilambd],
+                        "Fp": scene.Fs_over_F0[ilambd]
                         * scene.F0[ilambd]
-                        * scene.Fp0[ilambd],
+                        * scene.Fp_over_Fs[ilambd],
                         "Fzodi": scene.Fzodi_list[ilambd] * scene.F0[ilambd],
                         "Fexozodi": scene.Fexozodi_list[ilambd]
                         * scene.F0[ilambd]
@@ -1354,7 +1378,7 @@ def calculate_exposure_time_or_snr(
                             int(np.floor(iy)), int(np.floor(ix)), 0
                         ],
                         # "throughput": observatory.total_throughput[ilambd],
-                        "T_core or photap_frac": observatory.coronagraph.photap_frac[
+                        "T_core or photometric_aperture_throughput": observatory.coronagraph.photometric_aperture_throughput[
                             int(np.floor(iy)), int(np.floor(ix)), 0
                         ],
                         "Istar": observatory.coronagraph.Istar[
@@ -1443,7 +1467,7 @@ def calculate_exposure_time_or_snr(
                 det_sep,
                 det_Istar,
                 det_skytrans,
-                det_photap_frac,
+                det_photometric_aperture_throughput,
                 det_omega_lod,
                 det_CRp,
                 det_CRbs,

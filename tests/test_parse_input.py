@@ -212,7 +212,7 @@ def test_parse_parameters(capsys):
         "nzodis": 3.0,
         "observing_mode": "IFS",
         "snr": [10, 20, 30],
-        "Toptical": 0.8,
+        "T_optical": 0.8,
         "diameter": 2.4,
         "toverhead_fixed": 300,
         "contrast": 1e-10,
@@ -229,7 +229,7 @@ def test_parse_parameters(capsys):
     assert parsed["observing_mode"] == "IFS"
     assert parsed["nlambda"] == 3
     assert np.all(parsed["snr"] == np.array([10, 20, 30]))
-    assert np.all(parsed["Toptical"] == np.array([0.8, 0.8, 0.8]))
+    assert np.all(parsed["T_optical"] == np.array([0.8, 0.8, 0.8]))
     assert parsed["diameter"] == 2.4
     assert parsed["toverhead_fixed"] == 300
     assert parsed["contrast"] == 1e-10
@@ -333,7 +333,7 @@ def test_parse_parameters(capsys):
     # Test wavelength parameters
     wavelength_params = [
         "snr",
-        "Toptical",
+        "T_optical",
         "epswarmTrcold",
         "npix_multiplier",
         "DC",
@@ -389,7 +389,7 @@ def test_parse_parameters(capsys):
         "distance",
         "magV",
         "FstarV_10pc",
-        "angular_diameter",
+        "stellar_angular_diameter",
         "nzodis",
         "ra",
         "dec",
@@ -404,7 +404,7 @@ def test_parse_parameters(capsys):
 
     # Test scalar parameters
     scalar_params = [
-        "photap_rad",
+        "photometric_aperture_radius",
         "psf_trunc_ratio",
         "diameter",
         "toverhead_fixed",
@@ -417,7 +417,7 @@ def test_parse_parameters(capsys):
         "Tcore",
         "TLyot",
         "temperature",
-        "Tcontam",
+        "T_contamination",
         "CRb_multiplier",
         "t_photon_count_input",
     ]

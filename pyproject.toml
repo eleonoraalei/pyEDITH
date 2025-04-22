@@ -20,7 +20,8 @@ dependencies= [
   "astropy",
   "pandas",
   "yippy",
-  "openpyxl"
+  "openpyxl",
+  "synphot"
 ]
 [project.urls]
 Homepage = "https://github.com/eleonoraalei/pyEDITH/"
