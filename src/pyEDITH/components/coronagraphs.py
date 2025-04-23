@@ -254,9 +254,12 @@ class ToyModelCoronagraph(Coronagraph):
         self.omega_lod = (
             np.full(
                 (self.npix, self.npix, self.npsfratios),
-                float(np.pi) * mediator.get_observation_parameter("photap_rad") ** 2,
+                float(np.pi)
+                * mediator.get_observation_parameter("photometric_aperture_radius")
+                ** 2,
             )
-            * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+            * (mediator.get_observation_parameter("photometric_aperture_radius").unit)
+            ** 2
         )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
         self.skytrans = (
@@ -340,7 +343,7 @@ class CoronagraphYIP(Coronagraph):
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
-        * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photap_rad method of calculating Omega)
+        * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photometric_aperture_radius method of calculating Omega)
         "coronagraph_optical_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
@@ -400,7 +403,7 @@ class CoronagraphYIP(Coronagraph):
                 instrument_params, mediator.get_observation_parameter("wavelength")
             )
         else:
-            raise ValueError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
+            raise KeyError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
         # Ensure coronagraph_optical_throughput has dimensions nlambda
         if np.isscalar(instrument_params["total_inst_refl"]):
@@ -451,18 +454,22 @@ class CoronagraphYIP(Coronagraph):
             )
         )
 
-        # account for the method used to calculate omega (either use psf_trunc_ratio or photap_rad, but not both)
+        # account for the method used to calculate omega (either use psf_trunc_ratio or photometric_aperture_radius, but not both)
         if (
             mediator.get_observation_parameter("psf_trunc_ratio") is None
-            and mediator.get_observation_parameter("photap_rad") is None
+            and mediator.get_observation_parameter("photometric_aperture_radius")
+            is None
         ):
             raise KeyError(
-                "WARNING: Neither psf_trunc_ratio or photap_rad are specified. Specify one or the other to calculate Omega."
+                "WARNING: Neither psf_trunc_ratio or photometric_aperture_radius are specified. Specify one or the other to calculate Omega."
             )
         elif mediator.get_observation_parameter("psf_trunc_ratio") is not None:
-            if mediator.get_observation_parameter("photap_rad") is not None:
+            if (
+                mediator.get_observation_parameter("photometric_aperture_radius")
+                is not None
+            ):
                 print(
-                    "WARNING: Both psf_trunc_ratio and photap_rad are specified. Preferring psf_trunc_ratio going forward..."
+                    "WARNING: Both psf_trunc_ratio and photometric_aperture_radius are specified. Preferring psf_trunc_ratio going forward..."
                 )
             print("Using psf_trunc_ratio to calculate Omega...")
 
@@ -538,22 +545,29 @@ class CoronagraphYIP(Coronagraph):
 
         elif (
             mediator.get_observation_parameter("psf_trunc_ratio") is None
-            and mediator.get_observation_parameter("photap_rad") is not None
+            and mediator.get_observation_parameter("photometric_aperture_radius")
+            is not None
         ):
-            print("Using photap_rad to calculate Omega...")
+            print("Using photometric_aperture_radius to calculate Omega...")
 
-            # Use the photap_rad method of calculating Omega.
+            # Use the photometric_aperture_radius method of calculating Omega.
             # this method also requires you to set Tcore (does not use the YIP to calculate this)
 
-            # simple omega calculation, omega = pi * (photap_rad)**2, where photap_rad is in lambda/D
+            # simple omega calculation, omega = pi * (photometric_aperture_radius)**2, where photometric_aperture_radius is in lambda/D
 
             omega_lod = (
                 np.full(
                     (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
                     float(np.pi)
-                    * mediator.get_observation_parameter("photap_rad") ** 2,
+                    * mediator.get_observation_parameter("photometric_aperture_radius")
+                    ** 2,
                 )
-                * (mediator.get_observation_parameter("photap_rad").unit) ** 2
+                * (
+                    mediator.get_observation_parameter(
+                        "photometric_aperture_radius"
+                    ).unit
+                )
+                ** 2
             )  # size of photometric aperture at all separations (npix,npix,len(psftruncratio))
 
             photometric_aperture_throughput = (

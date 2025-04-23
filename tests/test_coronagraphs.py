@@ -543,7 +543,9 @@ def test_coronagraph_yip_load_configuration_INVALID(
 
     mediator = MockMediator_IMAGER()
 
-    with pytest.raises(KeyError, match="Unsupported observing mode: Invalid"):
+    with pytest.raises(
+        KeyError, match="Invalid observing mode. Must be 'IMAGER' or 'IFS'."
+    ):
         coronagraph.load_configuration(parameters, mediator)
 
 
