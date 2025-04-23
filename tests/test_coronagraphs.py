@@ -413,7 +413,7 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
     assert not np.all(coronagraph.Istar == 0)
 
-    # Test with noisefloor_contrast
+    # Test with noisefloor_factor
     base_parameters = {
         "observing_mode": "IMAGER",
         "maximum_OWA": 90.0,
@@ -422,13 +422,12 @@ def test_coronagraph_yip_load_configuration_IMAGER(
         "nchannels": 1,
     }
     parameters_contrast = base_parameters.copy()
-    parameters_contrast["noisefloor_contrast"] = 1e-10 * DIMENSIONLESS
+    parameters_contrast["noisefloor_factor"] = 1e-10 * DIMENSIONLESS
     coronagraph.load_configuration(parameters_contrast, mediator)
 
     captured = capsys.readouterr()
     assert (
-        "Setting the noise floor via user-supplied noisefloor_contrast..."
-        in captured.out
+        "Setting the noise floor via user-supplied noisefloor_factor..." in captured.out
     )
 
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
@@ -447,17 +446,20 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     captured = capsys.readouterr()
     assert "Setting the noise floor via user-supplied noisefloor_PPF..." in captured.out
 
-    # # Test with neither noisefloor_contrast nor noisefloor_PPF
-    # coronagraph.load_configuration(parameters, mediator)
+    # # Test with neither noisefloor_factor nor noisefloor_PPF
+    parameters_null = base_parameters.copy()
+    parameters_null["noisefloor_PPF"] = None
+    parameters_null["noisefloor_factor"] = None
+    coronagraph.load_configuration(parameters_null, mediator)
 
-    # assert np.all(coronagraph.noisefloor == 0)
-    # assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    # assert coronagraph.noisefloor.unit == DIMENSIONLESS
-    # captured = capsys.readouterr()
-    # assert (
-    #     "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
-    #     in captured.out
-    # )
+    assert np.all(coronagraph.noisefloor == 0)
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    captured = capsys.readouterr()
+    assert (
+        "Neither noisefloor_factor or noisefloor_PPF was specified. Setting noise floor to zero."
+        in captured.out
+    )
 
     # Check coronagraph_optical_throughput
     assert len(coronagraph.coronagraph_optical_throughput) == 1

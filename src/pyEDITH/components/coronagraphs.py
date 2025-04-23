@@ -338,8 +338,8 @@ class CoronagraphYIP(Coronagraph):
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
-        "noisefloor_contrast": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": 30,  # divide Istar by this to get the noise floor (unitless)
+        "noisefloor_factor": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
+        "noisefloor_PPF": None,  # 30,  # divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
@@ -381,7 +381,7 @@ class CoronagraphYIP(Coronagraph):
 
         from eacy import load_instrument, load_telescope
 
-        # **** UPDATE DEFAULT CONFIG BY USING YIPPY/EACy ****
+        # LOAD FROM USER IF PROVIDED
         # ***** Set the bandwith *****
         setattr(
             self,
@@ -394,7 +394,14 @@ class CoronagraphYIP(Coronagraph):
             "noisefloor_PPF",
             parameters.get("noisefloor_PPF", self.DEFAULT_CONFIG["noisefloor_PPF"]),
         )
-
+        setattr(
+            self,
+            "noisefloor_factor",
+            parameters.get(
+                "noisefloor_factor", self.DEFAULT_CONFIG["noisefloor_factor"]
+            ),
+        )
+        # **** UPDATE DEFAULT CONFIG BY USING YIPPY/EACy ****
         # ***** Load the YAML using EACy *****
         instrument_params = load_instrument("CI").__dict__
 
@@ -630,44 +637,34 @@ class CoronagraphYIP(Coronagraph):
             np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
         )
 
-        # ALLOW TO READ noisefloor terms if it is available
-        if "noisefloor_contrast" in parameters.keys():
-            subparams = {"noisefloor_contrast": parameters["noisefloor_contrast"]}
-            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
-        else:
-            self.noisefloor_contrast = self.DEFAULT_CONFIG["noisefloor_contrast"]
-
-        if "noisefloor_PPF" in parameters.keys():
-            subparams = {"noisefloor_PPF": parameters["noisefloor_PPF"]}
-            utils.fill_parameters(self, subparams, self.DEFAULT_CONFIG)
-        else:
-            self.noisefloor_PPF = self.DEFAULT_CONFIG["noisefloor_PPF"]
-
-        if self.noisefloor_contrast is not None:
-            print("Setting the noise floor via user-supplied noisefloor_contrast...")
+        if self.noisefloor_factor is not None and self.noisefloor_PPF is None:
+            print("Setting the noise floor via user-supplied noisefloor_factor...")
             self.DEFAULT_CONFIG["noisefloor"] = (
                 (
                     self.DEFAULT_CONFIG["pixscale"] ** 2
                     / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
                 )
-                * self.noisefloor_contrast
+                * self.noisefloor_factor
                 * self.DEFAULT_CONFIG["photometric_aperture_throughput"][:, :, 0]
             )
 
-        if self.noisefloor_PPF is not None:
+        elif self.noisefloor_PPF is not None and self.noisefloor_factor is None:
             print("Setting the noise floor via user-supplied noisefloor_PPF...")
             self.DEFAULT_CONFIG["noisefloor"] = (
                 self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
             )
-
-        # SHOULD NEVER HAPPEN BECAUSE THE PPF VALUE HAS A DEFAULT
-        # can happen if user sets both to None (I do in testing.)
-        if (
-            self.noisefloor_contrast is None
-            and self.noisefloor_PPF is None
-        ):
+        elif self.noisefloor_PPF is not None and self.noisefloor_factor is not None:
             print(
-                "Neither noisefloor_contrast or noisefloor_PPF was specified. Setting noise floor to zero."
+                "Both noisefloor_factor and noisefloor_PPF provided. Using noisefloor_PPF..."
+            )
+            self.DEFAULT_CONFIG["noisefloor"] = (
+                self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
+            )
+
+        # If user sets both to None (used in testing)
+        elif self.noisefloor_factor is None and self.noisefloor_PPF is None:
+            print(
+                "WARNING: Neither noisefloor_factor or noisefloor_PPF was specified. Setting noise floor to zero."
             )
             self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
                 self.DEFAULT_CONFIG["Istar"]
