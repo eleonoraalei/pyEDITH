@@ -31,7 +31,7 @@ dec = 02.5151668316500      ;   declination of target star used to estimate zodi
 
 ;--- PLANET PARAMETERS ---
 separation = 0.0628       ;   separation of planet (arcsec)
-delta_mag = 25.5          ;   difference in mag between planet and host star 
+delta_mag = 18          ;   difference in mag between planet and host star 
 delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
 
 ;--- OBSERVATORY PARAMETERS ----
