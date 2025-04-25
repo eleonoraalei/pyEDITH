@@ -355,7 +355,7 @@ def test_coronagraph_yip_load_configuration_IMAGER(
         "az_avg": True,
     }
 
-    mediator = MockMediator_IMAGER()
+    mediator = MockMediatorWithHighPSFTruncRatio()
 
     coronagraph.load_configuration(parameters, mediator)
 
@@ -413,17 +413,26 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
     assert not np.all(coronagraph.Istar == 0)
 
+    # Check noisefloor == should be zero because no user-provided parameters
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert np.all(coronagraph.noisefloor == 0)
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: No noise floor factor nor PPF provided, setting noisefloor to zero. If you want to have an estimate for the noisefloor, please use noisefloor_factor or noisefloor_PPF."
+        in captured.out
+    )
+
     # Test with noisefloor_factor
-    base_parameters = {
+    parameters = {
         "observing_mode": "IMAGER",
         "maximum_OWA": 90.0,
         "bandwidth": 0.1,
         "nrolls": 2,
         "nchannels": 1,
+        "az_avg": True,
+        "noisefloor_factor": 1e-10,
     }
-    parameters_contrast = base_parameters.copy()
-    parameters_contrast["noisefloor_factor"] = 1e-10 * DIMENSIONLESS
-    coronagraph.load_configuration(parameters_contrast, mediator)
+    coronagraph.load_configuration(parameters, mediator)
 
     captured = capsys.readouterr()
     assert (
@@ -435,29 +444,46 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     assert not np.all(coronagraph.noisefloor == 0)
 
     # Test with noisefloor_PPF
-    parameters_ppf = base_parameters.copy()
-    parameters_ppf["noisefloor_PPF"] = 300.0
-    coronagraph.load_configuration(parameters_ppf, mediator)
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "az_avg": True,
+        "noisefloor_PPF": 30,
+    }
+    coronagraph.load_configuration(parameters, mediator)
+    captured = capsys.readouterr()
+    print(captured.out)
+    assert "Setting the noise floor via user-supplied noisefloor_PPF..." in captured.out
 
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    noisefloor_PPF = coronagraph.noisefloor.copy()
     assert not np.all(coronagraph.noisefloor == 0)
 
-    captured = capsys.readouterr()
-    assert "Setting the noise floor via user-supplied noisefloor_PPF..." in captured.out
+    # # Test with both noisefloor_factor nor noisefloor_PPF
+    parameters = {
+        "observing_mode": "IMAGER",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
+        "nrolls": 2,
+        "nchannels": 1,
+        "az_avg": True,
+        "noisefloor_PPF": 30,
+        "noisefloor_factor": 1e-10,
+    }
+    coronagraph.load_configuration(parameters, mediator)
 
-    # # Test with neither noisefloor_factor nor noisefloor_PPF
-    parameters_null = base_parameters.copy()
-    parameters_null["noisefloor_PPF"] = None
-    parameters_null["noisefloor_factor"] = None
-    coronagraph.load_configuration(parameters_null, mediator)
-
-    assert np.all(coronagraph.noisefloor == 0)
+    assert np.array_equal(
+        coronagraph.noisefloor, noisefloor_PPF
+    )  # must have the same result as before
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
     captured = capsys.readouterr()
     assert (
-        "Neither noisefloor_factor or noisefloor_PPF was specified. Setting noise floor to zero."
+        "WARNING: Both noisefloor_factor and noisefloor_PPF provided. Preferring noisefloor_PPF calculation."
         in captured.out
     )
 
@@ -613,6 +639,7 @@ def test_coronagraph_yip_load_configuration_with_photometric_aperture_radius(
     coronagraph.load_configuration(parameters, mediator)
     captured = capsys.readouterr()
     assert "Using photometric_aperture_radius to calculate Omega..." in captured.out
+    assert "Using user-defined Tcore..." in captured.out
 
     # Check that omega_lod and photometric_aperture_throughput are calculated correctly
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
@@ -654,6 +681,7 @@ def test_coronagraph_yip_load_configuration_with_photometric_aperture_radius(
     coronagraph.load_configuration(parameters, mediator)
     captured = capsys.readouterr()
     assert "Using photometric_aperture_radius to calculate Omega..." in captured.out
+    assert "Using default Tcore..." in captured.out
 
     # Check that omega_lod and photometric_aperture_throughput are calculated correctly
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)

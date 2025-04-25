@@ -159,6 +159,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | coronagraph_spectral_resolution | Scalar                   | Dimensionless | Spectral resolution of the coronagraph                       | Yes           |
 | contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes           |
 | noisefloor_factor               | Scalar                   | Dimensionless | Systematic noise floor factor                                | Yes           |
+| noisefloor_PPF               | Scalar                   | Dimensionless | Noise floor post-processing factor                                | Yes           |
 | Tcore                           | Scalar                   | Dimensionless | Core throughput of coronagraph (used in ToyModel only, or if photometric_aperture_radius is specified for omega_lod calculation)       | Yes           |
 | TLyot                           | Scalar                   | Dimensionless | Lyot transmission of the coronagraph (used in ToyModel only) | Yes           |
 | PSFpeak                         | Scalar                   | Dimensionless | Peak value of the off-axis PSF                                        | No            |

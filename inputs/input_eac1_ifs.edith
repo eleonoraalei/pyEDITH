@@ -36,5 +36,9 @@ Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at
 observatory_preset = EAC1
 observing_mode =  IFS
 
+;--- (OVERRIDING DEFAULT) CORONAGRAPH PARAMETERS ---
+noisefloor_PPF = 30  ;  postprocessing factor for the coronagraph noisefloor
+
+
 ;--- IFS MODE ONLY: PATH TO SPECTRA --- 
 spectrum_file = 'inputs/spectrum.txt' ; must have the following format (comma-separated): wavelength (micron), stellar flux (ph/s/cm^2/nm), planet/star flux ratio (dimensionless)

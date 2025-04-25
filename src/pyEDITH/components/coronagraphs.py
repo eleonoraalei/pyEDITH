@@ -334,12 +334,11 @@ class CoronagraphYIP(Coronagraph):
     """
 
     DEFAULT_CONFIG = {
-        "pixscale": 0.25,  # lambd/D
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": 300.0,  # divide Istar by this to get the noise floor (unitless)
+        "noisefloor_PPF": None,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
@@ -376,7 +375,6 @@ class CoronagraphYIP(Coronagraph):
 
         from eacy import load_instrument, load_telescope
 
-        # **** UPDATE DEFAULT CONFIG BY USING YIPPY/EACy ****
         # ***** Set the bandwith *****
         setattr(
             self,
@@ -551,7 +549,17 @@ class CoronagraphYIP(Coronagraph):
             print("Using photometric_aperture_radius to calculate Omega...")
 
             # Use the photometric_aperture_radius method of calculating Omega.
-            # this method also requires you to set Tcore (does not use the YIP to calculate this)
+            # this method also requires you to set Tcore or uses the default one (does not use the YIP to calculate this)
+            # ***** Tcore *****
+            if "Tcore" in parameters.keys():
+                print("Using user-defined Tcore...")
+            else:
+                print("Using default Tcore...")
+            setattr(
+                self,
+                "Tcore",
+                parameters.get("Tcore", self.DEFAULT_CONFIG["Tcore"]),
+            )
 
             # simple omega calculation, omega = pi * (photometric_aperture_radius)**2, where photometric_aperture_radius is in lambda/D
 
@@ -573,9 +581,9 @@ class CoronagraphYIP(Coronagraph):
             photometric_aperture_throughput = (
                 np.full(
                     (self.DEFAULT_CONFIG["npix"], self.DEFAULT_CONFIG["npix"], 1),
-                    self.DEFAULT_CONFIG["Tcore"],
+                    self.Tcore,
                 )
-                * self.DEFAULT_CONFIG["Tcore"].unit
+                * self.Tcore.unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
 
             photometric_aperture_throughput[
@@ -611,37 +619,54 @@ class CoronagraphYIP(Coronagraph):
             * DIMENSIONLESS
         )
 
-        # calculate noisefloor
+        # Calculate noisefloor
+
+        # ***** Save values into noisefloor_factor and noisefloor_PPF.
+        # These can be the defaults or defined by the user. *****
+        setattr(
+            self,
+            "noisefloor_factor",
+            parameters.get(
+                "noisefloor_factor", self.DEFAULT_CONFIG["noisefloor_factor"]
+            ),
+        )
+
+        setattr(
+            self,
+            "noisefloor_PPF",
+            parameters.get("noisefloor_PPF", self.DEFAULT_CONFIG["noisefloor_PPF"]),
+        )
+
         self.DEFAULT_CONFIG["noisefloor"] = (
             np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
         )
 
-        if self.DEFAULT_CONFIG["noisefloor_factor"] is not None:
+        if self.noisefloor_factor is None and self.noisefloor_PPF is None:
+            print(
+                "WARNING: No noise floor factor nor PPF provided, setting noisefloor to zero. "
+                "If you want to have an estimate for the noisefloor, please use noisefloor_factor or noisefloor_PPF."
+            )
+            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
+                self.DEFAULT_CONFIG["Istar"]
+            )
+        elif self.noisefloor_factor is not None and self.noisefloor_PPF is None:
             print("Setting the noise floor via user-supplied noisefloor_factor...")
             self.DEFAULT_CONFIG["noisefloor"] = (
                 (
                     self.DEFAULT_CONFIG["pixscale"] ** 2
                     / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
                 )
-                * self.DEFAULT_CONFIG["noisefloor_factor"]
+                * self.noisefloor_factor
                 * self.DEFAULT_CONFIG["photometric_aperture_throughput"][:, :, 0]
             )
-
-        if self.DEFAULT_CONFIG["noisefloor_PPF"] is not None:
+        elif self.noisefloor_PPF is not None:
+            if self.noisefloor_factor is not None:
+                print(
+                    "WARNING: Both noisefloor_factor and noisefloor_PPF provided. Preferring noisefloor_PPF calculation."
+                )
             print("Setting the noise floor via user-supplied noisefloor_PPF...")
             self.DEFAULT_CONFIG["noisefloor"] = (
-                self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
-            )
-
-        if (
-            self.DEFAULT_CONFIG["noisefloor_factor"] is None
-            and self.DEFAULT_CONFIG["noisefloor_PPF"] is None
-        ):
-            print(
-                "Specify either noisefloor_factor or noisefloor_PPF to set the noise floor."
-            )
-            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
-                self.DEFAULT_CONFIG["Istar"]
+                self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
             )
 
         if self.DEFAULT_CONFIG["az_avg"]:
