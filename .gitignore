@@ -8,3 +8,4 @@ src/pyEDITH/components/__pycache__
 src/pyEDITH/components/__pycache__/coronagraphs.cpython-312.pyc
 src/pyEDITH/components/__pycache__/telescopes.cpython-312.pyc
 src/pyEDITH/components/__pycache__/detectors.cpython-312.pyc
+tests/__pycache__/
