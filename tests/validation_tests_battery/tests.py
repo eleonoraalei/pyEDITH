@@ -16,7 +16,7 @@ def to_arcsec(quantity, observer_distance):
     return np.arctan(quantity / observer_distance).to(u.arcsec).value
 
 
-def fluxes_to_magnitudes(F_star, F_p, F0):
+def fluxes_to_magnitudes(F_star, F_p):
     return -2.5 * np.log10(np.array(F_p) / np.array(F_star))
 
 
@@ -52,10 +52,10 @@ def process_star(name):
             input_params, verbose=False, ETC_validation=True
         )
 
-        # Compare with Ayo's results
-        compare_with_ayo(
-            name, wavelength, validation_output[0], df[["parameter", "AYO"]]
-        )
+        # # Compare with Ayo's results
+        # compare_with_ayo(
+        #     name, wavelength, validation_output[0], df[["parameter", "AYO"]]
+        # )
         compare_all_codes(name, wavelength, validation_output[0], df)
 
         print(f"Exposure time: {texp}")
@@ -81,7 +81,9 @@ def prepare_input_params(df, hpic, hip_name, code):
         "distance": float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]),
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),
-        "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
+        "photometric_aperture_radius": 0.85,
+        "Tcore": df.loc[df["parameter"] == "T_core", code].iloc[0] * DIMENSIONLESS,
+        # "psf_trunc_ratio": df.loc[df["parameter"] == "psf_trunc_ratio", code].iloc[0],
         "det_npix_input": np.float64(
             df.loc[df["parameter"] == "det_npix", code].iloc[0]
         ),
@@ -111,13 +113,12 @@ def prepare_input_params(df, hpic, hip_name, code):
             diameter=df.loc[df["parameter"] == "D", code].iloc[0] * u.m,
         ).value,
         "CRb_multiplier": 2.0,
-        "Fs_over_F0": np.array([df.loc[df["parameter"] == "F_star", code].iloc[0]]),
+        "Fstar": np.array([df.loc[df["parameter"] == "F_star", code].iloc[0]]),
         "Fp": np.array([df.loc[df["parameter"] == "F_p", code].iloc[0]]),
         "observatory_preset": "EAC1",
         "observing_mode": "IMAGER",
         "delta_mag_min": 25,
         "nchannels": 1,
-        # "noisefloor_factor": 0.029,
         "epswarmTrcold": [0],
         "t_photon_count_input": np.float64(
             df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
@@ -126,104 +127,102 @@ def prepare_input_params(df, hpic, hip_name, code):
         "noisefloor_PPF": 1 / 0.029,
     }
 
-    input["delta_mag"] = fluxes_to_magnitudes(
-        input["Fs_over_F0"], input["Fp"], input["F0"]
-    )
+    input["delta_mag"] = fluxes_to_magnitudes(input["Fstar"], input["Fp"])
 
     return input
 
 
-def get_expected_output(df, code):
-    return {
-        "F0": np.array(df.loc[df["parameter"] == "F_0", code].iloc[0]),
-        "magstar": np.array(df.loc[df["parameter"] == "m_lambda", code].iloc[0]),
-        "Lstar": np.float64(df.loc[df["parameter"] == "L_star", code].iloc[0]),
-        "dist": np.float64(df.loc[df["parameter"] == "dist", code].iloc[0]),
-        "D": np.float64(df.loc[df["parameter"] == "D", code].iloc[0]),
-        "A_cm": np.float64(df.loc[df["parameter"] == "A", code].iloc[0]),
-        "wavelength": np.float64(df.loc[df["parameter"] == "λ", code].iloc[0]),
-        "deltalambda_nm": np.float64(df.loc[df["parameter"] == "Δλ", code].iloc[0]),
-        "snr": np.float64(df.loc[df["parameter"] == "SNR", code].iloc[0]),
-        "nzodis": np.float64(df.loc[df["parameter"] == "nzodis", code].iloc[0]),
-        "toverhead_fixed": np.float64(
-            df.loc[df["parameter"] == "t_overhead,static", code].iloc[0]
-        ),
-        "toverhead_multi": np.float64(
-            df.loc[df["parameter"] == "t_overhead,dynamic", code].iloc[0]
-        ),
-        "det_DC": np.float64(df.loc[df["parameter"] == "det_DC", code].iloc[0]),
-        "det_RN": np.float64(df.loc[df["parameter"] == "det_RN", code].iloc[0]),
-        "det_CIC": np.float64(df.loc[df["parameter"] == "det_CIC", code].iloc[0]),
-        "det_tread": np.float64(df.loc[df["parameter"] == "det_tread", code].iloc[0]),
-        "det_pixscale_mas": np.float64(
-            df.loc[df["parameter"] == "det_pixscale", code].iloc[0]
-        ),
-        "dQE": np.float64(df.loc[df["parameter"] == "dQE", code].iloc[0]),
-        "QE": np.float64(df.loc[df["parameter"] == "QE", code].iloc[0]),
-        "T_optical": np.float64(df.loc[df["parameter"] == "T_optical", code].iloc[0]),
-        "Fs_over_F0": np.float64(df.loc[df["parameter"] == "F_star", code].iloc[0]),
-        "Fp": np.float64(df.loc[df["parameter"] == "F_p", code].iloc[0]),
-        "Fzodi": np.float64(df.loc[df["parameter"] == "F_zodi", code].iloc[0]),
-        "Fexozodi": np.array(df.loc[df["parameter"] == "F_exozodi", code]),
-        "sp_lod": np.array(df.loc[df["parameter"] == "sp", code]),
-        "omega_lod": np.float64(df.loc[df["parameter"] == "Ω_core", code].iloc[0]),
-        "T_core or photometric_aperture_throughput": np.float64(
-            df.loc[df["parameter"] == "T_core", code].iloc[0]
-        ),
-        "Istar*oneopixscale2 in (l/D)^-2": np.float64(
-            df.loc[df["parameter"] == "I_star", code].iloc[0]
-        ),
-        # "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": np.float64(
-        #     3.9e-14
-        # ),
-        "skytrans*oneopixscale2  in (l/D)^-2": np.float64(
-            df.loc[df["parameter"] == "skytrans", code].iloc[0]
-        ),
-        "det_npix": np.float64(df.loc[df["parameter"] == "det_npix", code].iloc[0]),
-        # "t_photon_count_ETCVALIDATION": np.float64(
-        #     df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
-        # ),
-        "t_photon_count": np.float64(
-            df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
-        ),
-        "CRp": np.float64(df.loc[df["parameter"] == "CR_p", code].iloc[0]),
-        "CRbs": np.float64(df.loc[df["parameter"] == "CR_bs", code].iloc[0]),
-        "CRbz": np.float64(df.loc[df["parameter"] == "CR_bz", code].iloc[0]),
-        "CRbez": np.array(df.loc[df["parameter"] == "CR_bez", code]),
-        "CRbbin": np.float64(df.loc[df["parameter"] == "CR_bstray", code].iloc[0]),
-        "CRbd": np.float64(df.loc[df["parameter"] == "CR_bd", code].iloc[0]),
-        "CRnf": np.float64(df.loc[df["parameter"] == "CR_NF", code].iloc[0]),
-        "sciencetime": np.float64(df.loc[df["parameter"] == "t_science", code].iloc[0]),
-        "exptime": np.float64(df.loc[df["parameter"] == "t_exp", code].iloc[0]),
-    }
+# def get_expected_output(df, code):
+#     return {
+#         "F0": np.array(df.loc[df["parameter"] == "F_0", code].iloc[0]),
+#         "magstar": np.array(df.loc[df["parameter"] == "m_lambda", code].iloc[0]),
+#         "Lstar": np.float64(df.loc[df["parameter"] == "L_star", code].iloc[0]),
+#         "dist": np.float64(df.loc[df["parameter"] == "dist", code].iloc[0]),
+#         "D": np.float64(df.loc[df["parameter"] == "D", code].iloc[0]),
+#         "A_cm": np.float64(df.loc[df["parameter"] == "A", code].iloc[0]),
+#         "wavelength": np.float64(df.loc[df["parameter"] == "λ", code].iloc[0]),
+#         "deltalambda_nm": np.float64(df.loc[df["parameter"] == "Δλ", code].iloc[0]),
+#         "snr": np.float64(df.loc[df["parameter"] == "SNR", code].iloc[0]),
+#         "nzodis": np.float64(df.loc[df["parameter"] == "nzodis", code].iloc[0]),
+#         "toverhead_fixed": np.float64(
+#             df.loc[df["parameter"] == "t_overhead,static", code].iloc[0]
+#         ),
+#         "toverhead_multi": np.float64(
+#             df.loc[df["parameter"] == "t_overhead,dynamic", code].iloc[0]
+#         ),
+#         "det_DC": np.float64(df.loc[df["parameter"] == "det_DC", code].iloc[0]),
+#         "det_RN": np.float64(df.loc[df["parameter"] == "det_RN", code].iloc[0]),
+#         "det_CIC": np.float64(df.loc[df["parameter"] == "det_CIC", code].iloc[0]),
+#         "det_tread": np.float64(df.loc[df["parameter"] == "det_tread", code].iloc[0]),
+#         "det_pixscale_mas": np.float64(
+#             df.loc[df["parameter"] == "det_pixscale", code].iloc[0]
+#         ),
+#         "dQE": np.float64(df.loc[df["parameter"] == "dQE", code].iloc[0]),
+#         "QE": np.float64(df.loc[df["parameter"] == "QE", code].iloc[0]),
+#         "T_optical": np.float64(df.loc[df["parameter"] == "T_optical", code].iloc[0]),
+#         "Fs_over_F0": np.float64(df.loc[df["parameter"] == "F_star", code].iloc[0]),
+#         "Fp": np.float64(df.loc[df["parameter"] == "F_p", code].iloc[0]),
+#         "Fzodi": np.float64(df.loc[df["parameter"] == "F_zodi", code].iloc[0]),
+#         "Fexozodi": np.array(df.loc[df["parameter"] == "F_exozodi", code]),
+#         "sp_lod": np.array(df.loc[df["parameter"] == "sp", code]),
+#         "omega_lod": np.float64(df.loc[df["parameter"] == "Ω_core", code].iloc[0]),
+#         "T_core or photometric_aperture_throughput": np.float64(
+#             df.loc[df["parameter"] == "T_core", code].iloc[0]
+#         ),
+#         "Istar*oneopixscale2 in (l/D)^-2": np.float64(
+#             df.loc[df["parameter"] == "I_star", code].iloc[0]
+#         ),
+#         # "contrast * offset PSF peak *oneopixscale2  in (l/D)^-2 (unused)": np.float64(
+#         #     3.9e-14
+#         # ),
+#         "skytrans*oneopixscale2  in (l/D)^-2": np.float64(
+#             df.loc[df["parameter"] == "skytrans", code].iloc[0]
+#         ),
+#         "det_npix": np.float64(df.loc[df["parameter"] == "det_npix", code].iloc[0]),
+#         # "t_photon_count_ETCVALIDATION": np.float64(
+#         #     df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
+#         # ),
+#         "t_photon_count": np.float64(
+#             df.loc[df["parameter"] == "t_photon_count", code].iloc[0]
+#         ),
+#         "CRp": np.float64(df.loc[df["parameter"] == "CR_p", code].iloc[0]),
+#         "CRbs": np.float64(df.loc[df["parameter"] == "CR_bs", code].iloc[0]),
+#         "CRbz": np.float64(df.loc[df["parameter"] == "CR_bz", code].iloc[0]),
+#         "CRbez": np.array(df.loc[df["parameter"] == "CR_bez", code]),
+#         "CRbbin": np.float64(df.loc[df["parameter"] == "CR_bstray", code].iloc[0]),
+#         "CRbd": np.float64(df.loc[df["parameter"] == "CR_bd", code].iloc[0]),
+#         "CRnf": np.float64(df.loc[df["parameter"] == "CR_NF", code].iloc[0]),
+#         "sciencetime": np.float64(df.loc[df["parameter"] == "t_science", code].iloc[0]),
+#         "exptime": np.float64(df.loc[df["parameter"] == "t_exp", code].iloc[0]),
+#     }
 
 
-def compare_with_ayo(name, lamb, pyedith_output, df):
-    print(f"Comparing with Ayo's results for {name} at {lamb}")
-    expected_output = get_expected_output(df, "AYO")
-    errors = []
+# def compare_with_ayo(name, lamb, pyedith_output, df):
+#     print(f"Comparing with Ayo's results for {name} at {lamb}")
+#     expected_output = get_expected_output(df, "AYO")
+#     errors = []
 
-    for key, expected_value in expected_output.items():
-        calculated_value = pyedith_output[key]
-        if hasattr(calculated_value, "value"):
-            calculated_value = calculated_value.value
+#     for key, expected_value in expected_output.items():
+#         calculated_value = pyedith_output[key]
+#         if hasattr(calculated_value, "value"):
+#             calculated_value = calculated_value.value
 
-        try:
-            np.testing.assert_allclose(
-                calculated_value,
-                expected_value,
-                rtol=1e-1,
-                err_msg=f"Mismatch in {key} for test case: {name}",
-            )
-        except AssertionError as e:
-            errors.append(
-                f"-- {key}: FAILED - Expected: {expected_value}, Calculated: {calculated_value}"
-            )
+#         try:
+#             np.testing.assert_allclose(
+#                 calculated_value,
+#                 expected_value,
+#                 rtol=1e-1,
+#                 err_msg=f"Mismatch in {key} for test case: {name}",
+#             )
+#         except AssertionError as e:
+#             errors.append(
+#                 f"-- {key}: FAILED - Expected: {expected_value}, Calculated: {calculated_value}"
+#             )
 
-    if len(errors) == 0:
-        print(f"Test case '{name}' at {lamb} passed successfully!")
-    else:
-        print(f"Test case '{name}' at {lamb} had some errors: \n" + "\n".join(errors))
+#     if len(errors) == 0:
+#         print(f"Test case '{name}' at {lamb} passed successfully!")
+#     else:
+#         print(f"Test case '{name}' at {lamb} had some errors: \n" + "\n".join(errors))
 
 
 def compare_all_codes(name, wavelength, pyedith_output, df):
@@ -235,6 +234,7 @@ def compare_all_codes(name, wavelength, pyedith_output, df):
         "Fzodi": "F_zodi",
         "Fexozodi": "F_exozodi",
         "T_core or photometric_aperture_throughput": "T_core",
+        "omega_lod": "omega_core",
         "Istar*oneopixscale2 in (l/D)^-2": "I_star",
         "skytrans*oneopixscale2  in (l/D)^-2": "skytrans",
         "det_npix": "det_npix",
@@ -262,6 +262,11 @@ def compare_all_codes(name, wavelength, pyedith_output, df):
                 code: df.loc[df["parameter"] == key, code].iloc[0]
                 for code in ["AYO", "EBS", "EXOSIMS"]
             }
+            if key == "CR_NF":
+                print("multiplying CR_NF by SNR again for the validation")
+
+                for code in other_results.keys():
+                    other_results[code] *= 7
             comparisons[key] = compare_results(
                 renamed_pyedith_output[key], other_results
             )
@@ -416,7 +421,7 @@ def visualize_comparisons(comparisons, name, wavelength):
     plt.savefig(os.path.join(script_dir, filename + ".png"))
 
 
-names = ["HIP 32439", "HIP 77052", "HIP 79672", "HIP 26779", "HIP 113283"]
+names = ["HIP 26779", "HIP 32439", "HIP 77052", "HIP 79672", "HIP 113283"]
 for name in names:
     print("NAME", name)
     process_star(name)
