@@ -417,3 +417,36 @@ def print_all_variables(
                 ("observation.fullsnr", observation.fullsnr),
             ]:
                 print_array_info(file, item_name, item, mode)
+
+def synthesize_observation(observation, scene,
+        random_seed=None, 
+        set_below_zero=np.nan, 
+        plotting=False):
+    
+    """
+    Synthesizes an observation using the calculated SNRs for each wavelength bin
+    IMPORTANT: You have to run the ETC in SNR mode with a given exposure time first 
+    (see spectroscopy tutorial)
+    """
+    
+    # set a random seed if desired
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    noise = scene.Fp_over_Fs / observation.fullsnr
+    obs = scene.Fp_over_Fs + noise * np.random.randn(len(noise))
+
+    obs[obs < 0] = set_below_zero # any observation that is below zero is set to whatever you want 
+
+    if plotting:
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(2, 1, sharex=True)
+        axes[0].plot(observation.wavelength, scene.Fp_over_Fs, color="k")
+        axes[0].errorbar(observation.wavelength, obs, yerr=noise, fmt="o", color="red")
+        axes[0].set_ylabel("Fp/Fs")
+        axes[0].set_title(f"Synthetic Observation, exptime = {observation.obstime.to(u.hr).round(2)}")
+        axes[1].plot(observation.wavelength, observation.fullsnr)
+        axes[1].set_xlabel("Wavelength [um]")
+        axes[1].set_ylabel("SNR")
+
+    return obs, noise
