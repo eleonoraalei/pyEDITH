@@ -418,10 +418,14 @@ def print_all_variables(
             ]:
                 print_array_info(file, item_name, item, mode)
 
-def synthesize_observation(observation, scene,
-        random_seed=None, 
-        set_below_zero=np.nan, 
-        plotting=False):
+def synthesize_observation(snr_arr, 
+                           exptime, 
+                           ref_lam, 
+                           observation, 
+                           scene,
+                           random_seed=None, 
+                           set_below_zero=np.nan, 
+                           plotting=False):
     
     """
     Synthesizes an observation using the calculated SNRs for each wavelength bin
@@ -433,7 +437,7 @@ def synthesize_observation(observation, scene,
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    noise = scene.Fp_over_Fs / observation.fullsnr
+    noise = scene.Fp_over_Fs / snr_arr
     obs = scene.Fp_over_Fs + noise * np.random.randn(len(noise))
 
     obs[obs < 0] = set_below_zero # any observation that is below zero is set to whatever you want 
@@ -441,11 +445,17 @@ def synthesize_observation(observation, scene,
     if plotting:
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(2, 1, sharex=True)
-        axes[0].plot(observation.wavelength, scene.Fp_over_Fs, color="k")
+        axes[0].step(observation.wavelength, scene.Fp_over_Fs, color="k", where="mid")
         axes[0].errorbar(observation.wavelength, obs, yerr=noise, fmt="o", color="red")
         axes[0].set_ylabel("Fp/Fs")
-        axes[0].set_title(f"Synthetic Observation, exptime = {observation.obstime.to(u.hr).round(2)}")
-        axes[1].plot(observation.wavelength, observation.fullsnr)
+        if len(exptime) == 1:
+            axes[0].set_title(f"Synthetic Observation, exptime = {exptime[0].to(u.hr).round(2)}")
+        else:
+            axes[0].set_title("Synthetic Observation")
+            exptime_text = f"UV({ref_lam[0]}um): {exptime[0].to(u.hr).round(2)}\nVIS({ref_lam[1]}um): {exptime[1].to(u.hr).round(2)}\nNIR({ref_lam[2]}um): {exptime[2].to(u.hr).round(2)}"
+            axes[0].text(0.99, 0.99, f"exposure times:\n{exptime_text}",  transform=axes[0].transAxes, ha='right', va='top')
+        axes[0].set_ylim(np.median(scene.Fp_over_Fs) - 5*np.median(scene.Fp_over_Fs), np.median(scene.Fp_over_Fs) + 5*np.median(scene.Fp_over_Fs))
+        axes[1].step(observation.wavelength, snr_arr, where="mid")
         axes[1].set_xlabel("Wavelength [um]")
         axes[1].set_ylabel("SNR")
 
