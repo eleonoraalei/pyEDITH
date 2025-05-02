@@ -154,8 +154,10 @@ def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
     # then calculate zodi/exozodi
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(observation)
+    scene.calculate_zodi_exozodi(parameters)
     scene.validate_configuration()
+    if parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is True:
+        scene.regrid_spectra(parameters, observation)
 
     # Create and configure Observatory using ObservatoryBuilder
     observatory_config = parse_input.get_observatory_config(parameters)
@@ -212,7 +214,9 @@ def calculate_snr(parameters, reference_texp, verbose):
     # then calculate zodi/exozodi
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(observation)
+    scene.calculate_zodi_exozodi(parameters)
+    if parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is True:
+        scene.regrid_spectra(parameters, observation)
 
     # Create and configure Observatory using ObservatoryBuilder
     observatory_config = parse_input.get_observatory_config(parameters)

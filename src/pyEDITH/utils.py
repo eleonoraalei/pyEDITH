@@ -450,3 +450,164 @@ def synthesize_observation(observation, scene,
         axes[1].set_ylabel("SNR")
 
     return obs, noise
+
+def wavelength_grid_fixed_res(x_min,x_max,res = -1):
+    """ generates a wavelength grid at a fixed resolution of res
+    inputs:
+        x_min : float
+            minimum wavelength
+        x_max : float
+            maximum wavelength
+        res : float
+            spectral resolution
+    """
+    x    = [x_min]
+    fac  = (1 + 2*res)/(2*res - 1)
+    i    = 0
+    while (x[i]*fac < x_max):
+        x = np.concatenate((x,[x[i]*fac]))
+        i  = i + 1
+    Dx = x/res
+    return np.squeeze(x),np.squeeze(Dx)
+
+
+def gen_wavelength_grid(x_min,x_max,res):
+    """ generates a wavelength grid at a fixed resolution for each spectral channel, 
+        then concatenates them to create a continuous wavelength grid
+    inputs:
+        x_min : float
+            minimum wavelength
+        x_max : float
+            maximum wavelength
+        res : float
+            spectral resolution
+    """
+    if ( len(x_min) == 1 ):
+        x,Dx  = wavelength_grid_fixed_res(x_min,x_max,res=res)
+    else:
+        x,Dx  = wavelength_grid_fixed_res(x_min[0],x_max[0],res=res[0])
+        for i in range(1,len(x_min)):
+            xi,Dxi = wavelength_grid_fixed_res(x_min[i],x_max[i],res=res[i])
+            x      = np.concatenate((x,xi)) 
+            Dx     = np.concatenate((Dx,Dxi))
+    Dx = [Dxs for _,Dxs in sorted(zip(x,Dx))]
+    x  = np.sort(x)
+    return np.squeeze(x),np.squeeze(Dx)
+
+def regrid_wavelengths(input_wls, res, channel_bounds):
+    """ 
+        creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
+
+        Inputs:
+        input_wls : float, 1D arr
+            the wavelength grid the user supplies
+        res : float, 1D arr
+            array of desired resolutions for each channel. should be length of the number of spectral channels
+            for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
+        channel_bounds : float, 1D arr
+            array of the boundaries between spectral channels. Length should be one less than the res array.
+            For example, if we have three channels, this should be len == 2, e.g.  channel_bounds = [UV_VIS_bound, VIS_NIR_bound]
+    """
+
+
+    # channel bounds array should be one less in length than res array
+    assert len(res)-1 == len(channel_bounds)
+
+    if len(channel_bounds) > 0:
+        assert np.min(input_wls) < channel_bounds[0], "Your minimum input wavelength is greater than first channel boundary."
+        assert np.max(input_wls) > channel_bounds[-1], "Your minimum input wavelength is less than last channel boundary."
+
+        wl_mins_channel = [np.min(input_wls)]
+        for bound in channel_bounds:
+            wl_mins_channel.append(bound)
+        wl_mins_channel = np.array(wl_mins_channel)
+
+        wl_maxs_channel = []
+        for bound in channel_bounds:
+            wl_maxs_channel.append(bound)
+        wl_maxs_channel.append(np.max(input_wls))
+        wl_maxs_channel = np.array(wl_maxs_channel)
+
+        lam, dlam = gen_wavelength_grid(wl_mins_channel, wl_maxs_channel, res)
+    else:
+        # no channel boundaries
+        lam, dlam = gen_wavelength_grid([np.min(input_wls)], [np.max(input_wls)], res)
+
+    return lam, dlam
+
+
+def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
+    """
+    regrids a spectrum onto a new wavelength grid using gaussian convolution 
+
+    Inputs:
+    input_wls : float, 1D arr
+        the wavelength grid the user supplies
+    input_spec : float, 1D arr
+        the spectrum the user supplies
+    new_lam : float, 1D arr
+        the new wavelength grid we calculated for the ETC
+    new_lam : float, 1D arr
+        the new delta wavelength grid we calculated for the ETC
+
+    """
+    R_arr = new_lam / new_dlam
+
+    # interpolate original spectrum onto a fine log-lambda grid
+    loglam_old = np.log(input_wls)
+    interp_flux = interp1d(loglam_old, input_spec, bounds_error=False, fill_value=0.0)
+    
+    # make fine log-lambda grid
+    dloglam = 1e-5
+    loglam_grid = np.arange(loglam_old[0], loglam_old[-1], dloglam)
+    lam_grid = np.exp(loglam_grid)
+    flux_grid = interp_flux(loglam_grid)
+
+    spec_regrid = np.zeros_like(new_lam)
+
+    for i in range(len(new_lam)):
+        lam = new_lam[i]
+        R = R_arr[i]
+
+        # get width of gaussian: sigma = FWHM / (2*np.sqrt(2*np.log(2))), where FWHM is dlam, but this is in logspace, so FWHM = 1/R
+        sigma_loglam = 1.0 / (R * 2.0 * np.sqrt(2 * np.log(2)))
+
+        # Gaussian kernel in log-space
+        kernel_half_width = int(4 * sigma_loglam / dloglam)
+        kernel_grid = np.arange(-kernel_half_width, kernel_half_width + 1)
+        kernel = np.exp(-0.5 * (kernel_grid * dloglam / sigma_loglam)**2)
+        kernel /= np.sum(kernel)
+
+        # Find center index
+        center_idx = np.searchsorted(lam_grid, lam)
+
+        # Define convolution range safely
+        i1 = max(center_idx - kernel_half_width, 0)
+        i2 = min(center_idx + kernel_half_width + 1, len(flux_grid))
+        k1 = kernel_half_width - (center_idx - i1)
+        k2 = kernel_half_width + (i2 - center_idx)
+
+        # Perform local convolution
+        flux_segment = flux_grid[i1:i2]
+        kernel_segment = kernel[k1:k2]
+        spec_regrid[i] = np.sum(flux_segment * kernel_segment)
+
+    return spec_regrid
+
+def regrid_spec_interp(input_wls, input_spec, new_lam):
+    """
+    regrids a spectrum onto a new wavelength grid using 1D interpolation
+
+    Inputs:
+    input_wls : float, 1D arr
+        the wavelength grid the user supplies
+    input_spec : float, 1D arr
+        the spectrum the user supplies
+    new_lam : float, 1D arr
+        the new wavelength grid we calculated for the ETC
+
+    """
+    input_spec_unit = input_spec.unit
+    interp_func = interp1d(input_wls, input_spec)
+    spec_regrid = interp_func(new_lam)
+    return spec_regrid*input_spec_unit

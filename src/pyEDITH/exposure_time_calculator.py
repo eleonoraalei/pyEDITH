@@ -812,23 +812,8 @@ def calculate_exposure_time_or_snr(
                     "WARNING: Bandwidth larger than what the coronagraph allows. Selecting widest possible bandwidth..."
                 )
         elif observatory.observing_mode == "IFS":
-            # NOTE: we calculate the spectral resolution from the provided wavelength grid.
-            # In the future, we can add a way for the user to provide an R, and min/max lam to then calculate a wavelength grid.
-            # For now, we assume the user is providing their own wavelength grid.
-            IFS_resolution = observation.wavelength / np.gradient(
-                observation.wavelength
-            )  # calculate the resolution from the wavelength grid
-            dlam_um = np.gradient(observation.wavelength)
-            if ~np.isfinite(IFS_resolution).any():
-                print(
-                    "WARNING: Wavelength grid is not valid. Using default spectral resolution of 140."
-                )
-                IFS_resolution = 140 * np.ones_like(
-                    observation.wavelength
-                )  # default resolution
-                dlam_um = observation.wavelength / IFS_resolution * WAVELENGTH
-
-            deltalambda_nm = dlam_um.to(u.nm)[ilambd]
+            # the effective bandwidth is the width of the spectral element 
+            deltalambda_nm = observation.delta_wavelength[ilambd].to(u.nm)
         else:
             raise ValueError("Invalid observation mode. Choose 'IMAGER' or 'IFS'.")
 
