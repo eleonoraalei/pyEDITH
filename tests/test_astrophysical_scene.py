@@ -415,7 +415,7 @@ def test_calculate_zodi_exozodi():
     observation = MockObservation()
 
     # Calculate zodi and exozodi
-    scene.calculate_zodi_exozodi(observation)
+    scene.calculate_zodi_exozodi(parameters)
 
     # Check that Fzodi_list, Fexozodi_list, and Fbinary_list are created
     assert hasattr(scene, "Fzodi_list")
@@ -446,17 +446,18 @@ def test_calculate_zodi_exozodi():
     assert np.isclose(scene.M_V.value, expected_M_V.value)
 
     # Test with single wavelength
-    single_wavelength_observation = type(
-        "MockObservation", (), {"wavelength": [0.5] * WAVELENGTH, "nlambd": 1}
-    )()
-    scene.calculate_zodi_exozodi(single_wavelength_observation)
+    single_wavelength_params = parameters.copy()
+    single_wavelength_params["wavelength"] = [0.5]
+    single_wavelength_params["mag"] = [5.1]
+
+    scene.calculate_zodi_exozodi(single_wavelength_params)
     assert len(scene.Fzodi_list) == 1
     assert len(scene.Fexozodi_list) == 1
     assert len(scene.Fbinary_list) == 1
 
     # Test error handling
-    with pytest.raises(AttributeError):
-        scene.calculate_zodi_exozodi(None)
+    with pytest.raises(KeyError):
+        scene.calculate_zodi_exozodi({})
 
 
 def test_validate_configuration():
@@ -486,7 +487,7 @@ def test_validate_configuration():
         wavelength = np.array(valid_parameters["wavelength"]) * WAVELENGTH
         nlambd = len(wavelength)
 
-    scene.calculate_zodi_exozodi(MockObservation())
+    scene.calculate_zodi_exozodi(valid_parameters)
 
     # Test valid configuration
     try:

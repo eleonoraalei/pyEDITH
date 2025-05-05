@@ -657,7 +657,7 @@ class AstrophysicalScene:
         self.xp = self.separation.copy()
         self.yp = self.separation.copy() * 0.0
 
-    def calculate_zodi_exozodi(self, parameters: object) -> None:
+    def calculate_zodi_exozodi(self, parameters: dict) -> None:
         """
         Calculate zodiacal and exozodiacal light fluxes for the given observation.
 
@@ -667,14 +667,13 @@ class AstrophysicalScene:
 
         Parameters
         ----------
-        observation : object
-            An object containing observation parameters.
-            Must have attributes:
-                lambd : array_like
-                    Wavelengths for the observation.
-                nlambd : int
-                    Number of wavelengths.
+        parameters : dict
+            A dictionary containing simulation parameters including target star
+            parameters, planet parameters, and observational parameters.
 
+            Must have keys:
+                wavelength : array_like
+                    Wavelengths for the observation.
         Returns
         -------
         None
