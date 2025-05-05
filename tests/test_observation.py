@@ -13,6 +13,23 @@ def test_observation_init():
 def test_load_configuration(capsys):
     obs = Observation()
 
+    # Test invalid wavelength grid
+    parameters = {"observing_mode" : "IFS",
+                  "wavelength" : [0.5, 0.5, 0.5],
+                  "snr": [7.0, 7.0, 7.0],
+                  "regrid_wavelength" : False,
+                  "psf_trunc_ratio": 0.3,
+                  "CRb_multiplier": 2.0,
+                }
+    
+    obs.load_configuration(parameters)
+
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: Wavelength grid is not valid. Using default spectral resolution of 140."
+        in captured.out
+    )
+
     # Test no photometric_aperture_radius nor psf_trunc_ratio case
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
@@ -28,6 +45,7 @@ def test_load_configuration(capsys):
         "snr": [7.0, 7.0, 7.0],
         "photometric_aperture_radius": 0.85,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
 
@@ -46,6 +64,7 @@ def test_load_configuration(capsys):
         "photometric_aperture_radius": 0.85,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
     captured = capsys.readouterr()
@@ -65,6 +84,7 @@ def test_load_configuration(capsys):
         "snr": [7.0, 7.0, 7.0],
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
 
@@ -94,6 +114,7 @@ def test_set_output_arrays():
         "photometric_aperture_radius": 0.85,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
     obs.set_output_arrays()
@@ -126,6 +147,7 @@ def test_validate_configuration():
         "snr": [7.0, 7.0, 7.0],
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
 
@@ -138,6 +160,7 @@ def test_validate_configuration():
         "snr": [7.0, 7.0, 7.0],
         "photometric_aperture_radius": 0.7,
         "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
     }
     obs.load_configuration(parameters)
 

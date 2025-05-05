@@ -35,6 +35,7 @@ class MockObservation:
     def __init__(self):
         self.td_limit = 1.0e20 * u.s
         self.wavelength = u.Quantity([0.5], u.micron)
+        self.delta_wavelength = u.Quantity([0.5*0.2], u.micron) # 20% bandpass
         self.SNR = u.Quantity([7], DIMENSIONLESS)
         self.photometric_aperture_radius = 0.85 * LAMBDA_D
         self.CRb_multiplier = 2
@@ -522,32 +523,6 @@ def test_calculate_exposure_time_or_snr(capsys):
     observation.wavelength = [0.5, 0.6, 0.7] * u.um
 
     calculate_exposure_time_or_snr(observation, scene, observatory, verbose=False)
-
-    # Check that deltalambda_nm was calculated correctly
-    expected_dlam = np.gradient(observation.wavelength)
-    assert np.allclose(
-        observation.validation_variables[0]["deltalambda_nm"].value,
-        expected_dlam[0].to(u.nm).value,
-    )
-
-    # Wrong calculation
-    observatory.observing_mode = "IFS"
-    observation.wavelength = [0.5, 0.5, 0.5] * u.um  # Invalid grid (no gradient)
-
-    calculate_exposure_time_or_snr(observation, scene, observatory, verbose=False)
-
-    captured = capsys.readouterr()
-    assert (
-        "WARNING: Wavelength grid is not valid. Using default spectral resolution of 140."
-        in captured.out
-    )
-
-    # Check that default resolution was used
-    expected_dlam = observation.wavelength[0] / 140
-    assert np.isclose(
-        observation.validation_variables[0]["deltalambda_nm"].value,
-        expected_dlam.to(u.nm).value,
-    )
 
     # Invalid observing mode
     observatory.observing_mode = "INVALID"
