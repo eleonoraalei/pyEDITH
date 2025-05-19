@@ -223,6 +223,43 @@ def test_calculate_texp(mock_parameters):
         mock_builder.create_observatory.assert_called_once()
         mock_calculate.assert_called_once()
 
+    # modify the mock parameters to test IFS mode regridding in scene
+    mock_parameters["spectral_resolution"] = [140, 40]
+    mock_parameters["channel_bounds"]  =  1.
+    mock_parameters["regrid_wavelength"] = True
+    mock_parameters["observing_mode"] = "IFS"
+
+    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
+        "pyEDITH.cli.AstrophysicalScene"
+    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
+        "pyEDITH.cli.calculate_exposure_time_or_snr"
+    ) as mock_calculate:
+
+        # Set up mock objects and their return values
+        mock_observation_instance = MagicMock()
+        mock_observation_instance.exptime = np.array([1.0])
+        mock_observation_instance.validation_variables = {}
+        mock_observation.return_value = mock_observation_instance
+
+        mock_scene_instance = MagicMock()
+        mock_scene.return_value = mock_scene_instance
+
+        mock_observatory = MagicMock()
+        mock_builder.create_observatory.return_value = mock_observatory
+
+        # Call the function under test
+        texp, validation_variables = calculate_texp(mock_parameters, False)
+
+        # Assert the results
+        assert np.array_equal(texp, np.array([1.0]))
+        assert validation_variables == {}
+
+        # Check that all expected method calls occurred
+        mock_observation.assert_called_once()
+        mock_scene.assert_called_once()
+        mock_builder.create_observatory.assert_called_once()
+        mock_calculate.assert_called_once()
+
 
 def test_calculate_snr(mock_parameters):
     """
@@ -232,6 +269,44 @@ def test_calculate_snr(mock_parameters):
     calculate_exposure_time_or_snr functions. It then checks if calculate_snr
     correctly sets up these objects and calls the calculation function.
     """
+    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
+        "pyEDITH.cli.AstrophysicalScene"
+    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
+        "pyEDITH.cli.calculate_exposure_time_or_snr"
+    ) as mock_calculate:
+
+        # Set up mock objects and their return values
+        mock_observation_instance = MagicMock()
+        mock_observation_instance.fullsnr = np.array([10.0])
+        mock_observation_instance.validation_variables = {}
+        mock_observation.return_value = mock_observation_instance
+
+        mock_scene_instance = MagicMock()
+        mock_scene.return_value = mock_scene_instance
+
+        mock_observatory = MagicMock()
+        mock_builder.create_observatory.return_value = mock_observatory
+
+        # Call the function under test
+        snr, validation_variables = calculate_snr(mock_parameters, 1.0, False)
+
+        # Assert the results
+        assert np.array_equal(snr, np.array([10.0]))
+        assert validation_variables == {}
+
+        # Check that all expected method calls occurred
+        mock_observation.assert_called_once()
+        mock_scene.assert_called_once()
+        mock_builder.create_observatory.assert_called_once()
+        mock_calculate.assert_called_once()
+
+
+    # modify the mock parameters to test IFS mode regridding in scene
+    mock_parameters["spectral_resolution"] = [140, 40]
+    mock_parameters["channel_bounds"]  =  1.
+    mock_parameters["regrid_wavelength"] = True
+    mock_parameters["observing_mode"] = "IFS"
+
     with patch("pyEDITH.cli.Observation") as mock_observation, patch(
         "pyEDITH.cli.AstrophysicalScene"
     ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
