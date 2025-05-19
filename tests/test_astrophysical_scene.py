@@ -625,3 +625,34 @@ def test_validate_configuration():
             with pytest.raises(AttributeError):
                 scene.validate_configuration()
             setattr(scene, attr, original_value)
+
+def test_regrid_spectra():
+    scene = AstrophysicalScene()
+
+    parameters = {"wavelength": np.linspace(0.5, 1.7, 1000), # user-provided wavelength grid
+                  }
+
+    # Create a mock Observation object
+    class MockObservation:
+        wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH, # the binned-down wavelength grid calculated with the specified R and channel cutoffs
+        nlambd = len(wavelength)
+
+    observation = MockObservation()
+
+    # set up the scene: assign relevant arrays random numbers
+    scene.F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fzodi_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fexozodi_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fbinary_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fp_over_Fs = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fs_over_F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+
+    scene.regrid_spectra(parameters, observation)
+
+    # check that everything was binned down to the proper wavelength grid
+    assert len(scene.F0) == observation.nlambd    
+    assert len(scene.Fzodi_list) == observation.nlambd
+    assert len(scene.Fexozodi_list) == observation.nlambd
+    assert len(scene.Fbinary_list) == observation.nlambd
+    assert len(scene.Fp_over_Fs) == observation.nlambd
+    assert len(scene.Fs_over_F0) == observation.nlambd
