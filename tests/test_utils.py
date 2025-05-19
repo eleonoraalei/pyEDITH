@@ -9,6 +9,7 @@ from pyEDITH.units import (
     INV_SQUARE_ARCSEC,
     QUANTUM_EFFICIENCY,
     LENGTH,
+    PHOTON_FLUX_DENSITY
 )
 import pytest
 import os
@@ -504,12 +505,12 @@ def test_regrid_wavelengths():
 #     assert len(spec_regrid) == len(new_lam)
 
 
-# def test_regrid_spec_interp():
-#     input_wls = np.linspace(0.4, 2.0, 100)
-#     input_spec = np.random.rand(100)
-#     new_lam = np.linspace(0.5, 1.9, 50)
+def test_regrid_spec_interp():
+    input_wls = np.linspace(0.4, 2.0, 100) * WAVELENGTH
+    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
+    new_lam = np.linspace(0.5, 1.9, 50) * WAVELENGTH
 
-#     spec_regrid = regrid_spec_interp(input_wls, input_spec, new_lam)
+    spec_regrid = regrid_spec_interp(input_wls, input_spec, new_lam)
 
-#     assert isinstance(spec_regrid, u.Quantity)
-#     assert len(spec_regrid) == len(new_lam)
+    assert isinstance(spec_regrid, u.Quantity)
+    assert len(spec_regrid) == len(new_lam)
