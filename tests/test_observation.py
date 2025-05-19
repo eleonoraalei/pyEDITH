@@ -78,6 +78,16 @@ def test_load_configuration(capsys):
     assert obs.psf_trunc_ratio == parameters["psf_trunc_ratio"] * DIMENSIONLESS
     assert obs.CRb_multiplier == parameters["CRb_multiplier"]
 
+    # Test case when neither are available
+    parameters = {
+        "wavelength": [0.5, 0.55, 0.6],
+        "snr": [7.0, 7.0, 7.0],
+        "CRb_multiplier": 2.0,
+        "observing_mode" : "IMAGER",
+    }
+    with pytest.raises(KeyError):
+        obs.load_configuration(parameters)
+
     # Test psf_trunc_ratio case
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
@@ -104,6 +114,51 @@ def test_load_configuration(capsys):
     # Test error handling
     with pytest.raises(KeyError):
         obs.load_configuration({"invalid_key": 0})
+
+
+    # Test IFS mode: spectral_resolution is not included
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.7, 1000),
+        "snr": [7.0, 7.0, 7.0],
+        "channel_bounds" : [1.],
+        "regrid_wavelength": True,
+        "psf_trunc_ratio": 0.3,
+        "CRb_multiplier": 2.0,
+        "observing_mode" : "IFS",
+    }
+    with pytest.raises(KeyError):
+        obs.load_configuration(parameters)
+
+    # Test IFS mode: channel_bounds is not included
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.7, 1000),
+        "snr": [7.0, 7.0, 7.0],
+        "spectral_resolution" : [140, 40],
+        "regrid_wavelength": True,
+        "psf_trunc_ratio": 0.3,
+        "CRb_multiplier": 2.0,
+        "observing_mode" : "IFS",
+    }
+    with pytest.raises(KeyError):
+        obs.load_configuration(parameters)
+
+
+    # Test IFS mode: spectral_resolution and channel_bounds included
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.7, 1000),
+        "snr": [7.0, 7.0, 7.0],
+        "spectral_resolution" : [140, 40],
+        "channel_bounds" : [1.],
+        "regrid_wavelength": True,
+        "psf_trunc_ratio": 0.3,
+        "CRb_multiplier": 2.0,
+        "observing_mode" : "IFS",
+    }
+    obs.load_configuration(parameters)
+
+    # Test whether the calculated spectral grid is at the correct resolution for the correct spectral channels
+    assert np.all(obs.wavelength[obs.wavelength.value < parameters["channel_bounds"]] / obs.delta_wavelength[obs.wavelength.value < parameters["channel_bounds"]] == parameters["spectral_resolution"][0])
+    assert np.all(obs.wavelength[obs.wavelength.value >= parameters["channel_bounds"]] / obs.delta_wavelength[obs.wavelength.value >= parameters["channel_bounds"]] == parameters["spectral_resolution"][1])
 
 
 def test_set_output_arrays():
