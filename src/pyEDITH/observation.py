@@ -65,7 +65,10 @@ class Observation:
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
-        elif parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is False:
+        elif (
+            parameters["observing_mode"] == "IFS"
+            and parameters["regrid_wavelength"] is False
+        ):
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
@@ -82,18 +85,26 @@ class Observation:
                 )  # default resolution
                 dlam_um = self.wavelength / IFS_resolution
             self.delta_wavelength = dlam_um
-            
-        elif parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is True:
+
+        elif (
+            parameters["observing_mode"] == "IFS"
+            and parameters["regrid_wavelength"] is True
+        ):
             print("Calculating a new wavelength grid and re-gridding spectra...")
             if "spectral_resolution" not in parameters.keys():
                 raise KeyError(
-                "regrid_wavelength is True; you must specify new resolution for each spectral channel: parameters['spectral_resolution']."
-            )
+                    "regrid_wavelength is True; you must specify new resolution for each spectral channel: parameters['spectral_resolution']."
+                )
             if "channel_bounds" not in parameters.keys():
                 raise KeyError(
-                "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['channel_bounds']."
+                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['channel_bounds']."
+                )
+
+            new_lam, new_dlam = utils.regrid_wavelengths(
+                parameters["wavelength"],
+                parameters["spectral_resolution"],
+                parameters["channel_bounds"],
             )
-            new_lam, new_dlam = utils.regrid_wavelengths(parameters["wavelength"], parameters["spectral_resolution"], parameters["channel_bounds"])
             self.wavelength = (
                 new_lam * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron

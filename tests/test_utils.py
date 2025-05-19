@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import astropy.units as u
 from pyEDITH.units import (
     LAMBDA_D,
@@ -383,3 +384,132 @@ def test_print_all_variables(mode):
         finally:
             # Change back to the original directory
             os.chdir(original_dir)
+
+
+def test_synthesize_observation():
+    # Create mock objects
+    mock_observation = Observation()
+    mock_scene = AstrophysicalScene()
+
+    # Set up test data
+    mock_observation.wavelength = np.array([0.5, 0.6, 0.7]) * u.um
+    snr_arr = np.array([10, 15, 20])
+    exptime = np.array([1000]) * u.s
+    ref_lam = np.array([0.55]) * u.um
+    mock_scene.Fp_over_Fs = np.array([1e-6, 1.5e-6, 2e-6])
+
+    # Test with default parameters
+    obs, noise = synthesize_observation(
+        snr_arr, exptime, ref_lam, mock_observation, mock_scene
+    )
+
+    assert obs.shape == (3,)
+    assert noise.shape == (3,)
+    assert np.all(np.isfinite(obs))
+    assert np.all(np.isfinite(noise))
+
+    # Test with set random_seed
+    obs1, noise1 = synthesize_observation(
+        snr_arr, exptime, ref_lam, mock_observation, mock_scene, random_seed=42
+    )
+    obs2, noise2 = synthesize_observation(
+        snr_arr, exptime, ref_lam, mock_observation, mock_scene, random_seed=42
+    )
+    np.testing.assert_array_equal(obs1, obs2)
+    np.testing.assert_array_equal(noise1, noise2)
+
+    # Test with set set_below_zero
+    obs, noise = synthesize_observation(
+        snr_arr, exptime, ref_lam, mock_observation, mock_scene, set_below_zero=-999
+    )
+    assert np.all(obs[obs < 0] == -999)
+
+    # Test with plotting (this just checks if it runs without error)
+    try:
+        synthesize_observation(
+            snr_arr, exptime, ref_lam, mock_observation, mock_scene, plotting=True
+        )
+        plt.close()  # Close the plot to avoid displaying it during tests
+    except Exception as e:
+        pytest.fail(f"synthesize_observation with plotting raised an exception: {e}")
+
+
+def test_wavelength_grid_fixed_res():
+    x_min, x_max, res = 0.5, 1.0, 100
+    x, Dx = wavelength_grid_fixed_res(x_min, x_max, res)
+
+    assert x[0] == x_min
+    assert x[-1] < x_max
+    assert len(x) == len(Dx)
+    assert np.all(np.diff(x) > 0)  # Check if x is monotonically increasing
+    np.testing.assert_allclose(x / Dx, res, rtol=1e-5)
+
+
+def test_gen_wavelength_grid():
+    # Test single channel
+    x_min, x_max, res = [0.5], [1.0], [100]
+    x, Dx = gen_wavelength_grid(x_min, x_max, res)
+
+    assert x[0] == x_min[0]
+    assert x[-1] < x_max[0]
+    assert len(x) == len(Dx)
+    assert np.all(np.diff(x) > 0)
+
+    # Test multiple channels
+    x_min, x_max, res = [0.5, 1.0], [1.0, 2.0], [100, 200]
+    x, Dx = gen_wavelength_grid(x_min, x_max, res)
+
+    assert x[0] == x_min[0]
+    assert x[-1] < x_max[-1]
+    assert len(x) == len(Dx)
+    assert np.all(np.diff(x) > 0)
+
+
+def test_regrid_wavelengths():
+    input_wls = np.linspace(0.4, 2.0, 100)
+    res = [50, 100, 150]
+    channel_bounds = [0.7, 1.3]
+    lam, dlam = regrid_wavelengths(input_wls, res, channel_bounds)
+
+    assert np.all(np.diff(lam) > 0)
+    assert len(lam) == len(dlam)
+
+    # Test with no channel boundaries
+    lam, dlam = regrid_wavelengths(input_wls, [100], [])
+    assert len(lam) > 0
+    assert len(dlam) > 0
+
+    # Test error cases
+    with pytest.raises(
+        AssertionError,
+        match="Your minimum input wavelength is greater than first channel boundary.",
+    ):
+        regrid_wavelengths(input_wls, [100, 200], [0.1])  # Mismatched lengths
+
+    with pytest.raises(
+        AssertionError,
+        match="Your maximum input wavelength is less than last channel boundary.",
+    ):
+        regrid_wavelengths(input_wls, [100, 200], [2.1])  # Boundary outside range
+
+
+# def test_regrid_spec_gauss():
+#     input_wls = np.linspace(0.4, 2.0, 100)
+#     input_spec = np.random.rand(100)
+#     new_lam = np.linspace(0.5, 1.9, 50)
+#     new_dlam = np.full_like(new_lam, 0.01)
+
+#     spec_regrid = regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam)
+
+#     assert len(spec_regrid) == len(new_lam)
+
+
+# def test_regrid_spec_interp():
+#     input_wls = np.linspace(0.4, 2.0, 100)
+#     input_spec = np.random.rand(100)
+#     new_lam = np.linspace(0.5, 1.9, 50)
+
+#     spec_regrid = regrid_spec_interp(input_wls, input_spec, new_lam)
+
+#     assert isinstance(spec_regrid, u.Quantity)
+#     assert len(spec_regrid) == len(new_lam)

@@ -687,14 +687,14 @@ class AstrophysicalScene:
         )  # calculate absolute V band mag of target
 
         self.Fzodi_list = calc_zodi_flux(
-            self.dec, self.ra, parameters["wavelength"]*WAVELENGTH, self.F0
+            self.dec, self.ra, parameters["wavelength"] * WAVELENGTH, self.F0
         )  # [nlambda]
 
         self.Fexozodi_list = calc_exozodi_flux(
             self.M_V,
             self.vmag,
             self.nzodis,
-             parameters["wavelength"]*WAVELENGTH,
+            parameters["wavelength"] * WAVELENGTH,
             self.mag,
         )  # [nlambda]
 
@@ -735,10 +735,22 @@ class AstrophysicalScene:
     def regrid_spectra(self, parameters, observation):
         """function to re-grid onto a new wavelength grid if the user specified this option"""
         # spectra to regrid: F0, Fzodi_list, Fexozodi_list, Fbinary_list, Fp_over_Fs, Fs_over_F0
-        print("Re-gridding spectral onto ETC wavelength grid...")
-        self.F0 = utils.regrid_spec_interp(parameters["wavelength"], self.F0, observation.wavelength)
-        self.Fzodi_list = utils.regrid_spec_interp(parameters["wavelength"], self.Fzodi_list , observation.wavelength)
-        self.Fexozodi_list = utils.regrid_spec_interp(parameters["wavelength"], self.Fexozodi_list, observation.wavelength)
-        self.Fbinary_list = utils.regrid_spec_interp(parameters["wavelength"], self.Fbinary_list, observation.wavelength)
-        self.Fp_over_Fs = utils.regrid_spec_interp(parameters["wavelength"], self.Fp_over_Fs, observation.wavelength)
-        self.Fs_over_F0 = utils.regrid_spec_interp(parameters["wavelength"], self.Fs_over_F0 , observation.wavelength)
+        print("Re-gridding spectra onto ETC wavelength grid...")
+        self.F0 = utils.regrid_spec_interp(
+            parameters["wavelength"], self.F0, observation.wavelength
+        )
+        self.Fzodi_list = utils.regrid_spec_interp(
+            parameters["wavelength"], self.Fzodi_list, observation.wavelength
+        )
+        self.Fexozodi_list = utils.regrid_spec_interp(
+            parameters["wavelength"], self.Fexozodi_list, observation.wavelength
+        )
+        self.Fbinary_list = utils.regrid_spec_interp(
+            parameters["wavelength"], self.Fbinary_list, observation.wavelength
+        )
+        self.Fp_over_Fs = utils.regrid_spec_interp(
+            parameters["wavelength"], self.Fp_over_Fs, observation.wavelength
+        )
+        self.Fs_over_F0 = utils.regrid_spec_interp(
+            parameters["wavelength"], self.Fs_over_F0, observation.wavelength
+        )

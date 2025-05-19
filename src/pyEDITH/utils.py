@@ -418,21 +418,23 @@ def print_all_variables(
             ]:
                 print_array_info(file, item_name, item, mode)
 
-def synthesize_observation(snr_arr, 
-                           exptime, 
-                           ref_lam, 
-                           observation, 
-                           scene,
-                           random_seed=None, 
-                           set_below_zero=np.nan, 
-                           plotting=False):
-    
+
+def synthesize_observation(
+    snr_arr,
+    exptime,
+    ref_lam,
+    observation,
+    scene,
+    random_seed=None,
+    set_below_zero=np.nan,
+    plotting=False,
+):
     """
     Synthesizes an observation using the calculated SNRs for each wavelength bin
-    IMPORTANT: You have to run the ETC in SNR mode with a given exposure time first 
+    IMPORTANT: You have to run the ETC in SNR mode with a given exposure time first
     (see spectroscopy tutorial)
     """
-    
+
     # set a random seed if desired
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -440,29 +442,16 @@ def synthesize_observation(snr_arr,
     noise = scene.Fp_over_Fs / snr_arr
     obs = scene.Fp_over_Fs + noise * np.random.randn(len(noise))
 
-    obs[obs < 0] = set_below_zero # any observation that is below zero is set to whatever you want 
-
-    if plotting:
-        import matplotlib.pyplot as plt
-        fig, axes = plt.subplots(2, 1, sharex=True)
-        axes[0].step(observation.wavelength, scene.Fp_over_Fs, color="k", where="mid")
-        axes[0].errorbar(observation.wavelength, obs, yerr=noise, fmt="o", color="red")
-        axes[0].set_ylabel("Fp/Fs")
-        if len(exptime) == 1:
-            axes[0].set_title(f"Synthetic Observation, exptime = {exptime[0].to(u.hr).round(2)}")
-        else:
-            axes[0].set_title("Synthetic Observation")
-            exptime_text = f"UV({ref_lam[0]}um): {exptime[0].to(u.hr).round(2)}\nVIS({ref_lam[1]}um): {exptime[1].to(u.hr).round(2)}\nNIR({ref_lam[2]}um): {exptime[2].to(u.hr).round(2)}"
-            axes[0].text(0.99, 0.99, f"exposure times:\n{exptime_text}",  transform=axes[0].transAxes, ha='right', va='top')
-        axes[0].set_ylim(np.median(scene.Fp_over_Fs) - 5*np.median(scene.Fp_over_Fs), np.median(scene.Fp_over_Fs) + 5*np.median(scene.Fp_over_Fs))
-        axes[1].step(observation.wavelength, snr_arr, where="mid")
-        axes[1].set_xlabel("Wavelength [um]")
-        axes[1].set_ylabel("SNR")
+    obs[obs < 0] = (
+        set_below_zero  # any observation that is below zero is set to whatever you want
+    )
 
     return obs, noise
 
-def wavelength_grid_fixed_res(x_min,x_max,res = -1):
-    """ generates a wavelength grid at a fixed resolution of res
+
+def wavelength_grid_fixed_res(x_min, x_max, res=-1):
+    """
+    Generates a wavelength grid at a fixed resolution of res
     inputs:
         x_min : float
             minimum wavelength
@@ -471,61 +460,64 @@ def wavelength_grid_fixed_res(x_min,x_max,res = -1):
         res : float
             spectral resolution
     """
-    x    = [x_min]
-    fac  = (1 + 2*res)/(2*res - 1)
-    i    = 0
-    while (x[i]*fac < x_max):
-        x = np.concatenate((x,[x[i]*fac]))
-        i  = i + 1
-    Dx = x/res
-    return np.squeeze(x),np.squeeze(Dx)
+    x = [x_min]
+    fac = (1 + 2 * res) / (2 * res - 1)
+    i = 0
+    while x[i] * fac < x_max:
+        x = np.concatenate((x, [x[i] * fac]))
+        i = i + 1
+    Dx = x / res
+    return np.squeeze(x), np.squeeze(Dx)
 
 
-def gen_wavelength_grid(x_min,x_max,res):
-    """ generates a wavelength grid at a fixed resolution for each spectral channel, 
+def gen_wavelength_grid(x_min, x_max, res):
+    """
+    Generates a wavelength grid at a fixed resolution for each spectral channel,
         then concatenates them to create a continuous wavelength grid
     inputs:
-        x_min : float
+        x_min : 1D array
             minimum wavelength
-        x_max : float
+        x_max : 1D array
             maximum wavelength
-        res : float
+        res : 1D array
             spectral resolution
     """
-    if ( len(x_min) == 1 ):
-        x,Dx  = wavelength_grid_fixed_res(x_min,x_max,res=res)
-    else:
-        x,Dx  = wavelength_grid_fixed_res(x_min[0],x_max[0],res=res[0])
-        for i in range(1,len(x_min)):
-            xi,Dxi = wavelength_grid_fixed_res(x_min[i],x_max[i],res=res[i])
-            x      = np.concatenate((x,xi)) 
-            Dx     = np.concatenate((Dx,Dxi))
-    Dx = [Dxs for _,Dxs in sorted(zip(x,Dx))]
-    x  = np.sort(x)
-    return np.squeeze(x),np.squeeze(Dx)
+    x, Dx = wavelength_grid_fixed_res(x_min[0], x_max[0], res=res[0])
+    if len(x_min) > 1:
+        for i in range(1, len(x_min)):
+            xi, Dxi = wavelength_grid_fixed_res(x_min[i], x_max[i], res=res[i])
+            x = np.concatenate((x, xi))
+            Dx = np.concatenate((Dx, Dxi))
+    Dx = [Dxs for _, Dxs in sorted(zip(x, Dx))]
+    x = np.sort(x)
+    return np.squeeze(x), np.squeeze(Dx)
+
 
 def regrid_wavelengths(input_wls, res, channel_bounds):
-    """ 
-        creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
+    """
+    Creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
 
-        Inputs:
-        input_wls : float, 1D arr
-            the wavelength grid the user supplies
-        res : float, 1D arr
-            array of desired resolutions for each channel. should be length of the number of spectral channels
-            for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
-        channel_bounds : float, 1D arr
-            array of the boundaries between spectral channels. Length should be one less than the res array.
-            For example, if we have three channels, this should be len == 2, e.g.  channel_bounds = [UV_VIS_bound, VIS_NIR_bound]
+    Inputs:
+    input_wls : float, 1D arr
+        the wavelength grid the user supplies
+    res : float, 1D arr
+        array of desired resolutions for each channel. should be length of the number of spectral channels
+        for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
+    channel_bounds : float, 1D arr
+        array of the boundaries between spectral channels. Length should be one less than the res array.
+        For example, if we have three channels, this should be len == 2, e.g.  channel_bounds = [UV_VIS_bound, VIS_NIR_bound]
     """
 
-
     # channel bounds array should be one less in length than res array
-    assert len(res)-1 == len(channel_bounds)
+    assert len(res) - 1 == len(channel_bounds)
 
     if len(channel_bounds) > 0:
-        assert np.min(input_wls) < channel_bounds[0], "Your minimum input wavelength is greater than first channel boundary."
-        assert np.max(input_wls) > channel_bounds[-1], "Your minimum input wavelength is less than last channel boundary."
+        assert (
+            np.min(input_wls) < channel_bounds[0]
+        ), "Your minimum input wavelength is greater than first channel boundary."
+        assert (
+            np.max(input_wls) > channel_bounds[-1]
+        ), "Your maximum input wavelength is less than last channel boundary."
 
         wl_mins_channel = [np.min(input_wls)]
         for bound in channel_bounds:
@@ -548,7 +540,7 @@ def regrid_wavelengths(input_wls, res, channel_bounds):
 
 def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
     """
-    regrids a spectrum onto a new wavelength grid using gaussian convolution 
+    Regrids a spectrum onto a new wavelength grid using gaussian convolution.
 
     Inputs:
     input_wls : float, 1D arr
@@ -566,7 +558,7 @@ def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
     # interpolate original spectrum onto a fine log-lambda grid
     loglam_old = np.log(input_wls)
     interp_flux = interp1d(loglam_old, input_spec, bounds_error=False, fill_value=0.0)
-    
+
     # make fine log-lambda grid
     dloglam = 1e-5
     loglam_grid = np.arange(loglam_old[0], loglam_old[-1], dloglam)
@@ -585,7 +577,7 @@ def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
         # Gaussian kernel in log-space
         kernel_half_width = int(4 * sigma_loglam / dloglam)
         kernel_grid = np.arange(-kernel_half_width, kernel_half_width + 1)
-        kernel = np.exp(-0.5 * (kernel_grid * dloglam / sigma_loglam)**2)
+        kernel = np.exp(-0.5 * (kernel_grid * dloglam / sigma_loglam) ** 2)
         kernel /= np.sum(kernel)
 
         # Find center index
@@ -604,6 +596,7 @@ def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
 
     return spec_regrid
 
+
 def regrid_spec_interp(input_wls, input_spec, new_lam):
     """
     regrids a spectrum onto a new wavelength grid using 1D interpolation
@@ -620,4 +613,4 @@ def regrid_spec_interp(input_wls, input_spec, new_lam):
     input_spec_unit = input_spec.unit
     interp_func = interp1d(input_wls, input_spec)
     spec_regrid = interp_func(new_lam)
-    return spec_regrid*input_spec_unit
+    return spec_regrid * input_spec_unit

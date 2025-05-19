@@ -1,6 +1,6 @@
 [project]
 name = "pyEDITH"
-version = "0.2.0"
+version = "1.0.0"
 authors = [
   { name="Eleonora Alei", email="eleonora.alei@nasa.gov" },
   { name="Miles Currie", email="miles.h.currie@nasa.gov" },
@@ -19,9 +19,11 @@ dependencies= [
   "pytest",
   "astropy",
   "pandas",
+  "spectres",
   "yippy",
   "openpyxl",
-  "synphot"
+  "synphot",
+  "eacy"
 ]
 [project.urls]
 Homepage = "https://github.com/eleonoraalei/pyEDITH/"
