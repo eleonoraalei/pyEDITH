@@ -19,7 +19,6 @@ dependencies= [
   "pytest",
   "astropy",
   "pandas",
-  "spectres",
   "yippy",
   "openpyxl",
   "synphot",
