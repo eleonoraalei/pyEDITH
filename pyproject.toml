@@ -5,9 +5,9 @@ authors = [
   { name="Eleonora Alei", email="eleonora.alei@nasa.gov" },
   { name="Miles Currie", email="miles.h.currie@nasa.gov" },
 ]
-description = "A small example package"
+description = "Exposure Direct Imaging Timer for HWO (Python Version)"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

@@ -6,7 +6,7 @@ Exposure Direct Imaging Timer for HWO (Python Version)
 Clone the pyEDITH repository:
 
 ```
-git clone https://github.com/your-repo-url/pyEDITH.git
+git clone https://github.com/eleonoraalei/pyEDITH.git
 cd pyEDITH
 ```
 
