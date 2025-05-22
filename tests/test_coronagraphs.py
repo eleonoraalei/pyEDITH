@@ -173,7 +173,7 @@ def test_toy_model_coronagraph_init():
     assert coronagraph.keyword is None
 
 
-def test_toy_model_coronagraph_load_configuration():
+def test_toy_model_coronagraph_load_configuration(capsys):
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
@@ -273,9 +273,54 @@ def test_toy_model_coronagraph_load_configuration():
     assert coronagraph.Istar.unit == DIMENSIONLESS
 
     # Check noisefloor
+    captured = capsys.readouterr()
+    assert (
+        "Calculating noisefloor by multiplying noisefloor_factor=0.05, contrast=1e-10, PSFpeak="
+        + str(0.025 * 0.7)
+        in captured.out
+    )
+
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
     assert np.allclose(
         coronagraph.noisefloor.value, 0.05 * 1e-10 * 0.025 * 0.7, rtol=1e-6
+    )
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+
+    # test noisefloor with noisefloor_factor not provided, but PPF is
+    parameters2 = {
+        "pixscale": 0.3,
+        "minimum_IWA": 2.5,
+        "maximum_OWA": 90.0,
+        "contrast": 1e-10,
+        "bandwidth": 0.1,
+        "Tcore": 0.3,
+        "TLyot": 0.7,
+        "nrolls": 2,
+        "nchannels": 1,
+        "noisefloor_PPF": 30,
+    }
+    mediator = MockMediator_IMAGER()
+    coronagraph.load_configuration(parameters2, mediator)
+    captured = capsys.readouterr()
+
+    assert (
+        "Noisefloor_PPF mode not implemented in ToyModel coronagraph. Please use the noisefloor_factor method."
+        in captured.out
+    )
+    assert (
+        "WARNING: noisefloor_factor value not provided. Using the default value: 0.03"
+        in captured.out
+    )
+
+    assert (
+        "Calculating noisefloor by multiplying noisefloor_factor=0.03, contrast=1e-10, PSFpeak="
+        + str(0.025 * 0.7)
+        in captured.out
+    )
+
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert np.allclose(
+        coronagraph.noisefloor.value, 0.03 * 1e-10 * 0.025 * 0.7, rtol=1e-6
     )
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
 
@@ -415,11 +460,13 @@ def test_coronagraph_yip_load_configuration_IMAGER(
 
     # Check noisefloor == should be zero because no user-provided parameters
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    assert np.all(coronagraph.noisefloor == 0)
     captured = capsys.readouterr()
     assert (
-        "WARNING: No noise floor factor nor PPF provided, setting noisefloor to zero. If you want to have an estimate for the noisefloor, please use noisefloor_factor or noisefloor_PPF."
+        "WARNING: noisefloor_PPF value not provided. Using the default value: 30"
         in captured.out
+    )
+    assert np.allclose(
+        coronagraph.noisefloor, coronagraph.Istar / 30, rtol=1e-6, atol=1e-9
     )
 
     # Test with noisefloor_factor
@@ -435,13 +482,16 @@ def test_coronagraph_yip_load_configuration_IMAGER(
     coronagraph.load_configuration(parameters, mediator)
 
     captured = capsys.readouterr()
+    assert "Noisefloor_factor mode not implemented in CoronagraphYIP coronagraph. Please use the noisefloor_PPF method."
     assert (
-        "Setting the noise floor via user-supplied noisefloor_factor..." in captured.out
+        "WARNING: noisefloor_PPF value not provided. Using the default value: 30"
+        in captured.out
     )
-
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
-    assert not np.all(coronagraph.noisefloor == 0)
+    assert np.allclose(
+        coronagraph.noisefloor, coronagraph.Istar / 30, rtol=1e-6, atol=1e-9
+    )
 
     # Test with noisefloor_PPF
     parameters = {
@@ -451,40 +501,17 @@ def test_coronagraph_yip_load_configuration_IMAGER(
         "nrolls": 2,
         "nchannels": 1,
         "az_avg": True,
-        "noisefloor_PPF": 30,
+        "noisefloor_PPF": 35,
     }
     coronagraph.load_configuration(parameters, mediator)
     captured = capsys.readouterr()
-    print(captured.out)
     assert "Setting the noise floor via user-supplied noisefloor_PPF..." in captured.out
 
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
     noisefloor_PPF = coronagraph.noisefloor.copy()
-    assert not np.all(coronagraph.noisefloor == 0)
-
-    # # Test with both noisefloor_factor nor noisefloor_PPF
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-        "noisefloor_PPF": 30,
-        "noisefloor_factor": 1e-10,
-    }
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert np.array_equal(
-        coronagraph.noisefloor, noisefloor_PPF
-    )  # must have the same result as before
-    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    assert coronagraph.noisefloor.unit == DIMENSIONLESS
-    captured = capsys.readouterr()
-    assert (
-        "WARNING: Both noisefloor_factor and noisefloor_PPF provided. Preferring noisefloor_PPF calculation."
-        in captured.out
+    assert np.allclose(
+        coronagraph.noisefloor, coronagraph.Istar / 35, rtol=1e-6, atol=1e-9
     )
 
     # Check coronagraph_optical_throughput

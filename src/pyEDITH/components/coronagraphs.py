@@ -204,7 +204,7 @@ class ToyModelCoronagraph(Coronagraph):
         "Tcore": 0.2968371
         * DIMENSIONLESS,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
         "TLyot": 0.65
-        * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
+        * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans
         "nrolls": 1,  # number of rolls
         "nchannels": 2,  # number of channels
         "coronagraph_optical_throughput": [0.44]
@@ -312,6 +312,24 @@ class ToyModelCoronagraph(Coronagraph):
             * DIMENSIONLESS
         )
 
+        if "noisefloor_factor" not in parameters.keys():
+            if "noisefloor_PPF" in parameters.keys():
+                print(
+                    "Noisefloor_PPF mode not implemented in ToyModel coronagraph. Please use the noisefloor_factor method."
+                )
+            print(
+                "WARNING: noisefloor_factor value not provided. Using the default value: "
+                + str(self.DEFAULT_CONFIG["noisefloor_factor"])
+            )
+
+        print(
+            "Calculating noisefloor by multiplying noisefloor_factor="
+            + str(self.noisefloor_factor)
+            + ", contrast="
+            + str(self.contrast)
+            + ", PSFpeak="
+            + str(self.PSFpeak)
+        )
         # 1 sigma systematic noise floor expressed as a contrast (uniform over dark hole and unitless) * PSF peak # scalar
         self.noisefloor = (
             np.full(
@@ -337,8 +355,7 @@ class CoronagraphYIP(Coronagraph):
         "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
         "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
-        "noisefloor_factor": None,  # 0.03,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "noisefloor_PPF": None,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
+        "noisefloor_PPF": 30.0,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
@@ -620,54 +637,23 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # Calculate noisefloor
+        if "noisefloor_PPF" in parameters.keys():
+            print("Setting the noise floor via user-supplied noisefloor_PPF...")
+            self.DEFAULT_CONFIG["noisefloor_PPF"] = parameters["noisefloor_PPF"]
 
-        # ***** Save values into noisefloor_factor and noisefloor_PPF.
-        # These can be the defaults or defined by the user. *****
-        setattr(
-            self,
-            "noisefloor_factor",
-            parameters.get(
-                "noisefloor_factor", self.DEFAULT_CONFIG["noisefloor_factor"]
-            ),
-        )
-
-        setattr(
-            self,
-            "noisefloor_PPF",
-            parameters.get("noisefloor_PPF", self.DEFAULT_CONFIG["noisefloor_PPF"]),
-        )
+        else:
+            if "noisefloor_factor" in parameters.keys():
+                print(
+                    "Noisefloor_factor mode not implemented in CoronagraphYIP coronagraph. Please use the noisefloor_PPF method."
+                )
+            print(
+                "WARNING: noisefloor_PPF value not provided. Using the default value: "
+                + str(self.DEFAULT_CONFIG["noisefloor_PPF"])
+            )
 
         self.DEFAULT_CONFIG["noisefloor"] = (
-            np.zeros_like(self.DEFAULT_CONFIG["Istar"]) * DIMENSIONLESS
+            self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
         )
-
-        if self.noisefloor_factor is None and self.noisefloor_PPF is None:
-            print(
-                "WARNING: No noise floor factor nor PPF provided, setting noisefloor to zero. "
-                "If you want to have an estimate for the noisefloor, please use noisefloor_factor or noisefloor_PPF."
-            )
-            self.DEFAULT_CONFIG["noisefloor"] = np.zeros_like(
-                self.DEFAULT_CONFIG["Istar"]
-            )
-        elif self.noisefloor_factor is not None and self.noisefloor_PPF is None:
-            print("Setting the noise floor via user-supplied noisefloor_factor...")
-            self.DEFAULT_CONFIG["noisefloor"] = (
-                (
-                    self.DEFAULT_CONFIG["pixscale"] ** 2
-                    / self.DEFAULT_CONFIG["omega_lod"][:, :, 0]
-                )
-                * self.noisefloor_factor
-                * self.DEFAULT_CONFIG["photometric_aperture_throughput"][:, :, 0]
-            )
-        elif self.noisefloor_PPF is not None:
-            if self.noisefloor_factor is not None:
-                print(
-                    "WARNING: Both noisefloor_factor and noisefloor_PPF provided. Preferring noisefloor_PPF calculation."
-                )
-            print("Setting the noise floor via user-supplied noisefloor_PPF...")
-            self.DEFAULT_CONFIG["noisefloor"] = (
-                self.DEFAULT_CONFIG["Istar"] / self.noisefloor_PPF
-            )
 
         if self.DEFAULT_CONFIG["az_avg"]:
             # azimuthally average the stellar intensity to smooth it out

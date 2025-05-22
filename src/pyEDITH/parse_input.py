@@ -306,6 +306,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "maximum_OWA",
         "contrast",
         "noisefloor_factor",
+        "noisefloor_PPF",
         "bandwidth",
         "Tcore",
         "TLyot",
