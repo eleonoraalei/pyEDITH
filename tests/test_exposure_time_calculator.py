@@ -43,8 +43,6 @@ class MockObservation:
         self.tp = 0.0 * u.s
         self.exptime = u.Quantity([0.0], u.s)
         self.fullsnr = u.Quantity([0.0], DIMENSIONLESS)
-        self.snr_ez = u.Quantity([0.0], DIMENSIONLESS)
-
 
 class MockScene:
     def __init__(self):
@@ -354,7 +352,6 @@ def test_calculate_exposure_time_or_snr(capsys):
     assert hasattr(observation, "fullsnr")
     assert observation.fullsnr.unit == (u.dimensionless_unscaled)
     assert np.isclose(observation.fullsnr.value, 5.14487031)
-    assert np.isclose(observation.snr_ez.value, 31.60907842)
 
     # Setting values (used for ETC validation)
     observatory.detector.det_npix_input = 100 * DIMENSIONLESS

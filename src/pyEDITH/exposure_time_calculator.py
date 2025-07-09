@@ -1311,14 +1311,6 @@ def calculate_exposure_time_or_snr(
                             * DIMENSIONLESS
                         )
 
-                        observation.snr_ez[ilambd] = (
-                            np.sqrt(
-                                (time_factors * CRbez**2)
-                                / (1 * ELECTRON + time_factors * CRnf**2)
-                            )
-                            * DIMENSIONLESS
-                        )
-
                         # UNITS:
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
                         # [electron]/[electron] = []
