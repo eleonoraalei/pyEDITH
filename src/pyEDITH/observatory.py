@@ -47,7 +47,7 @@ class Observatory(ABC):  # abstract class
         self.detector = None
         self.coronagraph = None
 
-    def calculate_optics_throughput(self, parameters):
+    def calculate_optics_throughput(self, parameters, mediator):
         """
         This function calculates the optical throughput. If there is a variable called
         total_optics_throughput (aka T_optical) in the parameters,
@@ -72,10 +72,15 @@ class Observatory(ABC):  # abstract class
             )
 
             self.optics_throughput *= ifs_eff
+            # if IFS and optics_throughput is a number (can happen in ToyModel), make it an array of length nlambda
+            if len(self.optics_throughput) == 1:
+                self.optics_throughput = self.optics_throughput[0] * np.ones_like(
+                    mediator.get_observation_parameter("wavelength").value
+                )
         else:
             pass
 
-    def calculate_warmemissivity_coldtransmission(self, parameters):
+    def calculate_warmemissivity_coldtransmission(self, parameters, mediator):
         """
         This function calculates the warm emissivity*cold transmission factor
         (for thermal noise). If there is a variable called
@@ -86,7 +91,10 @@ class Observatory(ABC):  # abstract class
             self.epswarmTrcold = parameters["epswarmTrcold"] * DIMENSIONLESS
         else:
             print("Calculating epswarmTrcold as 1 - optics throughput...")
-            self.epswarmTrcold = 1 - self.optics_throughput
+            self.epswarmTrcold = (
+                np.ones_like(mediator.get_observation_parameter("wavelength").value)
+                - self.optics_throughput
+            )
 
     def calculate_total_throughput(self):
         """
@@ -112,8 +120,8 @@ class Observatory(ABC):  # abstract class
         self.detector.load_configuration(parameters, mediator)
         self.observing_mode = parameters["observing_mode"]  # IFS or IMAGER
 
-        self.calculate_optics_throughput(parameters)
-        self.calculate_warmemissivity_coldtransmission(parameters)
+        self.calculate_optics_throughput(parameters, mediator)
+        self.calculate_warmemissivity_coldtransmission(parameters, mediator)
         self.calculate_total_throughput()
 
     def validate_configuration(self):

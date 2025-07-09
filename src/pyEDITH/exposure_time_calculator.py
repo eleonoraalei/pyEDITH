@@ -812,7 +812,7 @@ def calculate_exposure_time_or_snr(
                     "WARNING: Bandwidth larger than what the coronagraph allows. Selecting widest possible bandwidth..."
                 )
         elif observatory.observing_mode == "IFS":
-            # the effective bandwidth is the width of the spectral element 
+            # the effective bandwidth is the width of the spectral element
             deltalambda_nm = observation.delta_wavelength[ilambd].to(u.nm)
         else:
             raise ValueError("Invalid observation mode. Choose 'IMAGER' or 'IFS'.")
@@ -912,7 +912,6 @@ def calculate_exposure_time_or_snr(
 
         # Detector noise from signal itself (we budget for 10x
         # the planet count rate for the minimum detectable planet)
-
         det_CRp = calculate_CRp(
             scene.F0[ilambd],
             scene.Fs_over_F0[ilambd],

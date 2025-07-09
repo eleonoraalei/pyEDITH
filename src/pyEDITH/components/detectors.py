@@ -118,10 +118,11 @@ class ToyModelDetector(Detector):
             )
         ).to(MAS)
 
+        # Convert to arrays if lambda > 1:
+
         # Load parameters, use defaults if not provided
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
-        # # Convert to numpy array when appropriate
         array_params = [
             "npix_multiplier",
             "DC",
@@ -131,6 +132,23 @@ class ToyModelDetector(Detector):
             "QE",
             "dQE",
         ]
+
+        for param in array_params:
+
+            if (
+                len(getattr(self, param)) == 1
+                and len(mediator.get_observation_parameter("wavelength").value) > 1
+            ):
+                setattr(
+                    self,
+                    param,
+                    getattr(self, param)[0]
+                    * np.ones_like(
+                        mediator.get_observation_parameter("wavelength").value
+                    ),
+                )
+
+        # # Convert to numpy array when appropriate
         utils.convert_to_numpy_array(self, array_params)
 
 
