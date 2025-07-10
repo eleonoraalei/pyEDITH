@@ -307,6 +307,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
+        "ez_PPF",
         "bandwidth",
         "Tcore",
         "TLyot",
