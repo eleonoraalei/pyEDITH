@@ -120,7 +120,8 @@ def test_load_configuration(capsys):
     parameters = {
         "wavelength": np.linspace(0.5, 1.7, 1000),
         "snr": [7.0, 7.0, 7.0],
-        "channel_bounds" : [1.],
+        "lam_low" : [0.5, 1.],
+        "lam_high" : [1., 1.7],
         "regrid_wavelength": True,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
@@ -129,10 +130,26 @@ def test_load_configuration(capsys):
     with pytest.raises(KeyError):
         obs.load_configuration(parameters)
 
-    # Test IFS mode: channel_bounds is not included
+    # Test IFS mode: lam_low is not included
     parameters = {
         "wavelength": np.linspace(0.5, 1.7, 1000),
         "snr": [7.0, 7.0, 7.0],
+        "lam_high" : [1., 1.7],
+        "spectral_resolution" : [140, 40],
+        "regrid_wavelength": True,
+        "psf_trunc_ratio": 0.3,
+        "CRb_multiplier": 2.0,
+        "observing_mode" : "IFS",
+    }
+    with pytest.raises(KeyError):
+        obs.load_configuration(parameters)
+
+
+    # Test IFS mode: lam_high is not included
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.7, 1000),
+        "snr": [7.0, 7.0, 7.0],
+        "lam_low" : [0.5, 1.],
         "spectral_resolution" : [140, 40],
         "regrid_wavelength": True,
         "psf_trunc_ratio": 0.3,
@@ -145,10 +162,11 @@ def test_load_configuration(capsys):
 
     # Test IFS mode: spectral_resolution and channel_bounds included
     parameters = {
-        "wavelength": np.linspace(0.5, 1.7, 1000),
+        "wavelength": np.linspace(0.2, 1.8, 1000),
         "snr": [7.0, 7.0, 7.0],
         "spectral_resolution" : [140, 40],
-        "channel_bounds" : [1.],
+        "lam_low" : [0.5, 1.],
+        "lam_high" : [1., 1.7],
         "regrid_wavelength": True,
         "psf_trunc_ratio": 0.3,
         "CRb_multiplier": 2.0,
@@ -157,8 +175,8 @@ def test_load_configuration(capsys):
     obs.load_configuration(parameters)
 
     # Test whether the calculated spectral grid is at the correct resolution for the correct spectral channels
-    assert np.all(obs.wavelength[obs.wavelength.value < parameters["channel_bounds"]] / obs.delta_wavelength[obs.wavelength.value < parameters["channel_bounds"]] == parameters["spectral_resolution"][0])
-    assert np.all(obs.wavelength[obs.wavelength.value >= parameters["channel_bounds"]] / obs.delta_wavelength[obs.wavelength.value >= parameters["channel_bounds"]] == parameters["spectral_resolution"][1])
+    assert np.all(obs.wavelength[obs.wavelength.value < parameters["lam_high"][0]] / obs.delta_wavelength[obs.wavelength.value < parameters["lam_high"][0]] == parameters["spectral_resolution"][0])
+    assert np.all(obs.wavelength[obs.wavelength.value >= parameters["lam_high"][1]] / obs.delta_wavelength[obs.wavelength.value >= parameters["lam_high"][1]] == parameters["spectral_resolution"][1])
 
 
 def test_set_output_arrays():

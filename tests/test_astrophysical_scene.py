@@ -357,6 +357,11 @@ def test_astrophysical_scene_load_configuration(capsys):
         "WARNING: `FstarV_10pc` not specified in parameters. Calculating internally..."
         in captured.out
     )
+    
+    # Test case where ez_PPF was provided
+    parameters["ez_PPF"] = [100.]
+    scene.load_configuration(parameters)
+    assert scene.ez_PPF == parameters["ez_PPF"] 
 
     # The interpolated value at 0.55 um should be close to 1.244e02
     expected_fstarv = 1.244e02 * PHOTON_FLUX_DENSITY
