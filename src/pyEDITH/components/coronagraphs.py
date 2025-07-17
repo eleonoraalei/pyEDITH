@@ -437,7 +437,7 @@ class CoronagraphYIP(Coronagraph):
         try:
             self.DEFAULT_CONFIG["nrolls"] = yippy_obj.nrolls
         except AttributeError:
-            # if yippy did not find nrolls, assume YIP has 36deg coverage and default to 1
+            # if yippy did not find nrolls, assume YIP has 360deg coverage and default to 1
             self.DEFAULT_CONFIG["nrolls"] = 1
 
         # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****

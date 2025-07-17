@@ -1,5 +1,6 @@
 import astropy.units as u
 import sys
+import numpy as np
 
 # Basic units
 LENGTH = u.m
@@ -180,6 +181,22 @@ def arcsec_to_au(angle: u.Quantity, distance: u.Quantity) -> u.Quantity:
     Quantity: The corresponding distance in AU
     """
     return (angle.to(u.radian).value * distance).to(u.au)
+
+
+
+def to_arcsec(quantity: u.Quantity, observer_distance: u.Quantity):
+    """
+    Convert a quantiy to a projected distance in arcsec, given a distance. 
+    Important: value and distance must have the same units! 
+
+    Parameters:
+    quantity (Quantity): The value to be converted to arcsec
+    distance (Quantity): The distance in parsecs
+
+    Returns:
+    Quantity: The corresponding value in arcsec
+    """
+    return np.arctan(quantity / observer_distance).to(u.arcsec).value
 
 
 # Automatically generate ALL_UNITS list

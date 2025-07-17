@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from astropy import units as u
+from astropy import constants as const
 from unittest.mock import patch, MagicMock
 from pyEDITH.components.detectors import ToyModelDetector, EACDetector
 from pyEDITH.units import (
@@ -24,8 +25,8 @@ class MockMediator:
         self.observing_mode = observing_mode
 
     def get_scene_parameter(self, param):
-        if param == "stellar_angular_diameter_arcsec":
-            return 0.05 * ARCSEC
+        if param == "stellar_radius":
+            return 1 * const.R_sun
         return 1.0
 
     def get_telescope_parameter(self, param):
@@ -174,8 +175,8 @@ def test_toy_model_detector_init():
     assert detector.path is None
     assert detector.keyword is None
 
-
-def test_toy_model_detector_load_configuration():
+@pytest.mark.parametrize("observing_mode", ["IMAGER", "IFS"])
+def test_toy_model_detector_load_configuration(observing_mode):
     detector = ToyModelDetector()
     parameters = {
         "pixscale_mas": 10,
@@ -185,27 +186,48 @@ def test_toy_model_detector_load_configuration():
         "tread": [1100],
         "CIC": [1.5e-3],
     }
-    mediator = MockMediator()
+    mediator = MockMediator(observing_mode)
 
     detector.load_configuration(parameters, mediator)
 
-    assert detector.pixscale_mas == 10 * MAS  # User-input
-    assert np.all(
-        detector.npix_multiplier == [2] * DIMENSIONLESS
-    )  # overwriting default
-    assert np.all(detector.DC == [4e-5] * DARK_CURRENT)
-    assert np.all(detector.RN == [1.0] * READ_NOISE)
-    assert np.all(detector.tread == [1100] * READ_TIME)
-    assert np.all(detector.CIC == [1.5e-3] * CLOCK_INDUCED_CHARGE)
-    assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)  # Default
-    assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)  # Default
 
-    # Test default values
-    detector = ToyModelDetector()
-    detector.load_configuration({}, mediator)
+    # Mode-specific assertions
+    if observing_mode == "IMAGER":
+        assert detector.pixscale_mas == 10 * MAS  # User-input
+        assert np.all(
+            detector.npix_multiplier == [2] * DIMENSIONLESS
+        )  # overwriting default
+        assert np.all(detector.DC == [4e-5] * DARK_CURRENT)
+        assert np.all(detector.RN == [1.0] * READ_NOISE)
+        assert np.all(detector.tread == [1100] * READ_TIME)
+        assert np.all(detector.CIC == [1.5e-3] * CLOCK_INDUCED_CHARGE)
+        assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)  # Default
+        assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)  # Default
+        # Test default values
+        detector = ToyModelDetector()
+        detector.load_configuration({}, mediator)
 
-    assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
+        assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
 
+    elif observing_mode == "IFS":
+        assert detector.pixscale_mas == 10 * MAS  # User-input
+
+        assert np.all(
+            detector.npix_multiplier == [2,2,2] * DIMENSIONLESS
+        )  # overwriting default
+        assert np.all(detector.DC == [4e-5,4e-5,4e-5] * DARK_CURRENT)
+        assert np.all(detector.RN == [1.0,1.0,1.0] * READ_NOISE)
+        assert np.all(detector.tread == [1100,1100,1100] * READ_TIME)
+        assert np.all(detector.CIC == [1.5e-3,1.5e-3,1.5e-3] * CLOCK_INDUCED_CHARGE)
+        assert np.all(detector.QE == [0.9,0.9,0.9] * QUANTUM_EFFICIENCY)  # Default
+        assert np.all(detector.dQE == [0.75,0.75,0.75] * DIMENSIONLESS)  # Default
+        # Test default values
+        detector = ToyModelDetector()
+        detector.load_configuration({}, mediator)
+
+        assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
+
+    
 
 @pytest.mark.parametrize("observing_mode", ["IMAGER", "IFS"])
 @patch("eacy.load_detector")

@@ -68,16 +68,7 @@ def prepare_input_params(df, hpic, hip_name, code):
         "mag": np.array([df.loc[df["parameter"] == "m_lambda", code].iloc[0]]),
         "Lstar": 10 ** float(hpic[hpic.hip_name == hip_name].st_lum.iloc[0]),
         "magV": float(hpic[hpic.hip_name == hip_name].sy_vmag.iloc[0]),
-        "stellar_angular_diameter": np.round(
-            to_arcsec(
-                2
-                * (float(hpic[hpic.hip_name == hip_name].st_rad.iloc[0]) * u.Rsun).to(
-                    u.m
-                ),
-                float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]) * u.pc,
-            ),
-            4,
-        ),
+        "stellar_radius": (float(hpic[hpic.hip_name == hip_name].st_rad.iloc[0])),
         "distance": float(hpic[hpic.hip_name == hip_name].sy_dist.iloc[0]),
         "diameter": df.loc[df["parameter"] == "D", code].iloc[0],
         "unobscured_area": (1.0 - 0.121),

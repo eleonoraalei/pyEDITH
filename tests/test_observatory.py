@@ -229,25 +229,26 @@ def test_observatory_validate_configuration(mock_observatory):
         mock_observatory.validate_configuration()
 
 
-def test_calculate_optics_throughput(mock_observatory):
+def test_calculate_optics_throughput(mock_observatory,mock_observation,mock_scene):
     """Test calculation of optics throughput"""
     # Test with T_optical parameter
     parameters = {"T_optical": 0.8, "observing_mode": "IMAGER"}
     mock_observatory.telescope.load_configuration({}, {})
     mock_observatory.coronagraph.load_configuration({}, {})
     mock_observatory.detector.load_configuration({}, {})
+    mediator = ObservatoryMediator(mock_observatory, mock_observation, mock_scene)
 
-    mock_observatory.calculate_optics_throughput(parameters)
+    mock_observatory.calculate_optics_throughput(parameters,mediator)
     assert mock_observatory.optics_throughput.value == 0.8
 
     # Test with IFS mode
-    parameters = {"T_optical": 0.8, "observing_mode": "IFS", "IFS_eff": 0.9}
-    mock_observatory.calculate_optics_throughput(parameters)
-    assert mock_observatory.optics_throughput.value == 0.8 * 0.9
+    parameters = {"T_optical": [0.8], "observing_mode": "IFS", "IFS_eff": [0.9]}
+    mock_observatory.calculate_optics_throughput(parameters,mediator)
+    assert mock_observatory.optics_throughput.value == [0.8 * 0.9]
 
     # Test without T_optical parameter
     parameters = {"observing_mode": "IMAGER"}
-    mock_observatory.calculate_optics_throughput(parameters)
+    mock_observatory.calculate_optics_throughput(parameters,mediator)
     expected = (
         mock_observatory.telescope.telescope_optical_throughput.value[0]
         * mock_observatory.coronagraph.coronagraph_optical_throughput.value[0]
@@ -255,17 +256,22 @@ def test_calculate_optics_throughput(mock_observatory):
     assert mock_observatory.optics_throughput.value == expected
 
 
-def test_calculate_warmemissivity_coldtransmission(mock_observatory):
+def test_calculate_warmemissivity_coldtransmission(mock_observatory,mock_observation,mock_scene):
     """Test calculation of warm emissivity and cold transmission"""
+    mock_observatory.telescope.load_configuration({}, {})
+    mock_observatory.coronagraph.load_configuration({}, {})
+    mock_observatory.detector.load_configuration({}, {})
+    mediator = ObservatoryMediator(mock_observatory, mock_observation, mock_scene)
+
     # Test with explicit parameter
     parameters = {"epswarmTrcold": 0.3}
-    mock_observatory.calculate_warmemissivity_coldtransmission(parameters)
+    mock_observatory.calculate_warmemissivity_coldtransmission(parameters,mediator)
     assert mock_observatory.epswarmTrcold.value == 0.3
 
     # Test calculated from optics throughput
     parameters = {}
     mock_observatory.optics_throughput = [0.8] * DIMENSIONLESS
-    mock_observatory.calculate_warmemissivity_coldtransmission(parameters)
+    mock_observatory.calculate_warmemissivity_coldtransmission(parameters,mediator)
     assert mock_observatory.epswarmTrcold.value == 1 - 0.8
 
 

@@ -389,7 +389,7 @@ def test_parse_parameters(capsys):
         "distance",
         "magV",
         "FstarV_10pc",
-        "stellar_angular_diameter",
+        "stellar_radius",
         "nzodis",
         "ra",
         "dec",

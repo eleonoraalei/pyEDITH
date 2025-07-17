@@ -149,7 +149,8 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | xcenter                         | Scalar                   | Pixel         | X-coordinate of the image center                             | No            |
 | ycenter                         | Scalar                   | Pixel         | Y-coordinate of the image center                             | No            |
 | bandwidth                       | Scalar                   | Dimensionless | Fractional bandwidth of coronagraph                          | Yes           |
-| stellar_angular_diameter                | Scalar        | λ/D           | angular diameter of the star                                                   | No            |
+| stellar_radius                | Scalar        | R_sun           | stellar radius in solar radii                                                   | Yes            |
+| stellar_angular_diameter                | Scalar        | arcsec           | angular diameter of the star                                                   | No            |
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
 | nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |

@@ -679,10 +679,14 @@ class AstrophysicalScene:
                 f"2. All flux parameters: {', '.join(['Fstar_10pc', 'FstarV_10pc', 'Fp/Fs', 'Fp_min/Fs',])}\n"
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
+
+        
+        # convert stellar radius into stellar angular diameter (in arcsec)
+        stellar_radius_arcsec = to_arcsec((parameters['stellar_radius']*const.R_sun).to(LENGTH), 
+                                          (self.dist.to(LENGTH))) * ARCSEC
+
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
-        self.stellar_angular_diameter_arcsec = (
-            parameters["stellar_angular_diameter"] * ARCSEC
-        )
+        self.stellar_angular_diameter_arcsec = 2 * stellar_radius_arcsec
 
         # amount of exozodi around target star ("zodis") # used to be (ntargs array) now scalar
         self.nzodis = parameters["nzodis"] * ZODI

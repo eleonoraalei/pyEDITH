@@ -204,7 +204,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "distance": 10,
         "magV": 5.0,
         "mag": [5.1, 5.2],
-        "stellar_angular_diameter": 0.001,
+        "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
@@ -217,7 +217,7 @@ def test_astrophysical_scene_load_configuration(capsys):
     assert scene.Lstar == 1.0 * LUMINOSITY
     assert scene.dist == 10 * DISTANCE
     assert scene.vmag == 5.0 * MAGNITUDE
-    assert scene.stellar_angular_diameter_arcsec == 0.001 * ARCSEC
+    assert np.isclose(scene.stellar_angular_diameter_arcsec.value, 0.00093009345219)
     assert scene.nzodis == 3.0 * ZODI
     assert scene.ra == 180.0 * DEG
     assert scene.dec == 0.0 * DEG
@@ -246,7 +246,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "FstarV_10pc": 1.244e02,
         "Fp/Fs": [6.3e-8, 6.4e-8],
         "Fp_min/Fs": 1e-10,
-        "stellar_angular_diameter": 0.01,
+        "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -263,10 +263,8 @@ def test_astrophysical_scene_load_configuration(capsys):
     assert isinstance(scene.Fs_over_F0, u.Quantity)
     assert len(scene.Fs_over_F0) == 2
     assert scene.Fs_over_F0.unit == DIMENSIONLESS
-    assert (
-        scene.stellar_angular_diameter_arcsec
-        == flux_parameters["stellar_angular_diameter"] * ARCSEC
-    )
+    assert np.isclose(
+        scene.stellar_angular_diameter_arcsec.value,0.00059701944566)
     assert scene.nzodis == flux_parameters["nzodis"] * ZODI
     assert scene.ra == flux_parameters["ra"] * DEG
     assert scene.dec == flux_parameters["dec"] * DEG
@@ -314,7 +312,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "distance": 10,
         "magV": 5.0,
         "Fstar_10pc": [1.128e02, 1.13e02],
-        "stellar_angular_diameter": 0.001,
+        "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
@@ -342,7 +340,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "Fstar_10pc": [1.128e02, 1.244e02, 1.13e02],
         "Fp/Fs": [6.3e-8, 6.4e-8, 6.5e-8],
         "Fp_min/Fs": 1e-10,
-        "stellar_angular_diameter": 0.01,
+        "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -376,7 +374,7 @@ def test_astrophysical_scene_load_configuration(capsys):
         "Fstar_10pc": 1.128e02,
         "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
-        "stellar_angular_diameter": 0.01,
+        "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -400,7 +398,7 @@ def test_calculate_zodi_exozodi():
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
-        "stellar_angular_diameter": 0.01,
+        "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
@@ -475,7 +473,7 @@ def test_validate_configuration():
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
-        "stellar_angular_diameter": 0.01,
+        "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
