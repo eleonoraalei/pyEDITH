@@ -22,8 +22,8 @@ CRb_multiplier  = 2.          ; factor to multiply to remove background
 ;--- STAR PARAMETERS ---
 Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
-magV = 5.84             ;   stellar magnitude at V band
-mag = 6.189576               ;   magnitude at desired lambda (must have same length as lambda)
+Fstar_10pc =  42.25486348                 ; stellar flux at 10 pc at lambda in ph/s/cm^2/nm 
+FstarV_10pc =  42.25486348                 ; stellar flux at 10 pc at the V band in ph/s/cm^2/nm 
 stellar_radius = 0.95            ;   stellar radius (R_sun)
 nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
 ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
@@ -31,8 +31,8 @@ dec = 02.5151668316500      ;   declination of target star used to estimate zodi
 
 ;--- PLANET PARAMETERS ---
 separation = 0.0628       ;   separation of planet (arcsec)
-delta_mag = 25.5          ;   difference in mag between planet and host star 
-delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
+Fp/Fs =  6.309573444801917e-11                 ; planet flux at lambda in ph/s/cm^2/nm 
+Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
 
 ;--- OBSERVATORY PARAMETERS --
 observatory_preset = ToyModel
@@ -78,11 +78,10 @@ secondary_lambda = 1.0              ;   wavelength (micron)
 secondary_throughput = 0.36
 
 ;--- STAR PARAMETERS ---
-secondary_mag = 4.908907              ;   magnitude at desired lambda (must have same length as lambda)
+secondary_Fstar_10pc = 1.102e+02              ;   flux at desired lambda (must have same length as lambda)
 
 ;--- PLANET PARAMETERS ---
-secondary_delta_mag = 25.5          ;   difference in mag between planet and host star 
-secondary_delta_mag_min = 25.0      ;   brightest planet to resolve w/ photon counting detector evaluated at the IWA, sets the time between counts
+secondary_Fp/Fs = 6.4e-8          ;   contrast between planet and host star 
 
 ;---(OVERRIDING DEFAULT) CORONAGRAPH PARAMETERS ---
 secondary_bandwidth = 0.2           ;   fractional bandwidth of coronagraph (unitless)
