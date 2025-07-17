@@ -67,6 +67,7 @@ class MockScene:
         self.M_V = 4.98869142 * u.mag
         self.Fzodi_list = (u.Quantity([6.11055505e-10], 1 / u.arcsec**2),)
         self.Fexozodi_list = (u.Quantity([2.97724302e-09], 1 / u.arcsec**2),)
+        self.ez_PPF = u.Quantity([np.inf], DIMENSIONLESS)
         self.Fbinary_list = u.Quantity([0], DIMENSIONLESS)
 
 

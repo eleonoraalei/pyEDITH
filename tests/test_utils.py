@@ -467,31 +467,35 @@ def test_gen_wavelength_grid():
 
 
 def test_regrid_wavelengths():
-    input_wls = np.linspace(0.4, 2.0, 100)
+    input_wls = np.linspace(0.2, 2.0, 100)
     res = [50, 100, 150]
-    channel_bounds = [0.7, 1.3]
-    lam, dlam = regrid_wavelengths(input_wls, res, channel_bounds)
+    lam_low = [0.3, 0.5, 1.]
+    lam_high = [0.5, 1., 1.7]
+    lam, dlam = regrid_wavelengths(input_wls, res, lam_low, lam_high)
 
     assert np.all(np.diff(lam) > 0)
     assert len(lam) == len(dlam)
 
     # Test with no channel boundaries
-    lam, dlam = regrid_wavelengths(input_wls, [100], [])
+    lam, dlam = regrid_wavelengths(input_wls, [100], None, None)
     assert len(lam) > 0
     assert len(dlam) > 0
 
     # Test error cases
     with pytest.raises(
         AssertionError,
-        match="Your minimum input wavelength is greater than first channel boundary.",
+        match="Your minimum input wavelength is greater than first channel lower boundary.",
     ):
-        regrid_wavelengths(input_wls, [100, 200], [0.1])  # Mismatched lengths
+        regrid_wavelengths(input_wls, [100, 200], [0.1, 1.], [1., 1.7])  # lower boundary outside input range
 
     with pytest.raises(
         AssertionError,
-        match="Your maximum input wavelength is less than last channel boundary.",
+        match="Your maximum input wavelength is less than last channel upper boundary.",
     ):
-        regrid_wavelengths(input_wls, [100, 200], [2.1])  # Boundary outside range
+        regrid_wavelengths(input_wls, [100, 200], [0.5, 1.], [1., 2.1])  # upper boundary outside input range
+
+    # test no bounds
+    regrid_wavelengths(input_wls, [100])  # no bounds
 
 
 # def test_regrid_spec_gauss():

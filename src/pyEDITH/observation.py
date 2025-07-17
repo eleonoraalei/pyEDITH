@@ -93,16 +93,20 @@ class Observation:
                 raise KeyError(
                     "regrid_wavelength is True; you must specify new resolution for each spectral channel: parameters['spectral_resolution']."
                 )
-            if "channel_bounds" not in parameters.keys():
+            if "lam_low" not in parameters.keys():
                 raise KeyError(
-                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['channel_bounds']."
+                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_low']."
+                )
+            if "lam_high" not in parameters.keys():
+                raise KeyError(
+                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_high']."
                 )
 
             new_lam, new_dlam = utils.regrid_wavelengths(
                 parameters["wavelength"],
                 parameters["spectral_resolution"],
-                parameters["channel_bounds"],
-            )
+                parameters["lam_low"],
+                parameters["lam_high"],            )
             self.wavelength = (
                 new_lam * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
