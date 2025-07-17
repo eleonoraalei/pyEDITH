@@ -493,7 +493,7 @@ def gen_wavelength_grid(x_min, x_max, res):
     return np.squeeze(x), np.squeeze(Dx)
 
 
-def regrid_wavelengths(input_wls, res, channel_bounds):
+def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
     """
     Creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
 
@@ -503,37 +503,30 @@ def regrid_wavelengths(input_wls, res, channel_bounds):
     res : float, 1D arr
         array of desired resolutions for each channel. should be length of the number of spectral channels
         for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
-    channel_bounds : float, 1D arr
-        array of the boundaries between spectral channels. Length should be one less than the res array.
-        For example, if we have three channels, this should be len == 2, e.g.  channel_bounds = [UV_VIS_bound, VIS_NIR_bound]
+    lam_low : float, 1D arr
+        array of the lower boundaries of spectral channels. 
+    lam_high : float, 1D arr
+        array of the upper boundaries of spectral channels. 
     """
 
-    # channel bounds array should be one less in length than res array
-    assert len(res) - 1 == len(channel_bounds)
+    if lam_low is None and lam_high is None:
+        lam_low = [np.min(input_wls[1:])]
+        lam_high = [np.max(input_wls[:-1])]
+    else:# lam_low is not None and lam_high is not None:
+        assert len(res) == len(lam_low) == len(lam_high)
 
-    if len(channel_bounds) > 0:
+    if len(res) > 1:
         assert (
-            np.min(input_wls) < channel_bounds[0]
-        ), "Your minimum input wavelength is greater than first channel boundary."
+            np.min(input_wls) < lam_low[0]
+        ), "Your minimum input wavelength is greater than first channel lower boundary."
         assert (
-            np.max(input_wls) > channel_bounds[-1]
-        ), "Your maximum input wavelength is less than last channel boundary."
+            np.max(input_wls) > lam_high[-1]
+        ), f"Your maximum input wavelength is less than last channel upper boundary."
 
-        wl_mins_channel = [np.min(input_wls)]
-        for bound in channel_bounds:
-            wl_mins_channel.append(bound)
-        wl_mins_channel = np.array(wl_mins_channel)
-
-        wl_maxs_channel = []
-        for bound in channel_bounds:
-            wl_maxs_channel.append(bound)
-        wl_maxs_channel.append(np.max(input_wls))
-        wl_maxs_channel = np.array(wl_maxs_channel)
-
-        lam, dlam = gen_wavelength_grid(wl_mins_channel, wl_maxs_channel, res)
+        lam, dlam = gen_wavelength_grid(lam_low, lam_high, res)
     else:
         # no channel boundaries
-        lam, dlam = gen_wavelength_grid([np.min(input_wls)], [np.max(input_wls)], res)
+        lam, dlam = gen_wavelength_grid(lam_low, lam_high, res)
 
     return lam, dlam
 

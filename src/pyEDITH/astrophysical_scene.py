@@ -6,6 +6,50 @@ from .units import *
 from . import utils
 from astropy.coordinates import SkyCoord
 
+# def calc_flux_zero_point_synphot(lam: u.Quantity):
+
+#     # calculates a zeropoint Vega spectrum using boxcar filters 
+#     from synphot import SourceSpectrum, SpectralElement, Observation, Box1D
+#     from synphot.exceptions import DisjointError
+#     import numpy as np
+#     import astropy.units as u
+
+#     # load the vega spectrum
+#     vega = SourceSpectrum.from_vega()
+
+#     # convert wavelength grid to angstrom
+#     lam = lam.to(u.AA)
+#     dlam = np.gradient(lam)
+#     dlam = dlam.to(u.AA)
+
+#     vega_fluxes = np.empty(len(lam))
+
+#     # treat the wavelength bins as box filters
+#     for i in range(len(lam)):
+#         filt_ctr = lam[i]
+#         filt_width = dlam[i]
+
+#         # boxcar filter
+#         boxcar = Box1D(amplitude=1, x_0=filt_ctr.value, width=filt_width.value)
+#         filt = SpectralElement(boxcar, wavelengths=lam)
+
+#         # calculate an observation of Vega with filter
+#         try:
+#             obs = Observation(vega, filt, binset=lam)
+#         except :
+#             #print("Box filter extends beyond wavelength range. Setting flux as nan for this spectral bin.")
+#             vega_fluxes[i] = np.nan
+#             continue
+
+#         # integrate observation
+#         flux_photlam = obs.effstim(flux_unit="photlam")
+
+#         # convert to pyEDITH units
+#         flux = flux_photlam.to(u.photon/u.s/u.cm**2/u.nm)
+
+#         vega_fluxes[i] = flux.value
+
+#     return vega_fluxes * u.photon/u.s/u.cm**2/u.nm
 
 def calc_flux_zero_point(
     lambd: u.Quantity,
@@ -657,6 +701,13 @@ class AstrophysicalScene:
         self.xp = self.separation.copy()
         self.yp = self.separation.copy() * 0.0
 
+        # set the exozodi PPF
+        if "ez_PPF" in parameters.keys():
+            self.ez_PPF = parameters["ez_PPF"] * DIMENSIONLESS
+        else:
+            print("WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)")
+            self.ez_PPF = np.inf * DIMENSIONLESS
+
     def calculate_zodi_exozodi(self, parameters: dict) -> None:
         """
         Calculate zodiacal and exozodiacal light fluxes for the given observation.
@@ -729,6 +780,7 @@ class AstrophysicalScene:
             "Fbinary_list": DIMENSIONLESS,
             "Fp_over_Fs": DIMENSIONLESS,
             "Fs_over_F0": DIMENSIONLESS,
+            "ez_PPF" : DIMENSIONLESS,
         }
         utils.validate_attributes(self, expected_args)
 
