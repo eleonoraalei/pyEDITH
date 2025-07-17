@@ -701,7 +701,15 @@ class AstrophysicalScene:
         # separation of planet (arcseconds) (nmeananom x norbits x ntargs array)
         # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
         # SO THAT XP = SP (input) and YP = 0
-        self.separation = parameters["separation"] * ARCSEC
+
+        if 'separation' in parameters.keys():
+            self.separation = parameters["separation"] * ARCSEC
+        elif 'semimajor_axis' in parameters.keys():
+            self.separation = to_arcsec((parameters['semimajor_axis']*const.au).to(LENGTH), 
+                                          (self.dist.to(LENGTH))) * ARCSEC
+        else:
+            raise ValueError("Either separation [arcsec] or semimajor_axis [AU] must be provided.")
+
         self.xp = self.separation.copy()
         self.yp = self.separation.copy() * 0.0
 

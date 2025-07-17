@@ -237,6 +237,20 @@ def test_astrophysical_scene_load_configuration(capsys):
     scene.load_configuration(parameters)
     assert scene.F0 == parameters["F0"] * PHOTON_FLUX_DENSITY
 
+    # Test with semimajor_axis instead of separation
+    semimajor_axis_parameters = parameters.copy()
+    del semimajor_axis_parameters['separation']
+    semimajor_axis_parameters['semimajor_axis'] = 1.0  # 1 AU
+    scene.load_configuration(semimajor_axis_parameters)
+    assert np.isclose(scene.separation.value, 0.1) # definition of parsec
+    assert scene.separation.unit == ARCSEC
+    
+    # Test when neither separation nor semimajor_axis is provided
+    invalid_parameters = parameters.copy()
+    del invalid_parameters['separation']
+    with pytest.raises(ValueError, match="Either separation \[arcsec\] or semimajor_axis \[AU\] must be provided."):
+        scene.load_configuration(invalid_parameters)
+    
     # Test with flux inputs
     flux_parameters = {
         "wavelength": [0.5, 0.55],

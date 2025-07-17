@@ -289,6 +289,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "dec",  # used to be [ntargs]
         "delta_mag_min",  # used to be [ntargs]
         "Fp_min/Fs",
+        "semimajor_axis",
         "separation",  # used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1
     ]
 

@@ -121,6 +121,8 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | nzodis                  | Zodi                         | Scalar                   | Amount of exozodi around target star              |     |
 | ra                      | Degree                       | Scalar                   | Right ascension of target star                    |     |
 | dec                     | Degree                       | Scalar                   | Declination of target star                        |     |
+| semimajor_axis              | Astronomical Units                    | Scalar                   | Semimajor axis of the planet's orbit (used to calculate separation; assumes face-on orbit)                           |     |
+
 | separation              | Arcsecond                    | Scalar                   | Separation of planet                              |     |
 | deltamag                | Magnitude                    | Scalar                   | Magnitude difference between planet and host star |     |
 | min_deltamag            | Magnitude                    | Scalar                   | Brightest planet to resolve at the IWA            |     |
@@ -150,7 +152,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | ycenter                         | Scalar                   | Pixel         | Y-coordinate of the image center                             | No            |
 | bandwidth                       | Scalar                   | Dimensionless | Fractional bandwidth of coronagraph                          | Yes           |
 | stellar_radius                | Scalar        | R_sun           | stellar radius in solar radii                                                   | Yes            |
-| stellar_angular_diameter                | Scalar        | arcsec           | angular diameter of the star                                                   | No            |
+| stellar_angular_diameter_arcsec                | Scalar        | arcsec           | angular diameter of the star                                                   | No            |
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
 | nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |
@@ -218,12 +220,13 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | dist                    | Scalar    | pc                       | Distance to star                                  | Yes           |
 | vmag                    | Scalar    | Magnitude                    | Stellar magnitude at V band                       | Yes           |
 | mag                     | [nlambda] | Magnitude                    | Stellar magnitude at desired wavelengths          | Yes           |
-| stellar_angular_diameter_arcsec | Scalar    | Arcsecond                    | Angular diameter of star                          | Yes           |
+| stellar_angular_diameter_arcsec | Scalar    | Arcsecond                    | Angular diameter of star                          | No           |
 | nzodis                  | Scalar    | Zodi                         | Amount of exozodi around target star              | Yes           |
 | ra                      | Scalar    | Degree                       | Right ascension of target star                    | Yes           |
 | dec                     | Scalar    | Degree                       | Declination of target star                        | Yes           |
+| semimajor_axis              | Scalar | Astronomical Units                    | Scalar                   | Semimajor axis of the planet's orbit (used to calculate separation; assumes face-on orbit)                           |  Yes   |
 | separation              | Scalar    | Arcsecond                    | Separation of planet                              | Yes           |
-| xp                      | Scalar    | Arcsecond                    | X-coordinate of planet                            | No            |
+| xp                      | Scalar    | Arcsecond                    | X-coordinate of planet (defaults to zero for now)                           | No            |
 | yp                      | Scalar    | Arcsecond                    | Y-coordinate of planet                            | No            |
 | deltamag                | [nlambda] | Magnitude                    | Magnitude difference between planet and host star | Yes           |
 | min_deltamag            | [nlambda] | Magnitude                    | Brightest planet to resolve at the IWA            | Yes           |
