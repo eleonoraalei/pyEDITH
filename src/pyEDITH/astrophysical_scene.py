@@ -724,10 +724,10 @@ class AstrophysicalScene:
 
         # set the exozodi PPF
         if "ez_PPF" in parameters.keys():
-            self.ez_PPF = parameters["ez_PPF"] * DIMENSIONLESS
+            self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
         else:
             print("WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)")
-            self.ez_PPF = np.array([np.inf]) * DIMENSIONLESS
+            self.ez_PPF = np.inf * np.ones_like(self.Fp_over_Fs)
 
     def calculate_zodi_exozodi(self, parameters: dict) -> None:
         """
@@ -826,4 +826,7 @@ class AstrophysicalScene:
         )
         self.Fs_over_F0 = utils.regrid_spec_interp(
             parameters["wavelength"], self.Fs_over_F0, observation.wavelength
+        )
+        self.ez_PPF = utils.regrid_spec_interp(
+            parameters["wavelength"], self.ez_PPF, observation.wavelength
         )
