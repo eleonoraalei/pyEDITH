@@ -718,7 +718,7 @@ class AstrophysicalScene:
             self.ez_PPF = parameters["ez_PPF"] * DIMENSIONLESS
         else:
             print("WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)")
-            self.ez_PPF = np.inf * DIMENSIONLESS
+            self.ez_PPF = np.array([np.inf]) * DIMENSIONLESS
 
     def calculate_zodi_exozodi(self, parameters: dict) -> None:
         """
