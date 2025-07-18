@@ -7,14 +7,14 @@ tags:
   - exoplanets
   - space telescopes
 authors:
+  - name: Eleonora Alei
+    orcid: 0000-0000-0000-0000
+    equal-contrib: true
+    affiliation: "1"
   - name: Miles H. Currie
     orcid: 0000-0000-0000-0000
     equal-contrib: true
     corresponding: true
-    affiliation: "1"
-  - name: Eleonora Alei
-    orcid: 0000-0000-0000-0000
-    equal-contrib: true
     affiliation: "1"
   - name: Christopher C. Stark
     orcid: 0000-0000-0000-0000
