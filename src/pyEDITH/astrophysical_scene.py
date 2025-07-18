@@ -8,7 +8,7 @@ from astropy.coordinates import SkyCoord
 
 # def calc_flux_zero_point_synphot(lam: u.Quantity):
 
-#     # calculates a zeropoint Vega spectrum using boxcar filters 
+#     # calculates a zeropoint Vega spectrum using boxcar filters
 #     from synphot import SourceSpectrum, SpectralElement, Observation, Box1D
 #     from synphot.exceptions import DisjointError
 #     import numpy as np
@@ -50,6 +50,7 @@ from astropy.coordinates import SkyCoord
 #         vega_fluxes[i] = flux.value
 
 #     return vega_fluxes * u.photon/u.s/u.cm**2/u.nm
+
 
 def calc_flux_zero_point(
     lambd: u.Quantity,
@@ -577,7 +578,7 @@ class AstrophysicalScene:
                 equivalencies=u.spectral_density(parameters["wavelength"] * WAVELENGTH),
             )  # [nlambda]
 
-        # look for delta_mag_min or Fp_min/Fs. If not there, default to vals. This hides this feature from the user. 
+        # look for delta_mag_min or Fp_min/Fs. If not there, default to vals. This hides this feature from the user.
         if "delta_mag_min" in parameters:
             self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
         else:
@@ -589,10 +590,7 @@ class AstrophysicalScene:
 
         # Determine if user provided magnitudes or fluxes
 
-        if all(
-            param in parameters
-            for param in ["magV", "mag", "delta_mag"]
-        ):
+        if all(param in parameters for param in ["magV", "mag", "delta_mag"]):
             # User provided magnitudes
             # stellar mag (not absolute mag!!) at V band # used to be (ntargs array) now scalar
             self.vmag = parameters["magV"] * MAGNITUDE
@@ -606,7 +604,6 @@ class AstrophysicalScene:
 
             # brightest planet to resolve w/ photon counting detector evaluated at
             # the IWA, sets the time between counts (ntargs array)
-            
 
             # Convert magnitudes to RELATIVE fluxes (modulo F0)
             self.Fs_over_F0 = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
@@ -689,10 +686,14 @@ class AstrophysicalScene:
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
 
-        
         # convert stellar radius into stellar angular diameter (in arcsec)
-        stellar_radius_arcsec = to_arcsec((parameters['stellar_radius']*const.R_sun).to(LENGTH), 
-                                          (self.dist.to(LENGTH))) * ARCSEC
+        stellar_radius_arcsec = (
+            to_arcsec(
+                (parameters["stellar_radius"] * const.R_sun).to(LENGTH),
+                (self.dist.to(LENGTH)),
+            )
+            * ARCSEC
+        )
 
         # angular diameter of star (arcsec) # used to be (ntargs array) now scalar
         self.stellar_angular_diameter_arcsec = 2 * stellar_radius_arcsec
@@ -711,22 +712,31 @@ class AstrophysicalScene:
         # NOTE FOR NOW IT IS ASSUMED TO BE ON THE X AXIS
         # SO THAT XP = SP (input) and YP = 0
 
-        if 'separation' in parameters.keys():
+        if "separation" in parameters.keys():
             self.separation = parameters["separation"] * ARCSEC
-        elif 'semimajor_axis' in parameters.keys():
-            self.separation = to_arcsec((parameters['semimajor_axis']*const.au).to(LENGTH), 
-                                          (self.dist.to(LENGTH))) * ARCSEC
+        elif "semimajor_axis" in parameters.keys():
+            self.separation = (
+                to_arcsec(
+                    (parameters["semimajor_axis"] * const.au).to(LENGTH),
+                    (self.dist.to(LENGTH)),
+                )
+                * ARCSEC
+            )
         else:
-            raise ValueError("Either separation [arcsec] or semimajor_axis [AU] must be provided.")
+            raise ValueError(
+                "Either separation [arcsec] or semimajor_axis [AU] must be provided."
+            )
 
         self.xp = self.separation.copy()
         self.yp = self.separation.copy() * 0.0
 
         # set the exozodi PPF
         if "ez_PPF" in parameters.keys():
-            self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
+            self.ez_PPF = parameters["ez_PPF"]
         else:
-            print("WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)")
+            print(
+                "WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)"
+            )
             self.ez_PPF = np.inf * np.ones_like(self.Fp_over_Fs)
 
     def calculate_zodi_exozodi(self, parameters: dict) -> None:
@@ -801,7 +811,7 @@ class AstrophysicalScene:
             "Fbinary_list": DIMENSIONLESS,
             "Fp_over_Fs": DIMENSIONLESS,
             "Fs_over_F0": DIMENSIONLESS,
-            "ez_PPF" : DIMENSIONLESS,
+            "ez_PPF": DIMENSIONLESS,
         }
         utils.validate_attributes(self, expected_args)
 
