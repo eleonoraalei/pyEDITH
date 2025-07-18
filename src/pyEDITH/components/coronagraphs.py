@@ -638,6 +638,9 @@ class CoronagraphYIP(Coronagraph):
             stellar_angular_diameter_arcsec, 0.55 * WAVELENGTH, tele_diam
         )  # NOTE TODO IMPORTANT! We have to know the wavelength that angdia_arcsec is given at. Right now, assumes 0.55 um. Suggest changing input file to take in angdiam_lod instead of angdiam_arcsec
 
+        # check that the user-provided stellar radius is within the valid bounds (0,1)
+        assert stellar_angular_diameter_lod >= 0. and stellar_angular_diameter_lod < 1., "Stellar diameter is outside bounds 0 <= diam (lam/D) < 1. Cannot interpolate Istar from YIP."
+
         self.DEFAULT_CONFIG["Istar"] = (
             yippy_obj.stellar_intens(stellar_angular_diameter_lod.value * lod)[:, :]
             * DIMENSIONLESS
