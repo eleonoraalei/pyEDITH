@@ -577,11 +577,21 @@ class AstrophysicalScene:
                 equivalencies=u.spectral_density(parameters["wavelength"] * WAVELENGTH),
             )  # [nlambda]
 
+        # look for delta_mag_min or Fp_min/Fs. If not there, default to vals. This hides this feature from the user. 
+        if "delta_mag_min" in parameters:
+            self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
+        else:
+            self.min_deltamag = 26 * MAGNITUDE
+        if "Fp_min/Fs" in parameters:
+            self.Fp_min_over_Fs = parameters["Fp_min/Fs"] * DIMENSIONLESS
+        else:
+            self.Fp_min_over_Fs = 1e-10 * DIMENSIONLESS
+
         # Determine if user provided magnitudes or fluxes
 
         if all(
             param in parameters
-            for param in ["magV", "mag", "delta_mag", "delta_mag_min"]
+            for param in ["magV", "mag", "delta_mag"]
         ):
             # User provided magnitudes
             # stellar mag (not absolute mag!!) at V band # used to be (ntargs array) now scalar
@@ -596,14 +606,14 @@ class AstrophysicalScene:
 
             # brightest planet to resolve w/ photon counting detector evaluated at
             # the IWA, sets the time between counts (ntargs array)
-            self.min_deltamag = parameters["delta_mag_min"] * MAGNITUDE
+            
 
             # Convert magnitudes to RELATIVE fluxes (modulo F0)
             self.Fs_over_F0 = 10 ** (-0.4 * self.mag.value) * DIMENSIONLESS
             self.Fp_over_Fs = 10 ** (-0.4 * self.deltamag.value) * DIMENSIONLESS
             self.Fp_min_over_Fs = 10 ** (-0.4 * self.min_deltamag.value) * DIMENSIONLESS
 
-        elif all(param in parameters for param in ["Fstar_10pc", "Fp/Fs", "Fp_min/Fs"]):
+        elif all(param in parameters for param in ["Fstar_10pc", "Fp/Fs"]):
 
             # Load fluxes
             Fstar_10pc = parameters["Fstar_10pc"] * PHOTON_FLUX_DENSITY
@@ -648,7 +658,6 @@ class AstrophysicalScene:
             Fstar_V_absolute = Fstar_V_10pc * (10 * DISTANCE / self.dist) ** 2
 
             self.Fp_over_Fs = parameters["Fp/Fs"] * DIMENSIONLESS
-            self.Fp_min_over_Fs = parameters["Fp_min/Fs"] * DIMENSIONLESS
             # Convert to relative fluxes (used internally)
             self.Fs_over_F0 = (Fstar_absolute / self.F0).to(u.dimensionless_unscaled)
 
@@ -662,21 +671,21 @@ class AstrophysicalScene:
         else:
             missing_mag_params = [
                 param
-                for param in ["magV", "mag", "delta_mag", "delta_mag_min"]
+                for param in ["magV", "mag", "delta_mag"]
                 if param not in parameters
             ]
             missing_flux_params = [
                 param
-                for param in ["Fstar_10pc", "FstarV_10pc", "Fp/Fs", "Fp_min/Fs"]
+                for param in ["Fstar_10pc", "FstarV_10pc", "Fp/Fs"]
                 if param not in parameters
             ]
 
             raise ValueError(
                 f"Insufficient parameters provided. You must provide either:\n"
-                f"1. All magnitude parameters: {', '.join(['magV', 'mag', 'delta_mag', 'delta_mag_min'])}\n"
+                f"1. All magnitude parameters: {', '.join(['magV', 'mag', 'delta_mag'])}\n"
                 f"   Missing: {', '.join(missing_mag_params)}\n"
                 f"OR\n"
-                f"2. All flux parameters: {', '.join(['Fstar_10pc', 'FstarV_10pc', 'Fp/Fs', 'Fp_min/Fs',])}\n"
+                f"2. All flux parameters: {', '.join(['Fstar_10pc', 'FstarV_10pc', 'Fp/Fs',])}\n"
                 f"   Missing: {', '.join(missing_flux_params)}"
             )
 
