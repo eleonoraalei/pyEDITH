@@ -34,11 +34,11 @@ bibliography: paper.bib
 
 `pyEDITH` is a Python-based coronagraphic exposure time calculator built for NASA's next flagship mission, the Habitable Worlds Observatory (HWO), tasked with searching for signs of habitability and life in dozens of nearby exoplanet systems. `pyEDITH` is designed to simulate wavelength-dependent exposure times and signal-to-noise ratios (S/N) for both photometric and spectroscopic direct imaging observations. `pyEDITH` considers realistic engineering specifications, and allows the user to provide target system information, as well as alter observatory parameters, to calculate synthetic HWO observations of Earth-like exoplanets. We present a schematic of the `pyEDITH` framework in \autoref{fig:diagram}.
 
-![A schematic of the `pyEDITH` components and their relationshops, and the data flow from inputs to final calculations.\label{fig:diagram}](pyedith_workflow.pdf)
+![A schematic of the `pyEDITH` components and their relationships, and the data flow from inputs to final calculations.\label{fig:diagram}](pyedith_workflow.pdf)
 
 # Statement of need
 
-`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` has heritage from the Altruistic Yield Optimizer [@stark2014ayo], used for robust and fast calculations, and implementing this framework in Python enables easire integration with modern astronomical workflows and lowers the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by astronomers and engineers, including students, for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. It has already been used by several forthcoming scientific publications [@Currie2025exozodi; @Alei2025], and is endorsed by the HWO Project Office at NASA's Goddard Space Flight Center. `pyEDITH` is the most sophisticated noise model for HWO to date, and through its flexible and user-friendly design, it will enable efficient HWO mission design studies and inform the development of more advanced observer planning tools when HWO launches.
+`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` has heritage from the Altruistic Yield Optimizer [@stark2014ayo], used for robust and fast calculations, and implementing this framework in Python enables easier integration with modern astronomical workflows and lowers the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by astronomers and engineers, including students, for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. It has already been used by several forthcoming scientific publications [@Currie2025exozodi; @Alei2025], and is endorsed by the HWO Project Office at NASA's Goddard Space Flight Center. `pyEDITH` is the most sophisticated noise model for HWO to date, and through its flexible and user-friendly design, it will enable efficient HWO mission design studies and inform the development of more advanced observer planning tools when HWO launches.
 
 # Mathematical formalism
 
@@ -52,7 +52,7 @@ $$\mathrm{S/N} = \mathrm{CR}_p \left[\mathrm{CR}_\mathrm{nf}^2 + (\mathrm{CR}_\m
 
 ## Planetary Signal
 The count rate of the planetary target is given by:
-    $$CR_p= F_0\ 10^{-0.4(m_V+\Delta mag_\mathrm{obs})} A\ \Upsilon\ T\ \Delta \lambda    = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$,
+    $$\mathrm{CR}_p= F_0\ 10^{-0.4(m_V+\Delta mag_\mathrm{obs})} A\ \Upsilon\ T\ \Delta \lambda    = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$,
 where $F_p$ is the planet flux at the telescope, and before it proceeds through the observatory, $A$ is the collecting area, $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the optics throughput, $\Delta\lambda$ is the wavelength bin width.
 
 ## Background (noise) count rates
@@ -83,9 +83,7 @@ where $m$ is the magnitude of the binary star seen from the planet
 
 ### Thermal background
 The thermal emission of the observatory is given by:
-\begin{equation}
-    \mathrm{CR}_{b,\mathrm{thermal}}= \frac{B_\lambda}{E_\mathrm{photon}} \ \varepsilon_\mathrm{warm}\ T_\mathrm{cold}\ \mathrm{QE}\ \Omega\ A\ \Delta \lambda
-\end{equation}
+$$\mathrm{CR}_{b,\mathrm{thermal}}= \frac{B_\lambda}{E_\mathrm{photon}} \ \varepsilon_\mathrm{warm}\ T_\mathrm{cold}\ \mathrm{QE}\ \Omega\ A\ \Delta \lambda$$
 Where $B_\lambda$ is the blackbody function per unit wavelength; $E_{photon}$ is the energy of the photon; $\varepsilon_{warm}$ is the effective emissivity of all warm optics; $T_{cold}$ is the transmission/reflectivity of all cold optics; $QE$ is the detector's quantum efficiency. 
 
 ### Detector noise
@@ -94,10 +92,9 @@ $$\mathrm{CR}_{b,\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mat
 where $N_\mathrm{pix}$ is the number of detector pixels; $\mathrm{DC}$ is the dark current in units of $e^-$/pix/s, $\mathrm{RN}$ is the read noise in units of   $e^-$/pix/read, $t_\mathrm{read}$ is the read time, $\mathrm{CIC}$ is the clock-induced-charge in units of  $e^-/\mathrm{pix}/\mathrm{photon}$; and $t_\mathrm{count}$ the photon counting time. 
 
 ### Noise floor
-\item The noise floor count rate simulating imperfect coronagraphic speckle subtraction is given by:
+The noise floor count rate simulating imperfect coronagraphic speckle subtraction is given by:
 $$\mathrm{CR}_\mathrm{nf}=\mathrm{NF}\ F_*\ \frac{\Omega}{pixscale^2}\ A\ T\ \Delta\lambda$$,
-\end{equation}
-where $\mathrm{NF}$ is {\mathrm{PSF}_*}/\mathrm{PPF}$. $\mathrm{PSF}_*$ is the on-axis coronagraphic response function and $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30).
+where $\mathrm{NF} = {\mathrm{PSF}_*}/\mathrm{PPF}$. $\mathrm{PSF}_*$ is the on-axis coronagraphic response function and $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30).
 
 # Imaging mode
 
