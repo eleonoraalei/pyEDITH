@@ -432,11 +432,11 @@ class CoronagraphYIP(Coronagraph):
 
         # ***** Load the YIP using yippy *****
         yippy_obj = yippycoro(self.path)
-
+        
         # get nrolls from yippy, if it exists in the YIP files
-        try:
+        if hasattr(yippy_obj, "nrolls"):
             self.DEFAULT_CONFIG["nrolls"] = yippy_obj.nrolls
-        except AttributeError:
+        else:
             # if yippy did not find nrolls, assume YIP has 360deg coverage and default to 1
             self.DEFAULT_CONFIG["nrolls"] = 1
 

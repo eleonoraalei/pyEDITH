@@ -370,10 +370,22 @@ def test_astrophysical_scene_load_configuration(capsys):
         in captured.out
     )
     
-    # Test case where ez_PPF was provided
-    parameters["ez_PPF"] = [100.]
+    # Test case where ez_PPF is provided as a scalar (to be propagated at all wavelengths)
+    parameters["ez_PPF"] = 100.
     scene.load_configuration(parameters)
-    assert scene.ez_PPF == parameters["ez_PPF"] 
+    assert np.array_equal(scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"]))
+
+    # Test case where ez_PPF is provided as an array of values
+    parameters["ez_PPF"] = [100., 100., 100.]
+    scene.load_configuration(parameters)
+    assert np.array_equal(scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"]))
+
+
+    # Test case where ez_PPF is provided as an array of values, but its length is mismatched with other wavelength dependent inputs
+    with pytest.raises(AssertionError, match="length of ez_PPF does not match length of Fp_over_Fs"):
+        parameters["ez_PPF"] = [100.]
+        scene.load_configuration(parameters)
+
 
     # The interpolated value at 0.55 um should be close to 1.244e02
     expected_fstarv = 1.244e02 * PHOTON_FLUX_DENSITY

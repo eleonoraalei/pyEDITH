@@ -732,7 +732,11 @@ class AstrophysicalScene:
 
         # set the exozodi PPF
         if "ez_PPF" in parameters.keys():
-            self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
+            if not isinstance(parameters["ez_PPF"], (list, np.ndarray)):
+                self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
+            else:
+                assert len(parameters["ez_PPF"]) == len(self.Fp_over_Fs), "length of ez_PPF does not match length of Fp_over_Fs"
+                self.ez_PPF = np.array(parameters["ez_PPF"])
         else:
             print(
                 "WARNING: ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)"

@@ -332,8 +332,8 @@ def test_coronagraph_yip_init():
 
 
 @pytest.fixture
-def mock_yippy_object():
-    mock_yippy = MagicMock()
+def mock_yippy_object(spec_set=["header", "sky_trans", "offax", "stellar_intens"]):
+    mock_yippy = MagicMock(spec_set=spec_set)
     mock_yippy.header.pixscale.value = 0.25
     mock_yippy.header.naxis1 = 100
     mock_yippy.header.xcenter = 50
@@ -345,6 +345,19 @@ def mock_yippy_object():
     mock_yippy.stellar_intens.return_value = np.random.rand(100, 100)
     return mock_yippy
 
+@pytest.fixture
+def mock_yippy_object_incl_nrolls(spec_set=["header", "sky_trans", "offax", "stellar_intens", "nrolls"]):
+    mock_yippy = MagicMock(spec_set=spec_set)
+    mock_yippy.header.pixscale.value = 0.25
+    mock_yippy.header.naxis1 = 100
+    mock_yippy.header.xcenter = 50
+    mock_yippy.header.ycenter = 50
+    mock_yippy.sky_trans.return_value = np.ones((100, 100))
+    mock_yippy.offax.x_offsets = np.linspace(0, 10, 11)
+    mock_yippy.offax.y_offsets = np.linspace(0, 10, 11)
+    mock_yippy.offax.reshaped_psfs = np.random.rand(11, 1, 100, 100)
+    mock_yippy.stellar_intens.return_value = np.random.rand(100, 100)
+    return mock_yippy
 
 @pytest.fixture
 def mock_instrument():
@@ -547,6 +560,48 @@ def test_coronagraph_yip_load_configuration_IFS(
         "maximum_OWA": 90.0,
         "bandwidth": 0.1,
         "nrolls": 2,
+        "nchannels": 1,
+        "az_avg": True,
+    }
+
+    mediator_ifs = MockMediator_IFS()
+
+    coronagraph.load_configuration(parameters, mediator_ifs)
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: Both psf_trunc_ratio and photometric_aperture_radius are specified. Preferring psf_trunc_ratio going forward..."
+        in captured.out
+    )
+    assert "Using psf_trunc_ratio to calculate Omega..." in captured.out
+
+    # Check coronagraph_optical_throughput
+    assert len(coronagraph.coronagraph_optical_throughput) == 3
+    assert np.isclose(
+        coronagraph.coronagraph_optical_throughput.value,
+        [0.41891199, 0.43711322, 0.40535648],
+    ).all()
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+@patch("pyEDITH.components.coronagraphs.yippycoro")
+def test_coronagraph_yip_load_configuration_yippycoro_nrolls(
+    mock_yippycoro,
+    mock_load_telescope,
+    mock_load_instrument,
+    mock_yippy_object_incl_nrolls,
+    mock_instrument,
+    mock_telescope,
+    capsys,
+):
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+    mock_yippycoro.return_value = mock_yippy_object_incl_nrolls
+
+    coronagraph = CoronagraphYIP(path="test_path")
+    parameters = {
+        "observing_mode": "IFS",
+        "maximum_OWA": 90.0,
+        "bandwidth": 0.1,
         "nchannels": 1,
         "az_avg": True,
     }
