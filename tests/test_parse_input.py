@@ -16,7 +16,6 @@ def sample_input_file():
             """
         ; This is a comment
         wavelength = 0.5
-        Lstar = 1.0
         distance = 10
         magV = 5.0
         nzodis = 3.0
@@ -36,7 +35,6 @@ def sample_input_file_error():
             """
         ; This is a comment
         wavelength = [0.5, 0.6]
-        Lstar = 1.0
         distance = 10
         magV = 5.0
         nzodis = 3.0
@@ -54,7 +52,6 @@ def test_parse_input_file(sample_input_file, sample_input_file_error):
     )
 
     assert variables["wavelength"] == 0.5
-    assert variables["Lstar"] == 1.0
     assert variables["distance"] == 10
     assert variables["magV"] == 5.0
     assert variables["nzodis"] == 3.0
@@ -206,7 +203,6 @@ def test_parse_parameters(capsys):
     # Test basic functionality with multiple parameters
     parameters = {
         "wavelength": [0.5, 0.6, 0.7],
-        "Lstar": 1.0,
         "distance": 10,
         "magV": 5.0,
         "nzodis": 3.0,
@@ -222,7 +218,6 @@ def test_parse_parameters(capsys):
     parsed = parse_parameters(parameters)
 
     assert np.all(parsed["wavelength"] == np.array([0.5, 0.6, 0.7]))
-    assert parsed["Lstar"] == 1.0
     assert parsed["distance"] == 10
     assert parsed["magV"] == 5.0
     assert parsed["nzodis"] == 3.0
@@ -385,7 +380,6 @@ def test_parse_parameters(capsys):
     assert np.all(parsed["snr"] == np.array([1.5, 1.5, 1.5]))
     assert isinstance(parsed["snr"], np.ndarray)
     target_params = [
-        "Lstar",
         "distance",
         "magV",
         "FstarV_10pc",
@@ -451,7 +445,6 @@ def test_read_configuration(sample_input_file):
     )
 
     assert np.all(parsed_parameters["wavelength"] == np.array([0.5]))
-    assert parsed_parameters["Lstar"] == 1.0
     assert parsed_parameters["distance"] == 10
     assert parsed_parameters["magV"] == 5.0
     assert parsed_parameters["nzodis"] == 3.0

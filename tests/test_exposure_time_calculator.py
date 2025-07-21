@@ -35,7 +35,7 @@ class MockObservation:
     def __init__(self):
         self.td_limit = 1.0e20 * u.s
         self.wavelength = u.Quantity([0.5], u.micron)
-        self.delta_wavelength = u.Quantity([0.5*0.2], u.micron) # 20% bandpass
+        self.delta_wavelength = u.Quantity([0.5 * 0.2], u.micron)  # 20% bandpass
         self.SNR = u.Quantity([7], DIMENSIONLESS)
         self.photometric_aperture_radius = 0.85 * LAMBDA_D
         self.CRb_multiplier = 2
@@ -44,10 +44,10 @@ class MockObservation:
         self.exptime = u.Quantity([0.0], u.s)
         self.fullsnr = u.Quantity([0.0], DIMENSIONLESS)
 
+
 class MockScene:
     def __init__(self):
         self.F0V = 10374.9964895 * u.photon / u.nm / u.s / u.cm**2
-        self.Lstar = 0.86 * u.L_sun
         self.dist = 14.8 * u.pc
         self.F0 = u.Quantity([12638.83670769], u.photon / u.nm / u.s / u.cm**2)
         self.vmag = 5.84 * u.mag

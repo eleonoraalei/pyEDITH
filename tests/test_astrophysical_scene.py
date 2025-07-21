@@ -200,7 +200,6 @@ def test_astrophysical_scene_load_configuration(capsys):
     # Test with magnitude inputs
     parameters = {
         "wavelength": [0.5, 0.55],
-        "Lstar": 1.0,
         "distance": 10,
         "magV": 5.0,
         "mag": [5.1, 5.2],
@@ -214,7 +213,6 @@ def test_astrophysical_scene_load_configuration(capsys):
     }
     scene.load_configuration(parameters)
 
-    assert scene.Lstar == 1.0 * LUMINOSITY
     assert scene.dist == 10 * DISTANCE
     assert scene.vmag == 5.0 * MAGNITUDE
     assert np.isclose(scene.stellar_angular_diameter_arcsec.value, 0.00093009345219)
@@ -239,22 +237,24 @@ def test_astrophysical_scene_load_configuration(capsys):
 
     # Test with semimajor_axis instead of separation
     semimajor_axis_parameters = parameters.copy()
-    del semimajor_axis_parameters['separation']
-    semimajor_axis_parameters['semimajor_axis'] = 1.0  # 1 AU
+    del semimajor_axis_parameters["separation"]
+    semimajor_axis_parameters["semimajor_axis"] = 1.0  # 1 AU
     scene.load_configuration(semimajor_axis_parameters)
-    assert np.isclose(scene.separation.value, 0.1) # definition of parsec
+    assert np.isclose(scene.separation.value, 0.1)  # definition of parsec
     assert scene.separation.unit == ARCSEC
-    
+
     # Test when neither separation nor semimajor_axis is provided
     invalid_parameters = parameters.copy()
-    del invalid_parameters['separation']
-    with pytest.raises(ValueError, match="Either separation \[arcsec\] or semimajor_axis \[AU\] must be provided."):
+    del invalid_parameters["separation"]
+    with pytest.raises(
+        ValueError,
+        match="Either separation \[arcsec\] or semimajor_axis \[AU\] must be provided.",
+    ):
         scene.load_configuration(invalid_parameters)
-    
+
     # Test with flux inputs
     flux_parameters = {
         "wavelength": [0.5, 0.55],
-        "Lstar": 0.86,
         "distance": 14.8,
         "Fstar_10pc": [1.128e02, 1.13e02],
         "FstarV_10pc": 1.244e02,
@@ -268,7 +268,6 @@ def test_astrophysical_scene_load_configuration(capsys):
     }
     scene.load_configuration(flux_parameters)
 
-    assert scene.Lstar == flux_parameters["Lstar"] * LUMINOSITY
     assert scene.dist == flux_parameters["distance"] * DISTANCE
     assert np.all(
         scene.Fp_over_Fs == np.array(flux_parameters["Fp/Fs"]) * DIMENSIONLESS
@@ -277,8 +276,7 @@ def test_astrophysical_scene_load_configuration(capsys):
     assert isinstance(scene.Fs_over_F0, u.Quantity)
     assert len(scene.Fs_over_F0) == 2
     assert scene.Fs_over_F0.unit == DIMENSIONLESS
-    assert np.isclose(
-        scene.stellar_angular_diameter_arcsec.value,0.00059701944566)
+    assert np.isclose(scene.stellar_angular_diameter_arcsec.value, 0.00059701944566)
     assert scene.nzodis == flux_parameters["nzodis"] * ZODI
     assert scene.ra == flux_parameters["ra"] * DEG
     assert scene.dec == flux_parameters["dec"] * DEG
@@ -317,12 +315,11 @@ def test_astrophysical_scene_load_configuration(capsys):
 
     # Test error handling for insufficient parameters
     with pytest.raises(KeyError):
-        scene.load_configuration({"Lstar": 1.0})  # Missing required parameters
+        scene.load_configuration({"distance": 1.0})  # Missing required parameters
 
     # Test error handling for mixed magnitude and flux inputs
     mixed_parameters = {
         "wavelength": [0.5, 0.55],
-        "Lstar": 1.0,
         "distance": 10,
         "magV": 5.0,
         "Fstar_10pc": [1.128e02, 1.13e02],
@@ -349,7 +346,6 @@ def test_astrophysical_scene_load_configuration(capsys):
     # FstarV_10pc is missing: if IFS mode, it can be calculated
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
-        "Lstar": 0.86,
         "distance": 10.0,
         "Fstar_10pc": [1.128e02, 1.244e02, 1.13e02],
         "Fp/Fs": [6.3e-8, 6.4e-8, 6.5e-8],
@@ -369,23 +365,27 @@ def test_astrophysical_scene_load_configuration(capsys):
         "WARNING: `FstarV_10pc` not specified in parameters. Calculating internally..."
         in captured.out
     )
-    
+
     # Test case where ez_PPF is provided as a scalar (to be propagated at all wavelengths)
-    parameters["ez_PPF"] = 100.
+    parameters["ez_PPF"] = 100.0
     scene.load_configuration(parameters)
-    assert np.array_equal(scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"]))
+    assert np.array_equal(
+        scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"])
+    )
 
     # Test case where ez_PPF is provided as an array of values
-    parameters["ez_PPF"] = [100., 100., 100.]
+    parameters["ez_PPF"] = [100.0, 100.0, 100.0]
     scene.load_configuration(parameters)
-    assert np.array_equal(scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"]))
-
+    assert np.array_equal(
+        scene.ez_PPF, parameters["ez_PPF"] * np.ones_like(parameters["Fp/Fs"])
+    )
 
     # Test case where ez_PPF is provided as an array of values, but its length is mismatched with other wavelength dependent inputs
-    with pytest.raises(AssertionError, match="length of ez_PPF does not match length of Fp_over_Fs"):
-        parameters["ez_PPF"] = [100.]
+    with pytest.raises(
+        AssertionError, match="length of ez_PPF does not match length of Fp_over_Fs"
+    ):
+        parameters["ez_PPF"] = [100.0]
         scene.load_configuration(parameters)
-
 
     # The interpolated value at 0.55 um should be close to 1.244e02
     expected_fstarv = 1.244e02 * PHOTON_FLUX_DENSITY
@@ -395,7 +395,6 @@ def test_astrophysical_scene_load_configuration(capsys):
     # FstarV_10pc is missing: in IMAGER mode, just fail
     parameters = {
         "wavelength": 0.5,
-        "Lstar": 0.86,
         "distance": 10.0,
         "Fstar_10pc": 1.128e02,
         "Fp/Fs": 6.3e-8,
@@ -420,7 +419,6 @@ def test_calculate_zodi_exozodi():
     # Set up parameters
     parameters = {
         "wavelength": [0.5, 0.55, 0.6],
-        "Lstar": 0.86,
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
@@ -495,7 +493,6 @@ def test_validate_configuration():
     # Set up valid parameters
     valid_parameters = {
         "wavelength": [0.5, 0.55, 0.6],
-        "Lstar": 0.86,
         "distance": 14.8,
         "magV": 5.84,
         "mag": [5.687, 5.632, 5.577],
@@ -526,7 +523,6 @@ def test_validate_configuration():
 
     # Test missing attributes
     for attr in [
-        "Lstar",
         "dist",
         "stellar_angular_diameter_arcsec",
         "nzodis",
@@ -551,7 +547,6 @@ def test_validate_configuration():
 
     # # Test incorrect types
     incorrect_type_tests = [
-        ("Lstar", 1),
         ("dist", 10),
         ("stellar_angular_diameter_arcsec", 0.01),
         ("nzodis", 3),
@@ -578,7 +573,6 @@ def test_validate_configuration():
 
     # Test incorrect units
     incorrect_unit_tests = [
-        ("Lstar", 1 * u.kg),
         ("dist", 10 * u.km),
         ("stellar_angular_diameter_arcsec", 0.01 * u.rad),
         ("nzodis", 3 * u.m),
@@ -615,7 +609,6 @@ def test_validate_configuration():
     # Test non-numerical values
     # Test attributes with invalid types
     attributes_to_test = [
-        "Lstar",
         "dist",
         "stellar_angular_diameter_arcsec",
         "nzodis",
@@ -655,32 +648,46 @@ def test_validate_configuration():
                 scene.validate_configuration()
             setattr(scene, attr, original_value)
 
+
 def test_regrid_spectra():
     scene = AstrophysicalScene()
 
-    parameters = {"wavelength": np.linspace(0.5, 1.7, 1000), # user-provided wavelength grid
-                  }
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.7, 1000),  # user-provided wavelength grid
+    }
 
     # Create a mock Observation object
     class MockObservation:
-        wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH, # the binned-down wavelength grid calculated with the specified R and channel cutoffs
+        wavelength = (
+            np.linspace(0.5, 1.7, 100) * WAVELENGTH,
+        )  # the binned-down wavelength grid calculated with the specified R and channel cutoffs
         nlambd = len(wavelength)
 
     observation = MockObservation()
 
     # set up the scene: assign relevant arrays random numbers
     scene.F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
-    scene.Fzodi_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
-    scene.Fexozodi_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
-    scene.Fbinary_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
-    scene.Fp_over_Fs = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
-    scene.Fs_over_F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.Fzodi_list = (
+        np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    )
+    scene.Fexozodi_list = (
+        np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    )
+    scene.Fbinary_list = (
+        np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    )
+    scene.Fp_over_Fs = (
+        np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    )
+    scene.Fs_over_F0 = (
+        np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    )
     scene.ez_PPF = 100 * np.ones(len(scene.Fexozodi_list)) * DIMENSIONLESS
 
     scene.regrid_spectra(parameters, observation)
 
     # check that everything was binned down to the proper wavelength grid
-    assert len(scene.F0) == observation.nlambd    
+    assert len(scene.F0) == observation.nlambd
     assert len(scene.Fzodi_list) == observation.nlambd
     assert len(scene.Fexozodi_list) == observation.nlambd
     assert len(scene.Fbinary_list) == observation.nlambd

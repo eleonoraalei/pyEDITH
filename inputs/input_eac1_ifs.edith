@@ -19,7 +19,6 @@ CRb_multiplier  = 2.          ; factor to multiply to remove background
 psf_trunc_ratio = 0.35      ; truncation ratio of the PSF 
 
 ;--- STAR PARAMETERS ---
-Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
 FstarV_10pc = 1.244e+02     ; flux in the V band (ph/s/cm^2/nm)
 stellar_radius = 0.95            ;   stellar radius (R_sun)

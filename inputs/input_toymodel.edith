@@ -20,7 +20,6 @@ snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same le
 CRb_multiplier  = 2.          ; factor to multiply to remove background
    
 ;--- STAR PARAMETERS ---
-Lstar = 0.86              ;   luminosity of star (solar luminosities)
 distance = 14.8           ;   distance to star (pc)
 Fstar_10pc =  42.25486348                 ; stellar flux at 10 pc at lambda in ph/s/cm^2/nm 
 FstarV_10pc =  42.25486348                 ; stellar flux at 10 pc at the V band in ph/s/cm^2/nm 

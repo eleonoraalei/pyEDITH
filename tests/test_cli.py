@@ -31,7 +31,6 @@ def mock_parameters():
     """
     return {
         "wavelength": [0.5],
-        "Lstar": 1.0,
         "distance": 10,
         "magV": 5.0,
         "nzodis": 3.0,
@@ -192,11 +191,12 @@ def test_calculate_texp(mock_parameters):
     calculate_exposure_time_or_snr functions. It then checks if calculate_texp
     correctly sets up these objects and calls the calculation function.
     """
-    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
-        "pyEDITH.cli.AstrophysicalScene"
-    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
-        "pyEDITH.cli.calculate_exposure_time_or_snr"
-    ) as mock_calculate:
+    with (
+        patch("pyEDITH.cli.Observation") as mock_observation,
+        patch("pyEDITH.cli.AstrophysicalScene") as mock_scene,
+        patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder,
+        patch("pyEDITH.cli.calculate_exposure_time_or_snr") as mock_calculate,
+    ):
 
         # Set up mock objects and their return values
         mock_observation_instance = MagicMock()
@@ -225,15 +225,16 @@ def test_calculate_texp(mock_parameters):
 
     # modify the mock parameters to test IFS mode regridding in scene
     mock_parameters["spectral_resolution"] = [140, 40]
-    mock_parameters["channel_bounds"]  =  1.
+    mock_parameters["channel_bounds"] = 1.0
     mock_parameters["regrid_wavelength"] = True
     mock_parameters["observing_mode"] = "IFS"
 
-    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
-        "pyEDITH.cli.AstrophysicalScene"
-    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
-        "pyEDITH.cli.calculate_exposure_time_or_snr"
-    ) as mock_calculate:
+    with (
+        patch("pyEDITH.cli.Observation") as mock_observation,
+        patch("pyEDITH.cli.AstrophysicalScene") as mock_scene,
+        patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder,
+        patch("pyEDITH.cli.calculate_exposure_time_or_snr") as mock_calculate,
+    ):
 
         # Set up mock objects and their return values
         mock_observation_instance = MagicMock()
@@ -269,11 +270,12 @@ def test_calculate_snr(mock_parameters):
     calculate_exposure_time_or_snr functions. It then checks if calculate_snr
     correctly sets up these objects and calls the calculation function.
     """
-    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
-        "pyEDITH.cli.AstrophysicalScene"
-    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
-        "pyEDITH.cli.calculate_exposure_time_or_snr"
-    ) as mock_calculate:
+    with (
+        patch("pyEDITH.cli.Observation") as mock_observation,
+        patch("pyEDITH.cli.AstrophysicalScene") as mock_scene,
+        patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder,
+        patch("pyEDITH.cli.calculate_exposure_time_or_snr") as mock_calculate,
+    ):
 
         # Set up mock objects and their return values
         mock_observation_instance = MagicMock()
@@ -300,18 +302,18 @@ def test_calculate_snr(mock_parameters):
         mock_builder.create_observatory.assert_called_once()
         mock_calculate.assert_called_once()
 
-
     # modify the mock parameters to test IFS mode regridding in scene
     mock_parameters["spectral_resolution"] = [140, 40]
-    mock_parameters["channel_bounds"]  =  1.
+    mock_parameters["channel_bounds"] = 1.0
     mock_parameters["regrid_wavelength"] = True
     mock_parameters["observing_mode"] = "IFS"
 
-    with patch("pyEDITH.cli.Observation") as mock_observation, patch(
-        "pyEDITH.cli.AstrophysicalScene"
-    ) as mock_scene, patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder, patch(
-        "pyEDITH.cli.calculate_exposure_time_or_snr"
-    ) as mock_calculate:
+    with (
+        patch("pyEDITH.cli.Observation") as mock_observation,
+        patch("pyEDITH.cli.AstrophysicalScene") as mock_scene,
+        patch("pyEDITH.cli.ObservatoryBuilder") as mock_builder,
+        patch("pyEDITH.cli.calculate_exposure_time_or_snr") as mock_calculate,
+    ):
 
         # Set up mock objects and their return values
         mock_observation_instance = MagicMock()

@@ -279,7 +279,6 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
 
     # ------ SCALARS (USED TO BE ARRAYS IN v. 0.2 and earlier) ------
     target_params = [
-        "Lstar",  # used to be [ntargs]
         "distance",  # used to be [ntargs]
         "magV",  # used to be [ntargs]
         "FstarV_10pc",

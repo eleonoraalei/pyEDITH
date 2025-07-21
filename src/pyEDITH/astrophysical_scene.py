@@ -471,8 +471,6 @@ class AstrophysicalScene:
 
     Attributes
     ----------
-    Lstar : float
-        Luminosity of stars in solar luminosities
     dist : float
         Distance to stars in parsecs
     vmag : float
@@ -558,9 +556,6 @@ class AstrophysicalScene:
         """
 
         # -------- INPUTS ---------
-
-        # luminosity of star (solar luminosities) # used to be (ntargs array) now scalar
-        self.Lstar = parameters["Lstar"] * LUMINOSITY
 
         # distance to star (pc) # used to be (ntargs array) now scalar
         self.dist = parameters["distance"] * DISTANCE
@@ -735,7 +730,9 @@ class AstrophysicalScene:
             if not isinstance(parameters["ez_PPF"], (list, np.ndarray)):
                 self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
             else:
-                assert len(parameters["ez_PPF"]) == len(self.Fp_over_Fs), "length of ez_PPF does not match length of Fp_over_Fs"
+                assert len(parameters["ez_PPF"]) == len(
+                    self.Fp_over_Fs
+                ), "length of ez_PPF does not match length of Fp_over_Fs"
                 self.ez_PPF = np.array(parameters["ez_PPF"])
         else:
             print(
@@ -794,7 +791,6 @@ class AstrophysicalScene:
         There can be other variables, but they are not needed for the calculation.
         """
         expected_args = {
-            "Lstar": LUMINOSITY,
             "dist": DISTANCE,
             # "vmag": MAGNITUDE,
             # "mag": MAGNITUDE,

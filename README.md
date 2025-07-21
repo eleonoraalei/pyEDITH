@@ -112,8 +112,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | optimize_phase          | Integer                      | Scalar                   | Flag to optimize planet phase (non-functional)    |     |
 | ntot                    | Integer                      | Scalar                   | Meaning not explicitly defined in code            |     |
 | nmeananom               | Integer                      | Scalar                   | Number of mean anomalies                          |     |
-| norbits                 | Integer                      | Scalar                   | Number of orbits                                  |     |
-| Lstar                   | Solar Luminosity             | Scalar                   | Luminosity of star                                |     |
+| norbits                 | Integer                      | Scalar                   | Number of orbits                                  |     |                             |     |
 | dist                    | Length                       | Scalar                   | Distance to star                                  |     |
 | vmag                    | Magnitude                    | Scalar                   | Stellar magnitude at V band                       |     |
 | mag                     | Magnitude                    | [nlambda]                | Stellar magnitude at desired wavelengths          |     |
@@ -216,7 +215,6 @@ where `omega_lod` is the solid angle of the photometric aperture.
 ## Within `astrophysical_scene.py`
 | Variable Name           | Length    | Unit                         | Meaning                                           | User Editable |
 | ----------------------- | --------- | ---------------------------- | ------------------------------------------------- | ------------- |
-| Lstar                   | Scalar    | Solar Luminosity             | Luminosity of star                                | Yes           |
 | dist                    | Scalar    | pc                       | Distance to star                                  | Yes           |
 | vmag                    | Scalar    | Magnitude                    | Stellar magnitude at V band                       | Yes           |
 | mag                     | [nlambda] | Magnitude                    | Stellar magnitude at desired wavelengths          | Yes           |
