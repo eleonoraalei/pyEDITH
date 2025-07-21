@@ -34,7 +34,7 @@ class MockMediator_IMAGER:
 
     def get_scene_parameter(self, param):
         if param == "stellar_angular_diameter_arcsec":
-            return 0.1 * ARCSEC
+            return 1e-3 * ARCSEC
         else:
             return 1.0
 
@@ -55,7 +55,7 @@ class MockMediator_IFS:
 
     def get_scene_parameter(self, param):
         if param == "stellar_angular_diameter_arcsec":
-            return 0.1 * ARCSEC
+            return 1e-3 * ARCSEC
         else:
             return 1.0
 
