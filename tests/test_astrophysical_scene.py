@@ -663,6 +663,7 @@ def test_regrid_spectra():
     scene.Fbinary_list = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
     scene.Fp_over_Fs = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
     scene.Fs_over_F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
+    scene.ez_PPF = 100 * np.ones(len(scene.Fexozodi_list)) * DIMENSIONLESS
 
     scene.regrid_spectra(parameters, observation)
 
