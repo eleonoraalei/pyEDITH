@@ -52,48 +52,48 @@ $$\mathrm{S/N} = \mathrm{CR}_p \left[\mathrm{CR}_\mathrm{nf}^2 + (\mathrm{CR}_\m
 
 ## Planetary Signal
 The count rate of the planetary target is given by:
-    $$\mathrm{CR}_p= F_0\ 10^{-0.4(m_V+\Delta mag_\mathrm{obs})} A\ \Upsilon\ T\ \Delta \lambda    = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$,
+    $$\mathrm{CR}_p= F_0\ 10^{-0.4(m_V+\Delta mag_\mathrm{obs})} A\ \Upsilon\ T\ \Delta \lambda    = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$
 where $F_p$ is the planet flux at the telescope, and before it proceeds through the observatory, $A$ is the collecting area, $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the optics throughput, $\Delta\lambda$ is the wavelength bin width.
 
 ## Background (noise) count rates
 The background count rate is composed of stellar leakage ($\mathrm{CR}_{b,*}$), zodiacal/exozodiacal light ($\mathrm{CR}_{b,\mathrm{zodi}}$ and $\mathrm{CR}_{b,\mathrm{exozodi}}$, respectively), stellar binary companion flux ($\mathrm{CR}_{b,\mathrm{binary}}$) observatory thermal radiation ($\mathrm{CR}_{b,\mathrm{thermal}}$), and detector noise ($\mathrm{CR}_{b,\mathrm{detector}}$); the equations for all count rates are given below.
 
-The background count rate is given by
-$$\mathrm{CR}_b= \mathrm{CR}_{b,*}+\mathrm{CR}_{b,\mathrm{zodi}}+\mathrm{CR}_{b,\mathrm{exozodi}}+\mathrm{CR}_{b,\mathrm{binary}}+\mathrm{CR}_{b,\mathrm{thermal}}+\mathrm{CR}_{b,\mathrm{detector}}$$.
+The background count rate is given by:
+$$\mathrm{CR}_b= \mathrm{CR}_{b,*}+\mathrm{CR}_{b,\mathrm{zodi}}+\mathrm{CR}_{b,\mathrm{exozodi}}+\mathrm{CR}_{b,\mathrm{binary}}+\mathrm{CR}_{b,\mathrm{thermal}}+\mathrm{CR}_{b,\mathrm{detector}}$$
 
 ### Stellar leakage
 Coronagraphs cannot block all host star light, and so the stellar leakage term is given by:
 $$\mathrm{CR}_{b,*}= F_0\ 10^{-0.4m_v} \ \zeta\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda = F_{*} \ \zeta\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where, $F_*$ is the stellar flux, $\zeta$ is the contrast suppression factor of the coronagraph, and $\Omega$ is the photometric aperture.
+where $F_*$ is the stellar flux, $\zeta$ is the contrast suppression factor of the coronagraph, and $\Omega$ is the photometric aperture.
 
 ### Zodiacal dust
 The count rate of the solar system zodiacal dust is given by:
-$$\mathrm{CR}_{b,\mathrm{zodi}}= F_0\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$,
+$$\mathrm{CR}_{b,\mathrm{zodi}}= F_0\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
 where $F_0$ is the zero-point flux and $z$ is the surface brightness of the zodi.
 
 ### Exozodiacal dust
 The count rate of habitable zone dust in exoplanet systems is given by:
-$$\mathrm{CR}_{b,\mathrm{exozodi}}= F_0\ n 10^{-0.4x} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$, 
+$$\mathrm{CR}_{b,\mathrm{exozodi}}= F_0\ n 10^{-0.4x} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$ 
 where $x$ is the surface brightness in the V band of the exozodi, assumed to be $22\ mag/arcsec^2$ and $n$ is the exozodi multiplier, which controls the density of exozodiacal dust in a system as a multiple of zodiacal dust.
 
 ### Stellar binary companions
 The countrate accounting for flux leakage from stellar binary companions is given by:
-$$\mathrm{CR}_{b,\mathrm{binary}}= F_0\ 10^{-0.4m}\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$, 
+$$\mathrm{CR}_{b,\mathrm{binary}}= F_0\ 10^{-0.4m}\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$ 
 where $m$ is the magnitude of the binary star seen from the planet
 
 ### Thermal background
 The thermal emission of the observatory is given by:
 $$\mathrm{CR}_{b,\mathrm{thermal}}= \frac{B_\lambda}{E_\mathrm{photon}} \ \varepsilon_\mathrm{warm}\ T_\mathrm{cold}\ \mathrm{QE}\ \Omega\ A\ \Delta \lambda$$
-Where $B_\lambda$ is the blackbody function per unit wavelength; $E_{photon}$ is the energy of the photon; $\varepsilon_{warm}$ is the effective emissivity of all warm optics; $T_{cold}$ is the transmission/reflectivity of all cold optics; $QE$ is the detector's quantum efficiency. 
+where $B_\lambda$ is the blackbody function per unit wavelength; $E_{photon}$ is the energy of the photon; $\varepsilon_{warm}$ is the effective emissivity of all warm optics; $T_{cold}$ is the transmission/reflectivity of all cold optics; $QE$ is the detector's quantum efficiency. 
 
 ### Detector noise
 Noise from the detector is given by:
-$$\mathrm{CR}_{b,\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mathrm{RN}}{t_\mathrm{read}}+\frac{\mathrm{CIC}}{t_\mathrm{count}}\right)$$,
+$$\mathrm{CR}_{b,\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mathrm{RN}}{t_\mathrm{read}}+\frac{\mathrm{CIC}}{t_\mathrm{count}}\right)$$
 where $N_\mathrm{pix}$ is the number of detector pixels; $\mathrm{DC}$ is the dark current in units of $e^-$/pix/s, $\mathrm{RN}$ is the read noise in units of   $e^-$/pix/read, $t_\mathrm{read}$ is the read time, $\mathrm{CIC}$ is the clock-induced-charge in units of  $e^-/\mathrm{pix}/\mathrm{photon}$; and $t_\mathrm{count}$ the photon counting time. 
 
 ### Noise floor
 The noise floor count rate simulating imperfect coronagraphic speckle subtraction is given by:
-$$\mathrm{CR}_\mathrm{nf}=\mathrm{NF}\ F_*\ \frac{\Omega}{pixscale^2}\ A\ T\ \Delta\lambda$$,
+$$\mathrm{CR}_\mathrm{nf}=\mathrm{NF}\ F_*\ \frac{\Omega}{\mathrm{pixscale}^2}\ A\ T\ \Delta\lambda$$
 where $\mathrm{NF} = {\mathrm{PSF}_*}/\mathrm{PPF}$. $\mathrm{PSF}_*$ is the on-axis coronagraphic response function and $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30).
 
 # Imaging mode
