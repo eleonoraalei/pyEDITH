@@ -18,7 +18,7 @@ def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
     center of the matrix. Radii are calculated assuming 1 pixel = 1 unit.
     The number of pixels can be odd or even.
 
-    Parameters:
+    Parameters
     -----------
     numx : int
         Number of pixels in the x direction.
@@ -103,18 +103,19 @@ class Coronagraph(ABC):
     Specific coronagraph models should inherit from this class and implement
     their own `generate_secondary_parameters` method.
     Right now, there are two coronagraph sub-classes:
+
     -> ToyModelCoronagraph
-        This is a simplistic coronagraph setup where the user can specify all
-        coronagraph parameters. Use this for testing coronagraph parameters
-        not defined by a Yield Input Package (files containing models of
-        realistic coronagraph responses).
+    This is a simplistic coronagraph setup where the user can specify all
+    coronagraph parameters. Use this for testing coronagraph parameters
+    not defined by a Yield Input Package (files containing models of
+    realistic coronagraph responses).
 
     -> CoronagraphYIP
-        This is a coronagraph setup that is defined by a Yield Input Package (YIP),
-        which contains models of realistic coronagraph responses. User this for
-        testing specific coronagraph cases. Requires a path to a YIP.
+    This is a coronagraph setup that is defined by a Yield Input Package (YIP),
+    which contains models of realistic coronagraph responses. User this for
+    testing specific coronagraph cases. Requires a path to a YIP.
 
-    Attributes:
+    Parameters
     -----------
     Istar : np.ndarray
         Star intensity distribution.
@@ -432,7 +433,7 @@ class CoronagraphYIP(Coronagraph):
 
         # ***** Load the YIP using yippy *****
         yippy_obj = yippycoro(self.path)
-        
+
         # get nrolls from yippy, if it exists in the YIP files
         if hasattr(yippy_obj, "nrolls"):
             self.DEFAULT_CONFIG["nrolls"] = yippy_obj.nrolls

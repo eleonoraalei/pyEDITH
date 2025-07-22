@@ -161,7 +161,7 @@ def calculate_CRbz(
     """
     Calculate the local zodiacal light count rate.
 
-     Parameters
+    Parameters
     ----------
     F0 : u.Quantity
         Flux zero point. [photons / (s * cm^2 * nm)]
@@ -635,6 +635,7 @@ def calculate_CRnf(
         * noisefloor
     )
 
+
 def calculate_CRnf_ez(
     CRbez: u.Quantity,
     SNR: u.Quantity,
@@ -656,10 +657,7 @@ def calculate_CRnf_ez(
     u.Quantity
         Noise floor count rate. [photons / s]
     """
-    return (
-        SNR * CRbez / ez_PPF
-    )
-
+    return SNR * CRbez / ez_PPF
 
 
 def measure_coronagraph_performance_at_IWA(
@@ -812,8 +810,8 @@ def calculate_exposure_time_or_snr(
         "CRnf_ez": np.empty(observation.nlambd),
         "CRnf": np.empty(observation.nlambd),
         "CRb": np.empty(observation.nlambd),
-        "omega_lod" : np.empty(observation.nlambd),
-        "PPF_ez":np.empty(observation.nlambd),
+        "omega_lod": np.empty(observation.nlambd),
+        "PPF_ez": np.empty(observation.nlambd),
     }
 
     for ilambd in range(observation.nlambd):
@@ -1068,7 +1066,6 @@ def calculate_exposure_time_or_snr(
                 )
                 observation.photon_counts["CRp"][ilambd] = CRp.value
 
-
                 # Calculate CRbez; this must happen here in order to estimate the exozodi noisefloor
                 CRbez = calculate_CRbez(
                     scene.F0[ilambd],
@@ -1091,9 +1088,11 @@ def calculate_exposure_time_or_snr(
                     ].value
                 )
 
-                observation.photon_counts["omega_lod"][ilambd] = observatory.coronagraph.omega_lod[
+                observation.photon_counts["omega_lod"][ilambd] = (
+                    observatory.coronagraph.omega_lod[
                         int(np.floor(iy)), int(np.floor(ix)), iratio
                     ].value
+                )
 
                 # NOISE FLOOR CRNF
                 if mode == "exposure_time":
@@ -1113,9 +1112,14 @@ def calculate_exposure_time_or_snr(
                     )
 
                     # calculate the exozodi noisefloor to account for imperfect exozodi removal
-                    CRnf_ez = calculate_CRnf_ez(CRbez * observatory.coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)), iratio].value,
-                                                observation.SNR[ilambd],
-                                                scene.ez_PPF[ilambd])
+                    CRnf_ez = calculate_CRnf_ez(
+                        CRbez
+                        * observatory.coronagraph.omega_lod[
+                            int(np.floor(iy)), int(np.floor(ix)), iratio
+                        ].value,
+                        observation.SNR[ilambd],
+                        scene.ez_PPF[ilambd],
+                    )
 
                 elif mode == "signal_to_noise":
                     #  NOTE THIS TIME THIS IS JUST THE NOISE
@@ -1135,9 +1139,7 @@ def calculate_exposure_time_or_snr(
                             int(np.floor(iy)), int(np.floor(ix))
                         ],
                     )
-                    CRnf_ez = calculate_CRnf_ez(CRbez,
-                                                1,
-                                                scene.ez_PPF[ilambd])
+                    CRnf_ez = calculate_CRnf_ez(CRbez, 1, scene.ez_PPF[ilambd])
 
                 # multiply by omega at that point
                 CRnf_s *= observatory.coronagraph.omega_lod[
@@ -1145,7 +1147,9 @@ def calculate_exposure_time_or_snr(
                 ]
                 observation.photon_counts["CRnf_s"][ilambd] = CRnf_s.value
 
-                CRnf_ez *= observatory.coronagraph.omega_lod[int(np.floor(iy)), int(np.floor(ix)), iratio]
+                CRnf_ez *= observatory.coronagraph.omega_lod[
+                    int(np.floor(iy)), int(np.floor(ix)), iratio
+                ]
                 observation.photon_counts["CRnf_ez"][ilambd] = CRnf_ez.value
 
                 # total noisefloor
@@ -1362,7 +1366,8 @@ def calculate_exposure_time_or_snr(
                         # )
                         # rewrote the above equation to properly evaluate the SNR when time = inf
                         observation.fullsnr[ilambd] = (
-                            np.sqrt(CRp**2 / (1 * ELECTRON / time_factors +  CRnf**2) )* DIMENSIONLESS
+                            np.sqrt(CRp**2 / (1 * ELECTRON / time_factors + CRnf**2))
+                            * DIMENSIONLESS
                         )
 
                         # UNITS:
@@ -1373,7 +1378,6 @@ def calculate_exposure_time_or_snr(
                     observation.validation_variables[ilambd] = {
                         "F0": scene.F0[ilambd],
                         "magstar": scene.mag,
-                        "Lstar": scene.Lstar,
                         "dist": scene.dist,
                         "D": observatory.telescope.diameter,
                         "A_cm": area_cm2,

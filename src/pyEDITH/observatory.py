@@ -12,7 +12,7 @@ class Observatory(ABC):  # abstract class
     used in the calculation. It includes abstract methods that must be implemented
     by concrete subclasses.
 
-    Attributes
+    Parameters
     ----------
     telescope : Telescope
         The telescope component of the observatory.
@@ -21,10 +21,6 @@ class Observatory(ABC):  # abstract class
     coronagraph : Coronagraph
         The coronagraph component of the observatory.
 
-    Methods
-    -------
-    initialize(parameters: dict) -> None
-        Abstract method to initialize the observatory with given parameters.
     """
 
     def __init__(self):

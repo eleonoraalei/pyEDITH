@@ -12,7 +12,7 @@ class Detector(ABC):
     This class manages detector-specific parameters and configurations
     used in astronomical simulations and observations.
 
-    Attributes
+    Parameters
     ----------
     pixscale_mas : float
         Detector pixel scale in milliarcseconds.

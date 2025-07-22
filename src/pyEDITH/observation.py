@@ -12,7 +12,7 @@ class Observation:
     characteristics, observational settings, telescope specifications,
     instrument details, and detector parameters.
 
-    Attributes:
+    Parameters
     -----------
     lambd : np.ndarray
         Wavelength array (in microns).
@@ -106,7 +106,8 @@ class Observation:
                 parameters["wavelength"],
                 parameters["spectral_resolution"],
                 parameters["lam_low"],
-                parameters["lam_high"],            )
+                parameters["lam_high"],
+            )
             self.wavelength = (
                 new_lam * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron

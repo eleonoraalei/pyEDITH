@@ -6,13 +6,25 @@
         }
     },
     "coronagraphs": {
-        "AAVC": {
+        "EAC1_VVC": {
             "class": "CoronagraphYIP",
-            "path": "AAVC_coronagraph"
+            "path": "EAC1_VVC_20bw_2025-03-25"
+        },
+        "EAC2_VVC": {
+            "class": "CoronagraphYIP",
+            "path": "EAC2_VVC_20bw_2025-04-01"
+        },
+        "APLC": {
+            "class": "CoronagraphYIP",
+            "path": "HWO_APLC_10bw_smallFPM_2025-03-25"
         },
         "LUVOIR": {
             "class": "CoronagraphYIP",
             "path": "usort_offaxis_ovc"
+        },
+        "LUVOIRbetatest": {
+            "class": "CoronagraphYIP",
+            "path": "LUVOIR-B-VC6_timeseries"
         }
     },
     "detectors": {

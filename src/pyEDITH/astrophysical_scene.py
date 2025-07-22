@@ -66,8 +66,8 @@ def calc_flux_zero_point(
     By default, it returns Johnson zero points. If the 'AB' flag is set, it will
     return AB flux zero points.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     lambd : astropy.units.Quantity
         Wavelengths. Must be in units of length.
     output_unit : str, optional
@@ -86,13 +86,13 @@ def calc_flux_zero_point(
         If True, print additional information.
         Default is False.
 
-    Returns:
-    --------
+    Returns
+    -------
     astropy.units.Quantity
         Flux zero points for the given wavelengths in the specified units.
 
-    Raises:
-    -------
+    Raises
+    ------
     ValueError
         If output_unit is not specified or is invalid, or if incompatible options are selected.
     """
@@ -181,8 +181,8 @@ def calc_exozodi_flux(
     account their absolute and apparent magnitudes, the number of exozodis, and the
     observational wavelengths.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     M_V : Quantity
         V band absolute magnitude of stars.
     vmag : Quantity
@@ -196,8 +196,8 @@ def calc_exozodi_flux(
     F0lambd : Quantity
         Flux zero point at wavelength lambd (vector of length nlambd).
 
-    Returns:
-    --------
+    Returns
+    -------
     Quantity
         Exozodi surface brightness in units of photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0.
         This is equivalent to 10^(-0.4*magOmega_EZ).
@@ -255,8 +255,8 @@ def calc_zodi_flux(
     observation wavelengths, and whether a starshade is used. It uses the model from
     Leinert et al. (1998) to calculate the zodiacal light intensity.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     dec : Quantity
         Declination of targets in degrees (J2000 equatorial coordinate).
     ra : Quantity
@@ -265,13 +265,9 @@ def calc_zodi_flux(
         Wavelengths in microns (vector of length nlambd).
     F0 : Quantity
         Flux zero points at wavelengths lambd (vector of length nlambd).
-    # starshade : bool, optional
-    #     Flag to enable starshade mode (default is False).
-    # ss_elongation : Quantity, optional
-    #     Mean solar elongation for the starshade's observations in degrees (required if starshade=True).
 
-    Returns:
-    --------
+    Returns
+    -------
     np.ndarray
         Zodi surface brightness in units of photons s^-1 cm^-2 arcsec^-2 nm^-1 / F0.
         This is equivalent to 10^(-0.4*magOmega_ZL).
@@ -279,13 +275,13 @@ def calc_zodi_flux(
         - Multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
         The output array has dimensions (nlambd, nstars).
 
-    Raises:
-    -------
+    Raises
+    ------
     ValueError
         If F0 and lambd have different lengths, or if starshade mode is inconsistent with ss_elongation.
 
-    Notes:
-    ------
+    Notes
+    -----
     - The function uses the zodiacal light model from Leinert et al. (1998).
     - For coronagraph mode, it assumes observations near solar longitude of 135 degrees.
     - Starshade functionality is currently not fully implemented.
@@ -469,7 +465,7 @@ class AstrophysicalScene:
     This class encapsulates various astrophysical parameters and methods to calculate
     zodi and exozodi fluxes for a set of target stars and their potential exoplanets.
 
-    Attributes
+    Parameters
     ----------
     dist : float
         Distance to stars in parsecs
@@ -510,12 +506,6 @@ class AstrophysicalScene:
     Fp_over_Fs : ndarray
         Flux of planets
 
-    Methods
-    -------
-    load_configuration(parameters)
-        Load configuration parameters for the simulation from a dictionary.
-    calculate_zodi_exozodi(observation)
-        Calculate zodiacal and exozodiacal light fluxes for the given observation.
     """
 
     def __init__(self) -> None:

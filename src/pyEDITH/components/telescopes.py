@@ -12,7 +12,7 @@ class Telescope(ABC):
     This class provides methods to initialize and configure a telescope
     for simulating observations of exoplanets and their host stars.
 
-    Attributes
+    Parameters
     ----------
     diameter : float
         Circumscribed diameter of the telescope aperture in meters.

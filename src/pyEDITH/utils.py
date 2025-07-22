@@ -78,16 +78,21 @@ def validate_attributes(obj: Any, expected_args: Dict[str, Any]) -> None:
     """
     Validate attributes of an object against expected types and units.
 
-    Parameters:
+    Parameters
+    ----------
     obj: object
         The object whose attributes are to be validated.
     expected_args: dict
         A dictionary where keys are attribute names and values are expected types or units.
 
-    Raises:
-    AttributeError: If a required attribute is missing.
-    TypeError: If an attribute has an incorrect type.
-    ValueError: If a Quantity attribute has incorrect units or if there's an unexpected type specification.
+    Raises
+    ------
+    AttributeError
+        If a required attribute is missing.
+    TypeError
+        If an attribute has an incorrect type.
+    ValueError
+        If a Quantity attribute has incorrect units or if there's an unexpected type specification.
     """
     class_name = obj.__class__.__name__
 
@@ -451,8 +456,10 @@ def synthesize_observation(
 
 def wavelength_grid_fixed_res(x_min, x_max, res=-1):
     """
-    Generates a wavelength grid at a fixed resolution of res
-    inputs:
+    Generates a wavelength grid at a fixed resolution of res.
+
+    Parameters
+    ----------
         x_min : float
             minimum wavelength
         x_max : float
@@ -497,22 +504,23 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
     """
     Creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
 
-    Inputs:
+    Parameters
+    ----------
     input_wls : float, 1D arr
         the wavelength grid the user supplies
     res : float, 1D arr
         array of desired resolutions for each channel. should be length of the number of spectral channels
         for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
     lam_low : float, 1D arr
-        array of the lower boundaries of spectral channels. 
+        array of the lower boundaries of spectral channels.
     lam_high : float, 1D arr
-        array of the upper boundaries of spectral channels. 
+        array of the upper boundaries of spectral channels.
     """
 
     if lam_low is None and lam_high is None:
         lam_low = [np.min(input_wls[1:])]
         lam_high = [np.max(input_wls[:-1])]
-    else:# lam_low is not None and lam_high is not None:
+    else:  # lam_low is not None and lam_high is not None:
         assert len(res) == len(lam_low) == len(lam_high)
 
     if len(res) > 1:
@@ -592,9 +600,10 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
 
 def regrid_spec_interp(input_wls, input_spec, new_lam):
     """
-    regrids a spectrum onto a new wavelength grid using 1D interpolation
+    Regrids a spectrum onto a new wavelength grid using 1D interpolation.
 
-    Inputs:
+    Parameters
+    ----------
     input_wls : float, 1D arr
         the wavelength grid the user supplies
     input_spec : float, 1D arr

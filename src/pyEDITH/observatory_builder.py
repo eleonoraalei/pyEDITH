@@ -147,12 +147,17 @@ class ObservatoryBuilder:
         """
         Configure an existing observatory with the given configuration.
 
-        Parameters:
-        observatory (Observatory): The observatory to configure.
-        config (dict): Configuration parameters.
+        Parameters
+        ----------
+            observatory: Observatory
+                The observatory to configure.
+            config: dict
+                Configuration parameters.
 
-        Returns:
-        Observatory: The configured observatory.
+        Returns
+        -------
+            Observatory: Observatory
+                The configured observatory.
         """
         observatory.load_configuration(config, observation, scene)
         return observatory
@@ -216,14 +221,20 @@ class ObservatoryBuilder:
         """
         Get the configuration for a specific preset.
 
-        Parameters:
-        preset_name (str): Name of the preset.
+        Parameters
+        ----------
+        preset_name: str
+            Name of the preset.
 
-        Returns:
-        dict: Configuration of the specified preset.
+        Returns
+        -------
+        dict: dict
+            Configuration of the specified preset.
 
-        Raises:
-        ValueError: If the preset name does not exist.
+        Raises
+        ------
+        ValueError
+            If the preset name does not exist.
         """
         preset_config = cls.PRESETS.get(preset_name)
         if preset_config is None:
@@ -237,11 +248,15 @@ class ObservatoryBuilder:
         """
         Validate a configuration dictionary.
 
-        Parameters:
-        config (dict): Configuration to validate.
+        Parameters
+        ----------
+        config: dict
+            Configuration to validate.
 
-        Raises:
-        ValueError: If the configuration is invalid.
+        Raises
+        ------
+        ValueError
+            If the configuration is invalid.
         """
         required_keys = ["telescope", "coronagraph", "detector"]
         for key in required_keys:
@@ -255,14 +270,19 @@ class ObservatoryBuilder:
     @classmethod
     def modify_preset(cls, preset_name, **kwargs):
         """
-        Modify an existing preset configuration.
+        Modify a preset configuration.
 
-        Parameters:
-        preset_name (str): Name of the preset to modify.
-        **kwargs: Key-value pairs to update in the preset configuration.
+        Parameters
+        ----------
+        preset_name : str
+            Name of the preset to modify.
+        **kwargs
+            Keyword arguments representing the parameters to modify.
 
-        Raises:
-        ValueError: If the preset name does not exist or if invalid keys are provided.
+        Raises
+        ------
+        ValueError
+            If the preset does not exist.
         """
         if preset_name not in cls.PRESETS:
             raise ValueError(f"Preset '{preset_name}' does not exist")
