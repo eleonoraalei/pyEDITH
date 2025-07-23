@@ -658,10 +658,9 @@ def test_regrid_spectra():
 
     # Create a mock Observation object
     class MockObservation:
-        wavelength = (
-            np.linspace(0.5, 1.7, 100) * WAVELENGTH,
-        )  # the binned-down wavelength grid calculated with the specified R and channel cutoffs
+        wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH  # the binned-down wavelength grid calculated with the specified R and channel cutoffs
         nlambd = len(wavelength)
+        delta_wavelength = np.gradient(wavelength)
 
     observation = MockObservation()
 

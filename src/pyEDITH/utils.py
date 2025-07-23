@@ -539,63 +539,65 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
     return lam, dlam
 
 
-# def regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam):
-#     """
-#     Regrids a spectrum onto a new wavelength grid using gaussian convolution.
+def regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam):
+    """
+    Regrids a spectrum onto a new wavelength grid using gaussian convolution.
 
-#     Inputs:
-#     input_wls : float, 1D arr
-#         the wavelength grid the user supplies
-#     input_spec : float, 1D arr
-#         the spectrum the user supplies
-#     new_lam : float, 1D arr
-#         the new wavelength grid we calculated for the ETC
-#     new_lam : float, 1D arr
-#         the new delta wavelength grid we calculated for the ETC
+    Inputs:
+    input_wls : float, 1D arr
+        the wavelength grid the user supplies
+    input_spec : float, 1D arr
+        the spectrum the user supplies
+    new_lam : float, 1D arr
+        the new wavelength grid we calculated for the ETC
+    new_lam : float, 1D arr
+        the new delta wavelength grid we calculated for the ETC
 
-#     """
-#     R_arr = new_lam / new_dlam
+    """
+    input_spec_unit = input_spec.unit
 
-#     # interpolate original spectrum onto a fine log-lambda grid
-#     loglam_old = np.log(input_wls)
-#     interp_flux = interp1d(loglam_old, input_spec, bounds_error=False, fill_value=0.0)
+    R_arr = new_lam / new_dlam
 
-#     # make fine log-lambda grid
-#     dloglam = 1e-5
-#     loglam_grid = np.arange(loglam_old[0], loglam_old[-1], dloglam)
-#     lam_grid = np.exp(loglam_grid)
-#     flux_grid = interp_flux(loglam_grid)
+    # interpolate original spectrum onto a fine log-lambda grid
+    loglam_old = np.log(input_wls)
+    interp_flux = interp1d(loglam_old, input_spec, bounds_error=False, fill_value=0.0)
 
-#     spec_regrid = np.zeros_like(new_lam)
+    # make fine log-lambda grid
+    dloglam = 1e-5
+    loglam_grid = np.arange(loglam_old[0], loglam_old[-1], dloglam)
+    lam_grid = np.exp(loglam_grid)
+    flux_grid = interp_flux(loglam_grid)
 
-#     for i in range(len(new_lam)):
-#         lam = new_lam[i]
-#         R = R_arr[i]
+    spec_regrid = np.zeros_like(new_lam)
 
-#         # get width of gaussian: sigma = FWHM / (2*np.sqrt(2*np.log(2))), where FWHM is dlam, but this is in logspace, so FWHM = 1/R
-#         sigma_loglam = 1.0 / (R * 2.0 * np.sqrt(2 * np.log(2)))
+    for i in range(len(new_lam)):
+        lam = new_lam[i]
+        R = R_arr[i]
 
-#         # Gaussian kernel in log-space
-#         kernel_half_width = int(4 * sigma_loglam / dloglam)
-#         kernel_grid = np.arange(-kernel_half_width, kernel_half_width + 1)
-#         kernel = np.exp(-0.5 * (kernel_grid * dloglam / sigma_loglam) ** 2)
-#         kernel /= np.sum(kernel)
+        # get width of gaussian: sigma = FWHM / (2*np.sqrt(2*np.log(2))), where FWHM is dlam, but this is in logspace, so FWHM = 1/R
+        sigma_loglam = 1.0 / (R * 2.0 * np.sqrt(2 * np.log(2)))
 
-#         # Find center index
-#         center_idx = np.searchsorted(lam_grid, lam)
+        # Gaussian kernel in log-space
+        kernel_half_width = int(4 * sigma_loglam / dloglam)
+        kernel_grid = np.arange(-kernel_half_width, kernel_half_width + 1)
+        kernel = np.exp(-0.5 * (kernel_grid * dloglam / sigma_loglam) ** 2)
+        kernel /= np.sum(kernel)
 
-#         # Define convolution range safely
-#         i1 = max(center_idx - kernel_half_width, 0)
-#         i2 = min(center_idx + kernel_half_width + 1, len(flux_grid))
-#         k1 = kernel_half_width - (center_idx - i1)
-#         k2 = kernel_half_width + (i2 - center_idx)
+        # Find center index
+        center_idx = np.searchsorted(lam_grid, lam)
 
-#         # Perform local convolution
-#         flux_segment = flux_grid[i1:i2]
-#         kernel_segment = kernel[k1:k2]
-#         spec_regrid[i] = np.sum(flux_segment * kernel_segment)
+        # Define convolution range safely
+        i1 = max(center_idx - kernel_half_width, 0)
+        i2 = min(center_idx + kernel_half_width + 1, len(flux_grid))
+        k1 = kernel_half_width - (center_idx - i1)
+        k2 = kernel_half_width + (i2 - center_idx)
 
-#     return spec_regrid
+        # Perform local convolution
+        flux_segment = flux_grid[i1:i2]
+        kernel_segment = kernel[k1:k2]
+        spec_regrid[i] = np.sum(flux_segment * kernel_segment)
+
+    return spec_regrid*input_spec_unit
 
 
 def regrid_spec_interp(input_wls, input_spec, new_lam):

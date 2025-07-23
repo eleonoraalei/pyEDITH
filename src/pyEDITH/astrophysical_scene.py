@@ -809,24 +809,24 @@ class AstrophysicalScene:
         """function to re-grid onto a new wavelength grid if the user specified this option"""
         # spectra to regrid: F0, Fzodi_list, Fexozodi_list, Fbinary_list, Fp_over_Fs, Fs_over_F0
         print("Re-gridding spectra onto ETC wavelength grid...")
-        self.F0 = utils.regrid_spec_interp(
-            parameters["wavelength"], self.F0, observation.wavelength
+        self.F0 = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.F0, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.Fzodi_list = utils.regrid_spec_interp(
-            parameters["wavelength"], self.Fzodi_list, observation.wavelength
+        self.Fzodi_list = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.Fzodi_list, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.Fexozodi_list = utils.regrid_spec_interp(
-            parameters["wavelength"], self.Fexozodi_list, observation.wavelength
+        self.Fexozodi_list = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.Fexozodi_list, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.Fbinary_list = utils.regrid_spec_interp(
-            parameters["wavelength"], self.Fbinary_list, observation.wavelength
+        self.Fbinary_list = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.Fbinary_list, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.Fp_over_Fs = utils.regrid_spec_interp(
-            parameters["wavelength"], self.Fp_over_Fs, observation.wavelength
+        self.Fp_over_Fs = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.Fp_over_Fs, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.Fs_over_F0 = utils.regrid_spec_interp(
-            parameters["wavelength"], self.Fs_over_F0, observation.wavelength
+        self.Fs_over_F0 = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.Fs_over_F0, observation.wavelength.value, observation.delta_wavelength.value
         )
-        self.ez_PPF = utils.regrid_spec_interp(
-            parameters["wavelength"], self.ez_PPF, observation.wavelength
+        self.ez_PPF = utils.regrid_spec_gaussconv(
+            parameters["wavelength"], self.ez_PPF, observation.wavelength.value, observation.delta_wavelength.value
         )
