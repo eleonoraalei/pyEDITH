@@ -499,10 +499,10 @@ def test_regrid_wavelengths():
 
 
 def test_regrid_spec_gauss():
-    input_wls = np.linspace(0.4, 2.0, 100)
-    input_spec = np.random.rand(100)
-    new_lam = np.linspace(0.5, 1.9, 50)
-    new_dlam = np.full_like(new_lam, 0.01)
+    input_wls = np.linspace(0.4, 2.0, 100) 
+    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
+    new_lam = np.linspace(0.5, 1.9, 50) 
+    new_dlam = np.gradient(new_lam) 
 
     spec_regrid = regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam)
 
