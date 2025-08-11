@@ -498,15 +498,15 @@ def test_regrid_wavelengths():
     regrid_wavelengths(input_wls, [100])  # no bounds
 
 
-# def test_regrid_spec_gauss():
-#     input_wls = np.linspace(0.4, 2.0, 100)
-#     input_spec = np.random.rand(100)
-#     new_lam = np.linspace(0.5, 1.9, 50)
-#     new_dlam = np.full_like(new_lam, 0.01)
+def test_regrid_spec_gauss():
+    input_wls = np.linspace(0.4, 2.0, 100)
+    input_spec = np.random.rand(100)
+    new_lam = np.linspace(0.5, 1.9, 50)
+    new_dlam = np.full_like(new_lam, 0.01)
 
-#     spec_regrid = regrid_spec_gauss(input_wls, input_spec, new_lam, new_dlam)
+    spec_regrid = regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam)
 
-#     assert len(spec_regrid) == len(new_lam)
+    assert len(spec_regrid) == len(new_lam)
 
 
 def test_regrid_spec_interp():
