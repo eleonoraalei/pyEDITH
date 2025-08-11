@@ -23,11 +23,24 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "myst_parser",
     "nbsphinx",
 ]
 
+
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+    ".ipynb": "jupyter_notebook",
+}
+
+# NBSphinx settings
 nbsphinx_execute = "auto"
-nbsphinx_allow_errors = True
+
+# MyST settings
+myst_enable_extensions = [
+    "colon_fence",
+]
 
 templates_path = ["_templates"]
 

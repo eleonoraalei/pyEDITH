@@ -2,6 +2,7 @@ from pyEDITH import AstrophysicalScene, Observation, ObservatoryBuilder
 from pyEDITH import calculate_exposure_time_or_snr, parse_input
 from argparse import ArgumentParser
 import numpy as np
+import astropy.units as u
 import sys
 
 import os
@@ -156,7 +157,10 @@ def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(parameters)
     scene.validate_configuration()
-    if parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is True:
+    if (
+        parameters["observing_mode"] == "IFS"
+        and parameters["regrid_wavelength"] is True
+    ):
         scene.regrid_spectra(parameters, observation)
 
     # Create and configure Observatory using ObservatoryBuilder
@@ -215,7 +219,10 @@ def calculate_snr(parameters, reference_texp, verbose):
     scene = AstrophysicalScene()
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(parameters)
-    if parameters["observing_mode"] == "IFS" and parameters["regrid_wavelength"] is True:
+    if (
+        parameters["observing_mode"] == "IFS"
+        and parameters["regrid_wavelength"] is True
+    ):
         scene.regrid_spectra(parameters, observation)
 
     # Create and configure Observatory using ObservatoryBuilder

@@ -1,6 +1,7 @@
 sphinx
-sphinx_rtd_theme
+sphinx_book_theme
 nbsphinx
 ipython
 pandoc
 furo
+myst_parser

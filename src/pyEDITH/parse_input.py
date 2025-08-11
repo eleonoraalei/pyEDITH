@@ -331,6 +331,7 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
         "coronagraph_type",
         "detector_type",
         "observing_mode",
+        "regrid_wavelength",
     ]:
 
         if key in parameters.keys():

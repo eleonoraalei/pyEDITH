@@ -231,14 +231,14 @@ def test_observatory_validate_configuration(mock_observatory):
 def test_calculate_optics_throughput(mock_observatory, mock_observation, mock_scene):
     """Test calculation of optics throughput"""
     # Test with T_optical parameter
-    parameters = {"T_optical": 0.8, "observing_mode": "IMAGER"}
+    parameters = {"T_optical": [0.8], "observing_mode": "IMAGER"}
     mock_observatory.telescope.load_configuration({}, {})
     mock_observatory.coronagraph.load_configuration({}, {})
     mock_observatory.detector.load_configuration({}, {})
     mediator = ObservatoryMediator(mock_observatory, mock_observation, mock_scene)
 
     mock_observatory.calculate_optics_throughput(parameters, mediator)
-    assert mock_observatory.optics_throughput.value == 0.8
+    assert mock_observatory.optics_throughput.value == [0.8]
 
     # Test with IFS mode
     parameters = {"T_optical": [0.8], "observing_mode": "IFS", "IFS_eff": [0.9]}
@@ -248,10 +248,10 @@ def test_calculate_optics_throughput(mock_observatory, mock_observation, mock_sc
     # Test without T_optical parameter
     parameters = {"observing_mode": "IMAGER"}
     mock_observatory.calculate_optics_throughput(parameters, mediator)
-    expected = (
+    expected = [
         mock_observatory.telescope.telescope_optical_throughput.value[0]
         * mock_observatory.coronagraph.coronagraph_optical_throughput.value[0]
-    )
+    ]
     assert mock_observatory.optics_throughput.value == expected
 
 
@@ -291,12 +291,12 @@ def test_calculate_total_throughput(mock_observatory):
 
 def test_load_configuration(mock_observatory, mock_observation, mock_scene):
     """Test loading configuration"""
-    parameters = {"observing_mode": "IMAGER", "T_optical": 0.8}
+    parameters = {"observing_mode": "IMAGER", "T_optical": [0.8]}
 
     mock_observatory.load_configuration(parameters, mock_observation, mock_scene)
 
     assert mock_observatory.observing_mode == "IMAGER"
-    assert mock_observatory.optics_throughput.value == 0.8
+    assert mock_observatory.optics_throughput.value == [0.8]
     assert hasattr(mock_observatory, "epswarmTrcold")
     assert hasattr(mock_observatory, "total_throughput")
 

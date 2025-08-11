@@ -68,13 +68,12 @@ class Observatory(ABC):  # abstract class
             )
 
             self.optics_throughput *= ifs_eff
-            # if IFS and optics_throughput is a number (can happen in ToyModel), make it an array of length nlambda
-            if len(self.optics_throughput) == 1:
-                self.optics_throughput = self.optics_throughput[0] * np.ones_like(
-                    mediator.get_observation_parameter("wavelength").value
-                )
-        else:
-            pass
+
+        # if optics_throughput is a number and wavelength>1, make it an array of length nlambda
+        if len(self.optics_throughput) == 1:
+            self.optics_throughput = self.optics_throughput[0] * np.ones_like(
+                mediator.get_observation_parameter("wavelength").value
+            )
 
     def calculate_warmemissivity_coldtransmission(self, parameters, mediator):
         """

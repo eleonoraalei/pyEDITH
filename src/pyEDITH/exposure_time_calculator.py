@@ -1345,13 +1345,12 @@ def calculate_exposure_time_or_snr(
                         # SIGNAL-TO-NOISE
                         # time term
                         time_factors = (
-                            observation.obstime * observatory.coronagraph.nrolls
+                            observation.obstime / observatory.coronagraph.nrolls
                             - observatory.telescope.toverhead_fixed
                         ) / (
                             observatory.telescope.toverhead_multi
                             * ((CRp + observation.CRb_multiplier * CRb))
                         )
-
                         # UNITS:
                         # ([s]*[]-[s])/([electron/s]+[]*[electron/s])
                         # [s]/[electron/s]=[s^2/electron]
@@ -1368,7 +1367,7 @@ def calculate_exposure_time_or_snr(
                         observation.fullsnr[ilambd] = (
                             np.sqrt(CRp**2 / (1 * ELECTRON / time_factors + CRnf**2))
                             * DIMENSIONLESS
-                        )
+                        ).decompose()  # Ensure all units are simplified
 
                         # UNITS:
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=

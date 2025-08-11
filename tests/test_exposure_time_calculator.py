@@ -352,7 +352,7 @@ def test_calculate_exposure_time_or_snr(capsys):
     )
     assert hasattr(observation, "fullsnr")
     assert observation.fullsnr.unit == (u.dimensionless_unscaled)
-    assert np.isclose(observation.fullsnr.value, 5.14487031)
+    assert np.isclose(observation.fullsnr.value, 2.00051)
 
     # Setting values (used for ETC validation)
     observatory.detector.det_npix_input = 100 * DIMENSIONLESS
