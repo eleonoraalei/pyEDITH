@@ -53,7 +53,7 @@ $$\mathrm{S/N} = \mathrm{CR}_p \left[\mathrm{CR}_\mathrm{nf}^2 + (\mathrm{CR}_\m
 ## Planetary Signal
 The count rate of the planetary target is given by:
     $$\mathrm{CR}_p = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_p$ is the planet flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}] at the telescope, and before it proceeds through the observatory, $A$ is the collecting area [cm$^2$], $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the optics throughput, $\Delta\lambda$ is the wavelength bin width [nm].
+where $F_p$ is the planet flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}$] at the telescope, and before it proceeds through the observatory, $A$ is the collecting area [cm$^2$], $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the optics throughput, $\Delta\lambda$ is the wavelength bin width [nm].
 
 ## Background (noise) count rates
 The background count rate is composed of stellar leakage ($\mathrm{CR}_{b,*}$), zodiacal/exozodiacal light ($\mathrm{CR}_{b,\mathrm{zodi}}$ and $\mathrm{CR}_{b,\mathrm{exozodi}}$, respectively), observatory thermal radiation ($\mathrm{CR}_{b,\mathrm{thermal}}$), and detector noise ($\mathrm{CR}_{b,\mathrm{detector}}$); the equations for all count rates are given below.
@@ -64,12 +64,12 @@ $$\mathrm{CR}_b= \mathrm{CR}_{b,*}+\mathrm{CR}_{b,\mathrm{zodi}}+\mathrm{CR}_{b,
 ### Stellar leakage
 Coronagraphs cannot block all host star light, and so the stellar leakage term is given by:
 $$\mathrm{CR}_{b,*} = F_{*} \ \zeta\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_*$ is the stellar flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}], $\zeta$ is the contrast suppression factor of the coronagraph, and $\Omega$ is the photometric aperture.
+where $F_*$ is the stellar flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}$], $\zeta$ is the contrast suppression factor of the coronagraph, and $\Omega$ is the photometric aperture.
 
 ### Zodiacal dust
 The count rate of the solar system zodiacal dust is given by:
 $$\mathrm{CR}_{b,\mathrm{zodi}}= F_0\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}] and $z$ is the surface brightness of the zodi, nominally $23\ mag/arcsec^2$. The zodiacal dust is assumed to be a gray scatterer of stellar light. 
+where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \mathrm{s} \mathrm{nm}}$] and $z$ is the surface brightness of the zodi, nominally $23\ mag/arcsec^2$. The zodiacal dust is assumed to be a gray scatterer of stellar light. 
 
 ### Exozodiacal dust
 The count rate of habitable zone dust in exoplanet systems is given by:
