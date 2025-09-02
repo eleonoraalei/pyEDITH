@@ -37,10 +37,13 @@ source_suffix = {
 # NBSphinx settings
 nbsphinx_execute = "auto"
 
+nbsphinx_toc_tree_section = 3
+
 # MyST settings
 myst_enable_extensions = [
     "colon_fence",
 ]
+myst_heading_anchors = 3
 
 templates_path = ["_templates"]
 
@@ -76,3 +79,4 @@ def add_filter_to_env(app):
 
 def setup(app):
     app.connect("builder-inited", add_filter_to_env)
+    app.add_css_file("custom.css")

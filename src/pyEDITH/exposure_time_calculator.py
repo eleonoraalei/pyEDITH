@@ -1373,6 +1373,8 @@ def calculate_exposure_time_or_snr(
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
                         # [electron]/[electron] = []
 
+                        observation.SNR[ilambd]=observation.fullsnr[ilambd] #this is the calculated snr now
+                        
                     # Store the variables of interest
                     observation.validation_variables[ilambd] = {
                         "F0": scene.F0[ilambd],
@@ -1524,7 +1526,7 @@ def calculate_exposure_time_or_snr(
                 CRb,
                 # cp,
             )
-    # Save the photon counts for later analysis
-    pickle.dump(observation.photon_counts, open("photon_counts.pk", "wb"))
+            # Save the photon counts for later analysis
+            pickle.dump(observation.photon_counts, open("photon_counts.pk", "wb"))
 
     return
