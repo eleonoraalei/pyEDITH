@@ -5,6 +5,18 @@ from typing import Dict, Any
 
 
 def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
+    """
+    Parameters:
+    -----------
+    params : dictionary
+        dictionary of parameters
+    wavelength_range : list
+        wavelength grid
+    Returns:
+    --------
+    params: dictionary
+        params dictionary with values averaged over bandpass
+    """
     # take the average within the specified wavelength range
     numpy_array_variables = {
         key: value for key, value in params.items() if isinstance(value, np.ndarray)
@@ -21,6 +33,18 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
 
 
 def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
+    """
+    Parameters:
+    -----------
+    params : dictionary
+        dictionary of parameters
+    wavelengths : list
+        wavelength grid
+    Returns:
+    --------
+    params: dictionary
+        params dictionary with values interpolated over bandpass
+    """
     # take the average within the specified wavelength range
     numpy_array_variables = {
         key: value for key, value in params.items() if isinstance(value, np.ndarray)
@@ -36,6 +60,20 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
 
 
 def fill_parameters(class_obj, parameters, default_parameters):
+    """
+    fills parameters of object with user-specified or default parameters
+
+    Parameters:
+    -----------
+    class_obj : object
+        the object containing the list
+    parameters: list
+        user-specified parameters
+    default_parameters : dictionary
+        default parameters
+    Returns:
+    --------
+    """
     # Load parameters, use defaults if not provided
     for key, default_value in default_parameters.items():
         if key in parameters:
@@ -58,6 +96,16 @@ def fill_parameters(class_obj, parameters, default_parameters):
 
 
 def convert_to_numpy_array(class_obj, array_params):
+    """
+    converts lists to numpy arrays
+
+    Parameters:
+    -----------
+    class_obj : object
+        the object containing the list
+    array_params: list
+        parameter names of the lists within the object 
+    """
     for param in array_params:
         attr_value = getattr(class_obj, param)
         if isinstance(attr_value, u.Quantity):
@@ -123,6 +171,18 @@ def validate_attributes(obj: Any, expected_args: Dict[str, Any]) -> None:
 
 
 def print_array_info(file, name, arr, mode="full_info"):
+    """
+    Writes array info to a file
+
+    Parameters:
+    -----------
+    file : object
+        open file to write to
+    name : string
+        name of array
+    arr : np.ndarray
+        array to write
+    """
     if mode == "full_info":
         file.write(f"{name}:\n")
 
@@ -426,18 +486,32 @@ def print_all_variables(
 
 def synthesize_observation(
     snr_arr,
-    exptime,
-    ref_lam,
-    observation,
     scene,
     random_seed=None,
     set_below_zero=np.nan,
-    plotting=False,
 ):
     """
     Synthesizes an observation using the calculated SNRs for each wavelength bin
     IMPORTANT: You have to run the ETC in SNR mode with a given exposure time first
     (see spectroscopy tutorial)
+
+    Parameters:
+    -----------
+    snr_arr : np.ndarray
+        1D array containing SNR for each spectral bin
+    scene : object
+        the pre-calculated pyEDITH.AstrophysicalScene() object 
+    random_seed : int
+        seed for random draws
+    set_below_zero : float
+        value to set spectral bin if it falls below zero after adding noise
+
+    Returns:
+    --------
+    obs : np.ndarray
+        1D array, spectrum with added noise
+    noise : np.ndarray
+        1D array, noise for each spectral bin
     """
 
     # set a random seed if desired
@@ -458,14 +532,18 @@ def wavelength_grid_fixed_res(x_min, x_max, res=-1):
     """
     Generates a wavelength grid at a fixed resolution of res.
 
-    Parameters
-    ----------
-        x_min : float
-            minimum wavelength
-        x_max : float
-            maximum wavelength
-        res : float
-            spectral resolution
+    Parameters:
+    -----------
+    x_min : float
+        minimum wavelength
+    x_max : float
+        maximum wavelength
+    res : float
+        spectral resolution
+    Returns:
+    --------
+        (np.ndarray, np.ndarray)
+            A tuple containing two 1D numpy arrays: (wavelength, delta_wavelength)
     """
     x = [x_min]
     fac = (1 + 2 * res) / (2 * res - 1)
@@ -481,13 +559,19 @@ def gen_wavelength_grid(x_min, x_max, res):
     """
     Generates a wavelength grid at a fixed resolution for each spectral channel,
         then concatenates them to create a continuous wavelength grid
-    inputs:
-        x_min : 1D array
+    Parameters:
+    -----------
+    x_min : 1D array
             minimum wavelength
-        x_max : 1D array
-            maximum wavelength
-        res : 1D array
-            spectral resolution
+    x_max : 1D array
+        maximum wavelength
+    res : 1D array
+        spectral resolution
+
+    Returns:
+    --------
+    (np.ndarray, np.ndarray)
+        tuple containing two 1D numpy arrays: (wavelength grid, delta wavelength grid)
     """
     x, Dx = wavelength_grid_fixed_res(x_min[0], x_max[0], res=res[0])
     if len(x_min) > 1:
@@ -504,8 +588,8 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
     """
     Creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
 
-    Parameters
-    ----------
+    Parameters:
+    -----------
     input_wls : float, 1D arr
         the wavelength grid the user supplies
     res : float, 1D arr
@@ -515,6 +599,11 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
         array of the lower boundaries of spectral channels.
     lam_high : float, 1D arr
         array of the upper boundaries of spectral channels.
+
+    Returns:
+    --------
+    (np.ndarray, np.ndarray)
+        tuple containing two 1D numpy arrays: (wavelength grid, delta wavelength grid)
     """
 
     if lam_low is None and lam_high is None:
@@ -543,7 +632,8 @@ def regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam):
     """
     Regrids a spectrum onto a new wavelength grid using gaussian convolution.
 
-    Inputs:
+    Parameters:
+    -----------
     input_wls : float, 1D arr
         the wavelength grid the user supplies
     input_spec : float, 1D arr
@@ -553,6 +643,10 @@ def regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam):
     new_lam : float, 1D arr
         the new delta wavelength grid we calculated for the ETC
 
+    Returns:
+    --------
+    np.ndarray
+        1D array, regridded spectrum with original units
     """
     input_spec_unit = input_spec.unit
 
@@ -613,6 +707,10 @@ def regrid_spec_interp(input_wls, input_spec, new_lam):
     new_lam : float, 1D arr
         the new wavelength grid we calculated for the ETC
 
+    Returns:
+    --------
+    np.ndarray
+        1D array, regridded spectrum with original units
     """
     input_spec_unit = input_spec.unit
     interp_func = interp1d(input_wls, input_spec)
