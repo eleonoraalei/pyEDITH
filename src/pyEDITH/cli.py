@@ -13,7 +13,7 @@ import os
 
 def main():
     """
-    Main entry point for the E.D.I.T.H. command-line interface.
+    Main entry point for the py-E.D.I.T.H. command-line interface.
 
     This function sets up the argument parser and handles the execution
     of different subcommands: etc (Exposure Time Calculator), snr (Signal-to-Noise
@@ -22,12 +22,15 @@ def main():
     The function reads configuration from .edith files and calls the appropriate
     calculation functions based on the subcommand.
 
-    Raises:
-    -------
-    UserWarning
-        If the primary and secondary parameters are the same in etc2snr mode.
+    Raises
+    ------
+    SyntaxError
+        If required command-line arguments are missing
+    TypeError
+        If multiple wavelengths are provided for primary lambda in etc2snr mode
     ValueError
-        If the returned exposure time is infinity in etc2snr mode.
+        If secondary parameters are not specified in etc2snr mode or
+        if the returned exposure time is infinity
     """
 
     parser = ArgumentParser(
@@ -118,31 +121,37 @@ def main():
         parser.print_help()
 
 
-def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
+def calculate_texp(
+    parameters: dict, verbose: bool, ETC_validation: bool = False
+) -> np.array:
     """
-    Calculates the exposure time for a planet observed with a given coronagraph.
+    Calculate exposure time for a planet observation with specified parameters.
 
-    This function uses the exposure_time_calculator.c routine, which has been
-    benchmarked using the ESYWG/CDS/CTR Exposure Time Comparison spreadsheet.
+    This function initializes Observation, AstrophysicalScene, and Observatory
+    objects with the provided parameters, then calculates the required exposure
+    time to achieve the specified signal-to-noise ratio at each wavelength.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     parameters : dict
-        A dictionary containing the input parameters for the calculation.
+        Dictionary containing all input parameters for the calculation
+    verbose : bool
+        If True, print detailed calculation information
+    ETC_validation : bool, optional
+        If True, use specific parameter values for validation against the ETC,
+        default is False
 
-    Returns:
-    --------
-    np.array
-        The exposure time in hours for each star and lambda.
-
-    Raises:
+    Returns
     -------
-    KeyError
-        If the coronagraph type specified in the parameters is not valid.
+    tuple
+        A tuple containing:
 
-    Notes:
-    ------
-    For now, only the "toy" coronagraph is implemented.
+        observation.exptime : numpy.ndarray
+            Exposure time in hours for each wavelength
+
+        observation.validation_variables : dict
+            Validation variables containing intermediate calculation results
+
     """
 
     # Define Observation and load relevant parameters
@@ -184,29 +193,34 @@ def calculate_texp(parameters: dict, verbose, ETC_validation=False) -> np.array:
     return observation.exptime, observation.validation_variables
 
 
-def calculate_snr(parameters, reference_texp, verbose):
+def calculate_snr(parameters: dict, reference_texp: float, verbose: bool):
     """
-    Calculates the signal-to-noise ratio (SNR) for a given exposure time.
+    Calculate signal-to-noise ratio for a given exposure time.
 
-    Parameters:
-    -----------
+    This function initializes Observation, AstrophysicalScene, and Observatory
+    objects with the provided parameters, then calculates the achievable
+    signal-to-noise ratio for the specified exposure time at each wavelength.
+
+    Parameters
+    ----------
     parameters : dict
-        A dictionary containing the input parameters for the calculation.
+        Dictionary containing all input parameters for the calculation
     reference_texp : float
-        The reference exposure time in hours.
+        Reference exposure time in hours
+    verbose : bool
+        If True, print detailed calculation information
 
-    Returns:
-    --------
-    None
-        Prints the calculated SNR.
-
-    Raises:
+    Returns
     -------
-    KeyError
-        If the coronagraph type specified in the parameters is not valid.
-    ValueError
-        If the calculation fails to converge within the maximum number of iterations
-        or if the calculated exposure time is infinity.
+    tuple
+        A tuple containing:
+
+        observation.fullsnr : numpy.ndarray
+            Signal-to-noise ratio for each wavelength
+
+        observation.validation_variables : dict
+            Validation variables containing intermediate calculation results
+
     """
 
     # Define Observation and load relevant parameters

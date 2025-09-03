@@ -1,66 +1,121 @@
    # API Reference
 
-   ## Astrophysical Scene
 
    ```{eval-rst}
-   .. autoclass:: pyEDITH.astrophysical_scene.AstrophysicalScene
+   .. automodule:: pyEDITH.astrophysical_scene
       :members:
       :undoc-members:
       :show-inheritance:
    ```
 
-   ## Components
-
-   ### Coronagraphs
 
    ```{eval-rst}
-   .. autoclass:: pyEDITH.components.coronagraphs.Coronagraph
+   .. automodule:: pyEDITH.observation
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
+
    ```
 
-   ### Detectors
 
    ```{eval-rst}
-   .. autoclass:: pyEDITH.components.detectors.Detector
+   .. automodule:: pyEDITH.observatory
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
+      :exclude-members: DEFAULT_CONFIG, PRESETS, TOY_MODEL_COMPONENTS
+
+
    ```
 
-   ## Observation
-
    ```{eval-rst}
-   .. autoclass:: pyEDITH.observation.Observation
+   .. automodule:: pyEDITH.observatory_builder
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
+      :exclude-members: DEFAULT_CONFIG, PRESETS, TOY_MODEL_COMPONENTS
+
+
    ```
 
-   ## Observatory Builder
-
    ```{eval-rst}
-   .. autoclass:: pyEDITH.observatory_builder.ObservatoryBuilder
+   .. automodule:: pyEDITH.components.telescopes
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
+      :exclude-members: DEFAULT_CONFIG, PRESETS
+
    ```
 
-   ## Units
+   ```{eval-rst}
+   .. automodule:: pyEDITH.components.coronagraphs
+      :members:
+      :undoc-members:
+      :show-inheritance:
+      :member-order: bysource
+      :exclude-members: DEFAULT_CONFIG, PRESETS
 
+   ```
+
+
+
+   ```{eval-rst}
+   .. automodule:: pyEDITH.components.detectors
+      :members:
+      :undoc-members:
+      :show-inheritance:
+      :member-order: bysource
+      :exclude-members: DEFAULT_CONFIG, PRESETS
+
+   ```
+
+   
+   ```{eval-rst}
+   .. automodule:: pyEDITH.exposure_time_calculator
+      :members:
+      :undoc-members:
+      :show-inheritance:
+      :member-order: bysource
+   ```
+
+   
+   ```{eval-rst}
+   .. automodule:: pyEDITH.cli
+      :members:
+      :undoc-members:
+      :show-inheritance:
+      :member-order: bysource
+   ```
+
+
+   
    ```{eval-rst}
    .. automodule:: pyEDITH.units
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
    ```
 
-   ## Utils
+
 
    ```{eval-rst}
    .. automodule:: pyEDITH.utils
       :members:
       :undoc-members:
       :show-inheritance:
+      :member-order: bysource
+   ```
+
+
+   ```{eval-rst}
+   .. automodule:: pyEDITH.parse_input
+      :members:
+      :undoc-members:
+      :show-inheritance:
+      :member-order: bysource
    ```

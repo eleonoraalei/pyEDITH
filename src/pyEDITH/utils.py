@@ -6,16 +6,28 @@ from typing import Dict, Any
 
 def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
     """
-    Parameters:
-    -----------
-    params : dictionary
-        dictionary of parameters
+    Calculate the average of array parameters within a specified wavelength range.
+
+    This function takes a dictionary of parameters and computes the mean value
+    of all numpy array parameters (except wavelength) within the specified
+    wavelength boundaries. The wavelength array is expected to be stored under
+    the key "lam" in the params dictionary.
+
+    Parameters
+    ----------
+    params : dict
+        Dictionary containing parameters where numpy arrays represent wavelength-dependent
+        quantities. Must include a "lam" key containing the wavelength array.
+        These parameters come from EACy and follow that formatting.
     wavelength_range : list
-        wavelength grid
-    Returns:
-    --------
-    params: dictionary
-        params dictionary with values averaged over bandpass
+        Two-element list containing the lower and upper wavelength boundaries
+        for averaging, expected to have astropy units
+
+    Returns
+    -------
+    dict
+        Modified parameters dictionary with array values replaced by their mean
+        values within the specified wavelength range
     """
     # take the average within the specified wavelength range
     numpy_array_variables = {
@@ -34,17 +46,30 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
 
 def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     """
-    Parameters:
-    -----------
-    params : dictionary
-        dictionary of parameters
+    Interpolate array parameters onto a new wavelength grid.
+
+    This function takes a dictionary of parameters and interpolates all numpy array
+    parameters (except the wavelength array itself) onto a new set of wavelength
+    points using 1D linear interpolation. The original wavelength array is expected
+    to be stored under the key "lam" in the params dictionary.
+
+    Parameters
+    ----------
+    params : dict
+        Dictionary containing parameters where numpy arrays represent wavelength-dependent
+        quantities. Must include a "lam" key containing the original wavelength array.
+        These parameters come from EACy and follow that formatting.
+
     wavelengths : list
-        wavelength grid
-    Returns:
-    --------
-    params: dictionary
-        params dictionary with values interpolated over bandpass
+        New wavelength points onto which to interpolate the parameter arrays
+
+    Returns
+    -------
+    dict
+        Modified parameters dictionary with array values interpolated onto the new
+        wavelength grid specified by the wavelengths parameter
     """
+
     # take the average within the specified wavelength range
     numpy_array_variables = {
         key: value for key, value in params.items() if isinstance(value, np.ndarray)
@@ -59,21 +84,28 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     return params
 
 
-def fill_parameters(class_obj, parameters, default_parameters):
+def fill_parameters(
+    class_obj: object, parameters: dict, default_parameters: dict
+) -> None:
     """
-    fills parameters of object with user-specified or default parameters
+    Populate class object attributes with user parameters or default values.
 
-    Parameters:
-    -----------
+    This function sets attributes on a class object by loading user-provided
+    parameters or falling back to default values. It handles both regular values
+    and astropy Quantity objects with units, ensuring proper unit consistency
+    when dealing with physical quantities.
+
+    Parameters
+    ----------
     class_obj : object
-        the object containing the list
-    parameters: list
-        user-specified parameters
-    default_parameters : dictionary
-        default parameters
-    Returns:
-    --------
+        Class instance whose attributes will be set
+    parameters : dict
+        Dictionary of user-provided parameter values
+    default_parameters : dict
+        Dictionary of default parameter values with keys matching expected
+        attribute names. Values can be regular types or astropy Quantities
     """
+
     # Load parameters, use defaults if not provided
     for key, default_value in default_parameters.items():
         if key in parameters:
@@ -95,17 +127,23 @@ def fill_parameters(class_obj, parameters, default_parameters):
             setattr(class_obj, key, default_value)
 
 
-def convert_to_numpy_array(class_obj, array_params):
+def convert_to_numpy_array(class_obj: object, array_params: list) -> None:
     """
-    converts lists to numpy arrays
+    Convert specified class attributes to numpy arrays with proper dtype.
 
-    Parameters:
-    -----------
+    This function converts class attributes to numpy arrays with float64 dtype,
+    while preserving astropy units for Quantity objects. Non-Quantity attributes
+    are converted to plain numpy arrays, while Quantity attributes maintain their
+    units but have their values converted to numpy arrays.
+
+    Parameters
+    ----------
     class_obj : object
-        the object containing the list
-    array_params: list
-        parameter names of the lists within the object 
+        Class instance whose attributes will be converted
+    array_params : list
+        List of attribute names to convert to numpy arrays
     """
+
     for param in array_params:
         attr_value = getattr(class_obj, param)
         if isinstance(attr_value, u.Quantity):
@@ -126,22 +164,27 @@ def validate_attributes(obj: Any, expected_args: Dict[str, Any]) -> None:
     """
     Validate attributes of an object against expected types and units.
 
+    This function checks that an object has all the required attributes and that
+    each attribute has the correct type or units. It supports validation of
+    integer and float types as well as astropy Quantity objects with specific units.
+
     Parameters
     ----------
-    obj: object
-        The object whose attributes are to be validated.
-    expected_args: dict
-        A dictionary where keys are attribute names and values are expected types or units.
+    obj : object
+        The object whose attributes are to be validated
+    expected_args : dict
+        A dictionary where keys are attribute names and values are expected types or units
 
     Raises
     ------
     AttributeError
-        If a required attribute is missing.
+        If a required attribute is missing
     TypeError
-        If an attribute has an incorrect type.
+        If an attribute has an incorrect type
     ValueError
-        If a Quantity attribute has incorrect units or if there's an unexpected type specification.
+        If a Quantity attribute has incorrect units or if there's an unexpected type specification
     """
+
     class_name = obj.__class__.__name__
 
     for arg, expected_type in expected_args.items():
@@ -170,19 +213,32 @@ def validate_attributes(obj: Any, expected_args: Dict[str, Any]) -> None:
             raise ValueError(f"Unexpected type specification for {arg}")
 
 
-def print_array_info(file, name, arr, mode="full_info"):
+def print_array_info(
+    file: object, name: str, arr: np.ndarray, mode: str = "full_info"
+) -> None:
     """
-    Writes array info to a file
+    Write detailed information about an array or variable to a file.
 
-    Parameters:
-    -----------
+    This function writes comprehensive information about a given array or variable
+    to a specified file, including its shape, data type, units (if applicable),
+    and statistical properties such as minimum and maximum values. The output format
+    depends on the specified mode.
+
+    Parameters
+    ----------
     file : object
-        open file to write to
-    name : string
-        name of array
+        Open file object to write the information to
+    name : str
+        Name or identifier of the variable/array being described
     arr : np.ndarray
-        array to write
+        The array or variable to analyze and describe. Can be a numpy array,
+        an array-like object, or a scalar with or without astropy units
+    mode : str, optional
+        Output mode that determines the level of detail in the description.
+        Default is "full_info" which provides comprehensive information.
+        Other modes provide more concise output
     """
+
     if mode == "full_info":
         file.write(f"{name}:\n")
 
@@ -250,46 +306,133 @@ def print_array_info(file, name, arr, mode="full_info"):
 
 
 def print_all_variables(
-    observation,
-    scene,
-    observatory,
-    deltalambda_nm,
-    lod,
-    lod_rad,
-    lod_arcsec,
-    area_cm2,
-    detpixscale_lod,
-    stellar_diam_lod,
-    pixscale_rad,
-    oneopixscale_arcsec,
-    det_sep_pix,
-    det_sep,
-    det_Istar,
-    det_skytrans,
-    det_photometric_aperture_throughput,
-    det_omega_lod,
-    det_CRp,
-    det_CRbs,
-    det_CRbz,
-    det_CRbez,
-    det_CRbbin,
-    det_CRbth,
-    det_CR,
-    ix,
-    iy,
-    sp_lod,
-    CRp,
-    CRnf,
-    CRbs,
-    CRbz,
-    CRbez,
-    CRbbin,
-    t_photon_count,
-    CRbd,
-    CRbth,
-    CRb,
-    # cp,
-):
+    observation: object,
+    scene: object,
+    observatory: object,
+    deltalambda_nm: np.ndarray,
+    lod: np.ndarray,
+    lod_rad: np.ndarray,
+    lod_arcsec: np.ndarray,
+    area_cm2: np.ndarray,
+    detpixscale_lod: np.ndarray,
+    stellar_diam_lod: np.ndarray,
+    pixscale_rad: np.ndarray,
+    oneopixscale_arcsec: np.ndarray,
+    det_sep_pix: np.ndarray,
+    det_sep: np.ndarray,
+    det_Istar: np.ndarray,
+    det_skytrans: np.ndarray,
+    det_photometric_aperture_throughput: np.ndarray,
+    det_omega_lod: np.ndarray,
+    det_CRp: np.ndarray,
+    det_CRbs: np.ndarray,
+    det_CRbz: np.ndarray,
+    det_CRbez: np.ndarray,
+    det_CRbbin: np.ndarray,
+    det_CRbth: np.ndarray,
+    det_CR: np.ndarray,
+    ix: int,
+    iy: int,
+    sp_lod: float,
+    CRp: np.ndarray,
+    CRnf: np.ndarray,
+    CRbs: np.ndarray,
+    CRbz: np.ndarray,
+    CRbez: np.ndarray,
+    CRbbin: np.ndarray,
+    t_photon_count: np.ndarray,
+    CRbd: np.ndarray,
+    CRbth: np.ndarray,
+    CRb: np.ndarray,
+) -> None:
+    """
+    Write comprehensive debug information to files for observation calculations.
+
+    This function outputs detailed information about all relevant parameters
+    and calculated variables used in the observation simulation to both validation
+    and full_info text files. It includes observation parameters, scene properties,
+    observatory characteristics, and all intermediate calculations.
+
+    Parameters
+    ----------
+    observation : Observation
+        Observation object containing observation-specific parameters
+    scene : AstrophysicalScene
+        Scene object containing astrophysical scene parameters
+    observatory : Observatory
+        Observatory object containing telescope, coronagraph, and detector parameters
+    deltalambda_nm : np.ndarray
+        Wavelength intervals in nanometers
+    lod : np.ndarray
+        Lambda over D values
+    lod_rad : np.ndarray
+        Lambda over D values in radians
+    lod_arcsec : np.ndarray
+        Lambda over D values in arcseconds
+    area_cm2 : np.ndarray
+        Telescope area in cm²
+    detpixscale_lod : np.ndarray
+        Detector pixel scale in λ/D units
+    stellar_diam_lod : np.ndarray
+        Stellar diameter in λ/D units
+    pixscale_rad : np.ndarray
+        Pixel scale in radians
+    oneopixscale_arcsec : np.ndarray
+        Single pixel scale in arcseconds
+    det_sep_pix : np.ndarray
+        Detector separation in pixels
+    det_sep : np.ndarray
+        Detector separation
+    det_Istar : np.ndarray
+        Detector stellar intensity
+    det_skytrans : np.ndarray
+        Detector sky transmission
+    det_photometric_aperture_throughput : np.ndarray
+        Detector photometric aperture throughput
+    det_omega_lod : np.ndarray
+        Detector solid angle in λ/D units
+    det_CRp : np.ndarray
+        Detector planet count rate
+    det_CRbs : np.ndarray
+        Detector background star count rate
+    det_CRbz : np.ndarray
+        Detector zodiacal background count rate
+    det_CRbez : np.ndarray
+        Detector exozodiacal background count rate
+    det_CRbbin : np.ndarray
+        Detector binary background count rate
+    det_CRbth : np.ndarray
+        Detector thermal background count rate
+    det_CR : np.ndarray
+        Total detector count rate
+    ix : int
+        X pixel coordinate
+    iy : int
+        Y pixel coordinate
+    sp_lod : float
+        Separation in λ/D units
+    CRp : np.ndarray
+        Planet count rate
+    CRnf : np.ndarray
+        Noise floor count rate
+    CRbs : np.ndarray
+        Background star count rate
+    CRbz : np.ndarray
+        Zodiacal background count rate
+    CRbez : np.ndarray
+        Exozodiacal background count rate
+    CRbbin : np.ndarray
+        Binary background count rate
+    t_photon_count : np.ndarray
+        Photon counting time
+    CRbd : np.ndarray
+        Detector background count rate
+    CRbth : np.ndarray
+        Thermal background count rate
+    CRb : np.ndarray
+        Total background count rate
+    """
+
     for mode in ["validation", "full_info"]:
         with open("pyedith_" + mode + ".txt", "w") as file:
             file.write("Input Objects and Their Relevant Properties:\n")
@@ -485,33 +628,41 @@ def print_all_variables(
 
 
 def synthesize_observation(
-    snr_arr,
-    scene,
-    random_seed=None,
-    set_below_zero=np.nan,
-):
+    snr_arr: np.ndarray,
+    scene: object,
+    random_seed: int = None,
+    set_below_zero: float = np.nan,
+) -> tuple:
     """
-    Synthesizes an observation using the calculated SNRs for each wavelength bin
-    IMPORTANT: You have to run the ETC in SNR mode with a given exposure time first
-    (see spectroscopy tutorial)
+    Synthesize an observation using calculated SNRs for each wavelength bin.
 
-    Parameters:
-    -----------
+    This function generates a synthetic observation by adding noise to the
+    planet-to-star flux ratio based on the provided signal-to-noise ratio
+    array. The noise is drawn from a normal distribution and scaled according
+    to the SNR values. This function requires that the ETC has been run in
+    SNR mode with a given exposure time first.
+
+    Parameters
+    ----------
     snr_arr : np.ndarray
         1D array containing SNR for each spectral bin
-    scene : object
-        the pre-calculated pyEDITH.AstrophysicalScene() object 
-    random_seed : int
-        seed for random draws
-    set_below_zero : float
-        value to set spectral bin if it falls below zero after adding noise
+    scene : AstrophysicalScene
+        Scene object containing astrophysical parameters including Fp_over_Fs
+    random_seed : int, optional
+        Random seed for reproducible noise generation. Default is None
+    set_below_zero : float, optional
+        Value to assign to measurements below zero. Default is np.nan
 
-    Returns:
-    --------
-    obs : np.ndarray
-        1D array, spectrum with added noise
-    noise : np.ndarray
-        1D array, noise for each spectral bin
+    Returns
+    -------
+    tuple
+        A tuple containing:
+
+        obs : np.ndarray
+            1D array, spectrum with added noise
+
+        noise : np.ndarray
+            1D array, noise for each spectral bin
     """
 
     # set a random seed if desired
@@ -528,23 +679,35 @@ def synthesize_observation(
     return obs, noise
 
 
-def wavelength_grid_fixed_res(x_min, x_max, res=-1):
+def wavelength_grid_fixed_res(x_min: float, x_max: float, res: float = -1) -> tuple:
     """
-    Generates a wavelength grid at a fixed resolution of res.
+    Generate a wavelength grid at a fixed spectral resolution.
 
-    Parameters:
-    -----------
+    This function creates a wavelength grid with constant resolution across
+    the specified wavelength range. The grid spacing increases logarithmically
+    to maintain constant R = λ/Δλ.
+
+    Parameters
+    ----------
     x_min : float
-        minimum wavelength
+        Minimum wavelength
     x_max : float
-        maximum wavelength
-    res : float
-        spectral resolution
-    Returns:
-    --------
-        (np.ndarray, np.ndarray)
-            A tuple containing two 1D numpy arrays: (wavelength, delta_wavelength)
+        Maximum wavelength
+    res : float, optional
+        Spectral resolution R = λ/Δλ. Default is -1
+
+    Returns
+    -------
+    tuple
+        A tuple containing two 1D numpy arrays:
+
+        wavelength : np.ndarray
+            Wavelength grid
+
+        delta_wavelength : np.ndarray
+            Delta wavelength grid
     """
+
     x = [x_min]
     fac = (1 + 2 * res) / (2 * res - 1)
     i = 0
@@ -555,24 +718,35 @@ def wavelength_grid_fixed_res(x_min, x_max, res=-1):
     return np.squeeze(x), np.squeeze(Dx)
 
 
-def gen_wavelength_grid(x_min, x_max, res):
+def gen_wavelength_grid(x_min: list, x_max: list, res: list) -> tuple:
     """
-    Generates a wavelength grid at a fixed resolution for each spectral channel,
-        then concatenates them to create a continuous wavelength grid
-    Parameters:
-    -----------
-    x_min : 1D array
-            minimum wavelength
-    x_max : 1D array
-        maximum wavelength
-    res : 1D array
-        spectral resolution
+    Generate a continuous wavelength grid for multiple spectral channels.
 
-    Returns:
-    --------
-    (np.ndarray, np.ndarray)
-        tuple containing two 1D numpy arrays: (wavelength grid, delta wavelength grid)
+    This function creates wavelength grids at fixed resolution for each spectral
+    channel, then concatenates them to form a continuous wavelength grid covering
+    all channels.
+
+    Parameters
+    ----------
+    x_min : list
+        Minimum wavelength for each spectral channel
+    x_max : list
+        Maximum wavelength for each spectral channel
+    res : list
+        Spectral resolution for each spectral channel
+
+    Returns
+    -------
+    tuple
+        A tuple containing two 1D numpy arrays:
+
+        wavelength_grid : np.ndarray
+            Combined wavelength grid for all channels
+
+        delta_wavelength_grid : np.ndarray
+            Combined delta wavelength grid for all channels
     """
+
     x, Dx = wavelength_grid_fixed_res(x_min[0], x_max[0], res=res[0])
     if len(x_min) > 1:
         for i in range(1, len(x_min)):
@@ -584,26 +758,39 @@ def gen_wavelength_grid(x_min, x_max, res):
     return np.squeeze(x), np.squeeze(Dx)
 
 
-def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
+def regrid_wavelengths(
+    input_wls: np.ndarray, res: list, lam_low: list = None, lam_high: list = None
+) -> tuple:
     """
-    Creates a new wavelength grid given the resolution and channel boundaries for each spectral channel
+    Create a new wavelength grid with specified resolution and channel boundaries.
 
-    Parameters:
-    -----------
-    input_wls : float, 1D arr
-        the wavelength grid the user supplies
-    res : float, 1D arr
-        array of desired resolutions for each channel. should be length of the number of spectral channels
-        for example, if we have a UV, VIS, and NIR channel, then we expect res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
-    lam_low : float, 1D arr
-        array of the lower boundaries of spectral channels.
-    lam_high : float, 1D arr
-        array of the upper boundaries of spectral channels.
+    This function generates a new wavelength grid given the resolution and
+    channel boundaries for each spectral channel. If no boundaries are provided,
+    it uses the full range of the input wavelengths.
 
-    Returns:
-    --------
-    (np.ndarray, np.ndarray)
-        tuple containing two 1D numpy arrays: (wavelength grid, delta wavelength grid)
+    Parameters
+    ----------
+    input_wls : np.ndarray
+        The wavelength grid supplied by the user
+    res : list
+        Array of desired resolutions for each channel. Should have length equal
+        to the number of spectral channels. For example, for UV, VIS, and NIR
+        channels: res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
+    lam_low : list, optional
+        Array of the lower boundaries of spectral channels
+    lam_high : list, optional
+        Array of the upper boundaries of spectral channels
+
+    Returns
+    -------
+    tuple
+        A tuple containing two 1D numpy arrays:
+
+        wavelength_grid : np.ndarray
+            New wavelength grid
+
+        delta_wavelength_grid : np.ndarray
+            New delta wavelength grid
     """
 
     if lam_low is None and lam_high is None:
@@ -628,26 +815,36 @@ def regrid_wavelengths(input_wls, res, lam_low=None, lam_high=None):
     return lam, dlam
 
 
-def regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam):
+def regrid_spec_gaussconv(
+    input_wls: np.ndarray,
+    input_spec: np.ndarray,
+    new_lam: np.ndarray,
+    new_dlam: np.ndarray,
+) -> np.ndarray:
     """
-    Regrids a spectrum onto a new wavelength grid using gaussian convolution.
+    Regrid a spectrum onto a new wavelength grid using Gaussian convolution.
 
-    Parameters:
-    -----------
-    input_wls : float, 1D arr
-        the wavelength grid the user supplies
-    input_spec : float, 1D arr
-        the spectrum the user supplies
-    new_lam : float, 1D arr
-        the new wavelength grid we calculated for the ETC
-    new_lam : float, 1D arr
-        the new delta wavelength grid we calculated for the ETC
+    This function regrids a spectrum by convolving with Gaussian kernels to
+    account for the spectral resolution at each wavelength point. The convolution
+    is performed in log-wavelength space for accurate spectral line handling.
 
-    Returns:
-    --------
+    Parameters
+    ----------
+    input_wls : np.ndarray
+        The wavelength grid supplied by the user
+    input_spec : np.ndarray
+        The spectrum supplied by the user
+    new_lam : np.ndarray
+        The new wavelength grid calculated for the ETC
+    new_dlam : np.ndarray
+        The new delta wavelength grid calculated for the ETC
+
+    Returns
+    -------
     np.ndarray
-        1D array, regridded spectrum with original units
+        1D array containing the regridded spectrum with original units preserved
     """
+
     input_spec_unit = input_spec.unit
 
     R_arr = new_lam / new_dlam
@@ -691,27 +888,34 @@ def regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam):
         kernel_segment = kernel[k1:k2]
         spec_regrid[i] = np.sum(flux_segment * kernel_segment)
 
-    return spec_regrid*input_spec_unit
+    return spec_regrid * input_spec_unit
 
 
-def regrid_spec_interp(input_wls, input_spec, new_lam):
+def regrid_spec_interp(
+    input_wls: np.ndarray, input_spec: np.ndarray, new_lam: np.ndarray
+) -> np.ndarray:
     """
-    Regrids a spectrum onto a new wavelength grid using 1D interpolation.
+    Regrid a spectrum onto a new wavelength grid using 1D interpolation.
+
+    This function regrids a spectrum using simple linear interpolation between
+    the original and new wavelength grids. This method is faster than Gaussian
+    convolution but does not account for spectral resolution effects.
 
     Parameters
     ----------
-    input_wls : float, 1D arr
-        the wavelength grid the user supplies
-    input_spec : float, 1D arr
-        the spectrum the user supplies
-    new_lam : float, 1D arr
-        the new wavelength grid we calculated for the ETC
+    input_wls : np.ndarray
+        The wavelength grid supplied by the user
+    input_spec : np.ndarray
+        The spectrum supplied by the user
+    new_lam : np.ndarray
+        The new wavelength grid calculated for the ETC
 
-    Returns:
-    --------
+    Returns
+    -------
     np.ndarray
-        1D array, regridded spectrum with original units
+        1D array containing the regridded spectrum with original units preserved
     """
+
     input_spec_unit = input_spec.unit
     interp_func = interp1d(input_wls, input_spec)
     spec_regrid = interp_func(new_lam)

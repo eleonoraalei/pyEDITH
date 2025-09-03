@@ -25,14 +25,14 @@ def generate_radii(numx: int, numy: int = 0) -> np.ndarray:
     numy : int, optional
         Number of pixels in the y direction. If 0 (default), it is set equal to numx.
 
-    Returns:
+    Returns
     --------
     np.ndarray
         A 2D numpy array of shape (numy, numx) containing the radial distances
         from the center for each pixel.
 
-    Notes:
-    ------
+    Note
+    ----
     - The function handles both odd and even dimensions.
     - Formerly  in rgen.pro
     """
@@ -104,16 +104,16 @@ class Coronagraph(ABC):
     their own `generate_secondary_parameters` method.
     Right now, there are two coronagraph sub-classes:
 
-    -> ToyModelCoronagraph
-    This is a simplistic coronagraph setup where the user can specify all
-    coronagraph parameters. Use this for testing coronagraph parameters
-    not defined by a Yield Input Package (files containing models of
-    realistic coronagraph responses).
+        -> **ToyModelCoronagraph**
+        This is a simplistic coronagraph setup where the user can specify all
+        coronagraph parameters. Use this for testing coronagraph parameters
+        not defined by a Yield Input Package (files containing models of
+        realistic coronagraph responses).
 
-    -> CoronagraphYIP
-    This is a coronagraph setup that is defined by a Yield Input Package (YIP),
-    which contains models of realistic coronagraph responses. User this for
-    testing specific coronagraph cases. Requires a path to a YIP.
+        -> **CoronagraphYIP**
+        This is a coronagraph setup that is defined by a Yield Input Package (YIP),
+        which contains models of realistic coronagraph responses. User this for
+        testing specific coronagraph cases. Requires a path to a YIP.
 
     Parameters
     -----------
@@ -154,14 +154,33 @@ class Coronagraph(ABC):
     """
 
     @abstractmethod
-    def load_configuration(self):  # pragma: no cover
+    def load_configuration(self) -> None:  # pragma: no cover
+        """
+        Load configuration parameters for the coronagraph.
+
+        This abstract method must be implemented by subclasses to define
+        how coronagraph configuration parameters are loaded and processed.
+        """
         pass
 
-    def validate_configuration(self):
+    def validate_configuration(self) -> None:
         """
-        Check that mandatory variables are there and have the right format.
-        There can be other variables, but they are not needed for the calculation.
+        Check that mandatory variables are present and have the correct format.
+
+        This method validates that all required attributes exist on the coronagraph
+        object and that they have the expected types and units. Additional variables
+        may be present but are not required for calculations.
+
+        Raises
+        ------
+        AttributeError
+            If a required attribute is missing
+        TypeError
+            If an attribute has an incorrect type
+        ValueError
+            If a Quantity attribute has incorrect units
         """
+
         expected_args = {
             "Istar": DIMENSIONLESS,  # contrast
             "noisefloor": DIMENSIONLESS,  # contrast
@@ -191,6 +210,15 @@ class ToyModelCoronagraph(Coronagraph):
 
     This class implements a simplified coronagraph model with basic functionality
     for generating secondary parameters and setting up coronagraph characteristics.
+    It allows users to specify all coronagraph parameters manually rather than
+    using predefined models from Yield Input Packages.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to configuration files (not used in toy model)
+    keyword : str, optional
+        Keyword for configuration selection (not used in toy model)
     """
 
     DEFAULT_CONFIG = {
@@ -214,22 +242,36 @@ class ToyModelCoronagraph(Coronagraph):
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize a ToyModelCoronagraph instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to configuration files (not used in toy model)
+        keyword : str, optional
+            Keyword for configuration selection (not used in toy model)
+        """
         self.path = path
         self.keyword = keyword
 
-    def load_configuration(self, parameters, mediator):
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary.
+        Load configuration parameters for the toy model coronagraph simulation.
+
+        This method sets up all coronagraph parameters using either user-provided
+        values or default configurations. It calculates derived parameters such as
+        pixel coordinates, radial separations, and throughput maps based on the
+        specified inner and outer working angles.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        Returns
-        -------
-        None
+            A dictionary containing simulation parameters including coronagraph
+            specifications, observational parameters, and noise characteristics
+        mediator : ObservatoryMediator
+            Mediator object providing access to observation and scene parameters
         """
         # Load parameters, use defaults if not provided
 
@@ -343,13 +385,19 @@ class ToyModelCoronagraph(Coronagraph):
 
 class CoronagraphYIP(Coronagraph):
     """
-    A coronagraph class that uses a Yield Input Package (YIP) for calculating
-    coronagraph transmission, stellar intensity, and off-axis PSFs
+    A coronagraph class that uses a Yield Input Package (YIP) for realistic modeling.
 
-    There are two components to this coronagraph simulation:
-    1) the coronagraph optical throughput that comes from the HWO yaml files
-    2) the coronagraph response that comes from the YIP
+    This class implements a coronagraph simulation based on Yield Input Package files
+    that contain pre-computed coronagraph responses, stellar intensity distributions,
+    and off-axis PSFs. It combines coronagraph optical throughput from HWO yaml files
+    with detailed coronagraph response data from YIP files.
 
+    Parameters
+    ----------
+    path : str, optional
+        Path to the YIP files containing coronagraph response data
+    keyword : str, optional
+        Keyword for selecting specific configurations within the YIP
     """
 
     DEFAULT_CONFIG = {
@@ -370,27 +418,48 @@ class CoronagraphYIP(Coronagraph):
         "az_avg": True,  # azimuthally average the contrast maps and noise floor if True
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize a CoronagraphYIP instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to the YIP files containing coronagraph response data
+        keyword : str, optional
+            Keyword for selecting specific configurations within the YIP
+        """
+
         self.path = path
         self.keyword = keyword
 
     def load_configuration(self, parameters, mediator):
         """
-        Load configuration parameters for the simulation from a dictionary.
+        Load configuration parameters from YIP files and user specifications.
+
+        This method loads coronagraph parameters from multiple sources: EACy YAML files
+        for optical throughput, YIP files for detailed coronagraph response including
+        stellar intensity and PSF data, and user-provided parameters. It handles both
+        imaging and IFS observing modes with appropriate wavelength averaging or
+        interpolation.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        observation: Observation
-            An instance of the observation class.
-        ALL OF THE CLASSES
-        Returns
-        -------
-        None
-        """
+            A dictionary containing simulation parameters including observing mode,
+            bandwidth specifications, and coronagraph overrides
+        mediator : ObservatoryMediator
+            Mediator object providing access to observation and scene parameters
+            including wavelength, PSF truncation ratios, and stellar properties
 
+        Raises
+        ------
+        KeyError
+            If observing mode is not 'IMAGER' or 'IFS', or if neither psf_trunc_ratio
+            nor photometric_aperture_radius are specified
+        AssertionError
+            If stellar angular diameter is outside valid bounds (0 <= diameter < 1 λ/D)
+        """
         from eacy import load_instrument, load_telescope
 
         # ***** Set the bandwith *****

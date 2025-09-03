@@ -1,6 +1,6 @@
 [project]
 name = "pyEDITH"
-version = "1.0.0"
+version = "1.5.1"
 authors = [
   { name="Eleonora Alei", email="eleonora.alei@nasa.gov" },
   { name="Miles Currie", email="miles.h.currie@nasa.gov" },

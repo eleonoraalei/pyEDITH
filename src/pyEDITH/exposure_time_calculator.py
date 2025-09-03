@@ -23,48 +23,35 @@ def calculate_CRp(
     """
     Calculate the planet count rate.
 
+    This function computes the detected count rate from a planet based on
+    the stellar and planetary flux, telescope characteristics, and coronagraph
+    performance parameters.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fs_over_F0 : u.Quantity
-        Stellar flux. [dimensionless]
+        Stellar flux [dimensionless]
     Fp_over_Fs : u.Quantity
-        Planet flux relative to star. [dimensionless]
+        Planet flux relative to star [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     Upsilon : u.Quantity
-        Core throughput of the coronagraph. [dimensionless]
+        Core throughput of the coronagraph [dimensionless]
     throughput : u.Quantity
-        Throughput of the system (includes QE). [electrons/photons]
+        Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
 
     Returns
     -------
     u.Quantity
-        Planet count rate. [electrons / s]
-
-    Notes
-    -----
-    PLANET COUNT RATE
-
-    CRp=F_0 * F_{star} * 10^{-0.4 Delta mag_{obs}} A Upsilon T Delta lambda
-
-    which simplifies as
-
-    CRp=F_0*F_{star}*Fp_0 *A Upsilon T Delta lambda
-
-    in AYO:
-
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    Fs_over_F0 = 10**(-0.4 * magstar)
-    CRpfactor = Fs_over_F0 * FATDL
-    tempCRpfactor = Fp_over_Fs[iplanetpistartnp] * CRpfactor
-    CRp = tempCRpfactor * photometric_aperture_throughput[index2]
+        Planet count rate [electrons / s]
     """
+
     return (
         F0 * Fs_over_F0 * Fp_over_Fs * area * Upsilon * throughput * dlambda * nchannels
     ).to(
@@ -86,53 +73,34 @@ def calculate_CRbs(
     """
     Calculate the stellar leakage count rate.
 
+    This function computes the detected count rate from stellar leakage based
+    on the stellar flux, coronagraph performance, and telescope parameters.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fs_over_F0 : u.Quantity
-        Stellar flux. [dimensionless]
+        Stellar flux [dimensionless]
     Istar : u.Quantity
-        Stellar intensity at the given pixel. [dimensionless]
+        Stellar intensity at the given pixel [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     pixscale : u.Quantity
-        Pixel scale of the detector. [lambda/D]
+        Pixel scale of the detector [lambda/D]
     throughput : u.Quantity
-        Throughput of the system (includes QE). [electrons/photons]
+        Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
 
     Returns
     -------
     u.Quantity
-        Stellar leakage count rate. [electrons / s]
-
-
-    Notes
-    -----
-    THEORY: STELLAR LEAKAGE
-
-    CRbs = F_0 * 10^{-0.4m_lambda} * zeta * PSF_{peak}
-            * Omega * A * T * Deltalambda
-
-    This simplifies as
-    CRbs = F_0 * F_{star} *(zeta * PSF_{peak}) * A * Omega * T * Deltalambda
-
-    IN AYO:
-    Fs_over_F0 = pow((double) 10., -0.4*magstar);
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels;
-    CRbsfactor = Fs_over_F0 * oneopixscale2 * FATDL;
-    -- DETECTOR:
-       det_CRbs = CRbsfactor * det_Istar;
-       +++ NOTE: Later used to calculate photon counting time +++
-    -- ETC:
-       tempCRbsfactor = CRbsfactor * Istar_interp[index];
-       +++ NOTE: Later added add together into tempCRbfactor+++
-       +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
+        Stellar leakage count rate [electrons / s]
     """
+
     return (
         F0
         * Fs_over_F0
@@ -161,49 +129,34 @@ def calculate_CRbz(
     """
     Calculate the local zodiacal light count rate.
 
+    This function computes the detected count rate from local zodiacal light
+    based on the zodiacal intensity, sky transmission, and telescope parameters.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fzodi : u.Quantity
-        Zodiacal light flux. [dimensionless]
+        Zodiacal light flux [dimensionless]
     lod_arcsec : u.Quantity
-        Lambda/D in arcseconds. [arcsec]
+        Lambda/D in arcseconds [arcsec]
     skytrans : u.Quantity
-        Sky transmission. [dimensionless]
+        Sky transmission [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     throughput : u.Quantity
-        Throughput of the system (includes QE). [electrons/photons]
+        Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
 
     Returns
     -------
     u.Quantity
-        Local zodiacal light count rate. [electrons / s]
-
-    Notes
-    -----
-    THEORY: LOCAL ZODI LEAKAGE
-
-    CRbz=F_0* 10^{-0.4z}* Omega A T Delta lambda
-
-    IN AYO:
-    CRbzfactor = Fzodi * lod_arcsec2 * FATDL;
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels;
-    lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
-    lod_arcsec2 = lod_arcsec * lod_arcsec
-    -- DETECTOR:
-        det_CRbz = CRbzfactor * det_skytrans;
-         +++ NOTE: Later used to calculate photon counting time +++
-    -- ETC:
-        tempCRbzfactor = CRbzfactor * skytrans[index];
-        +++NOTE: Later added together into tempCRbfactor+++
-        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
+        Local zodiacal light count rate [electrons / s]
     """
+
     return (
         F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
     ).to(
@@ -227,59 +180,38 @@ def calculate_CRbez(
     """
     Calculate the exozodiacal light count rate.
 
+    This function computes the detected count rate from exozodiacal light
+    based on the exozodiacal intensity, system geometry, and telescope parameters.
+    It scales the exozodiacal intensity based on the distance to the star
+    and the angular separation.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fexozodi : u.Quantity
-        Exozodiacal light flux. [dimensionless]
+        Exozodiacal light flux at reference position [dimensionless]
     lod_arcsec : u.Quantity
-        Lambda/D in arcseconds. [arcsec]
+        Lambda/D in arcseconds [arcsec]
     skytrans : u.Quantity
-        Sky transmission. [dimensionless]
+        Sky transmission [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     throughput : u.Quantity
-        Throughput of the system (includes QE). [electrons/photons]
+        Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
     dist : u.Quantity
-        Distance to the star. [pc]
+        Distance to the star [pc]
     sp : u.Quantity
-        Separation of the planet. [arcsec]
+        Separation of the planet [arcsec]
 
     Returns
     -------
     u.Quantity
-        Exozodiacal light count rate. [electrons / s]
-
-    Notes
-    -----
-    THEORY: EXOZODI LEAKAGE
-    CRbez=F_0 * n * 10^{-0.4mag_{exozodi}} * Omega * A * T * Delta lambda
-
-    IN AYO:
-    CRbezfactor = Fexozodi * lod_arcsec2 * FATDL / (dist*dist);
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    lod_arcsec = (lambda_ * 1e-6 / D) * 206264.806
-    lod_arcsec2 = lod_arcsec * lod_arcsec
-    -- DETECTOR:
-        det_CRbez = CRbezfactor * det_skytrans / (det_sep*det_sep);
-        ++ NOTE: Later used to calculate photon counting time +++
-    -- ETC:
-        tempCRbezfactor = CRbezfactor * skytrans[index] / (sp[iplanetpistartnp]*sp[iplanetpistartnp]);
-        +++NOTE: Later added together into tempCRbfactor+++
-        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
-
-    Chris Stark Mar 2025: The flux from the exozodi gets scaled as (1 AU / sp_AU)^2.
-    This is because we define exozodi in terms of a surface density at 1 AU from a
-    solar twin, not a surface brightness. So if at 10 pc 1 zodi of exozodi has a
-    surface brightness of X at 1 AU, at 2 AU it would have 1/4th the surface brightness
-    to account for the 1/r^2 illumination factor. I.e., planets that are more distant
-    from their host stars reside in fainter exozodi.
-
+        Exozodiacal light count rate [electrons / s]
     """
     # Calculate Fexozodi at the separation (scale the value of Fexozodi at 1 AU
     # to the separation in AU)
@@ -311,46 +243,37 @@ def calculate_CRbbin(
     """
     Calculate the count rate from neighboring stars.
 
+    This function computes the detected count rate from binary or neighboring stars
+    based on their flux, sky transmission, and telescope parameters.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fbinary : u.Quantity
-        Flux from neighboring stars. [dimensionless]
+        Flux from neighboring stars [dimensionless]
     skytrans : u.Quantity
-        Sky transmission. [dimensionless]
+        Sky transmission [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     throughput : u.Quantity
-        Throughput of the system (includes QE). [electrons/photons]
+        Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
+
+    Note
+    ----
+    IMPORTANT: Currently Fbinary is 0 by default, so this term is zero.
+    It will need to be checked again in the future.
 
     Returns
     -------
     u.Quantity
-        Count rate from neighboring stars. [electrons / s]
-    Notes
-    -----
-    THEORY: NEIGHBORING STARS LEAKAGE
-
-    CRbbin=F_0* 10^{-0.4mag_binary}* Omega A T Delta lambda
-
-    IN AYO:
-    CRbbinfactor = Fbinary * FATDL;
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    -- DETECTOR:
-        det_CRbbin = CRbbinfactor * det_skytrans;
-        ++ NOTE: Later used to calculate photon counting time +++
-
-    -- ETC:
-        tempCRbbinfactor = CRbbinfactor * skytrans[index];
-        +++ NOTE: Later added together into tempCRbfactor+++
-        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
-
+        Count rate from neighboring stars [electrons / s]
     """
+
     return (F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels).to(
         u.electron / (u.s),
         equivalencies=u.equivalencies.dimensionless_angles(),
@@ -370,44 +293,36 @@ def calculate_CRbth(
     """
     Calculate background thermal count rate.
 
-     Parameters
+    This function computes the detected count rate from thermal emission
+    of the telescope and instrument components based on their temperature,
+    emissivity, and other system parameters. It uses a blackbody radiation
+    model to calculate the thermal photon flux.
+
+    Parameters
     ----------
     lam : u.Quantity
-        Wavelength of observation. [um]
+        Wavelength of observation [um]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     temp : u.Quantity
-        Telescope mirror temperature. [K]
+        Telescope mirror temperature [K]
     lod_rad : u.Quantity
-        Lambda/D in radians. [rad]
+        Lambda/D in radians [rad]
     emis : u.Quantity
-        Effective emissivity for the observing system. [dimensionless]
+        Effective emissivity for the observing system [dimensionless]
     QE : u.Quantity
-        Quantum efficiency. [electron/photon]
+        Quantum efficiency [electron/photon]
     dQE : u.Quantity
-        Effective QE due to degradation. [dimensionless factor to multiply to QE]
+        Effective QE due to degradation [dimensionless]
+
     Returns
     -------
     u.Quantity
-        Count rate from thermal background. [electrons / s]
-
-    Notes
-    -----
-
-    IN AYO:
-    Blambda = calcBlambda(temperature, lambda);
-    CRbthermalfactor = Blambda * deltalambda_nm * A_cm * (lod_rad * lod_rad) * epswarmTrcold * QE;
-    -- DETECTOR:
-        det_CRbthermal = CRbthermalfactor * det_omega_lod;
-        ++ NOTE: Later used to calculate photon counting time +++
-
-    -- ETC:
-        tempCRbthermalfactor = CRbthermalfactor;
-        +++ NOTE: Later added together into tempCRbfactor+++
-        +++ THEN: CRb = tempCRbfactor * omega_lod[index2]; +++
+        Count rate from thermal background [electrons / s]
     """
+
     # Calculate blackbody radiation
     bb = models.BlackBody(
         temperature=temp, scale=1 * u.erg / (u.cm**2 * u.AA * u.s * u.sr)
@@ -424,20 +339,6 @@ def calculate_CRbth(
         u.electron / u.s
     )
 
-    # exp_power = c.h * c.c / lam / c.k_B / temp
-    # Bsys = 2 * c.h * c.c**2 / (lam**5 * (np.exp(exp_power) - 1))
-
-    # Bsys = Bsys.to(u.W / u.m**2 / u.um) / u.sr
-
-    # # angular area of photometric aperture
-    # Omega = np.pi * lod_arcsec**2  # in arcsec**2
-    # Omega = Omega.to(u.sr)
-
-    # photon_energy = c.h * c.c / lam
-    # photon_energy = photon_energy.to(u.J) / u.photon
-
-    # return (Bsys * emis * Omega * area * dlambda / photon_energy).to(u.photon / u.s)
-
 
 def calculate_t_photon_count(
     det_npix: u.Quantity,
@@ -446,48 +347,22 @@ def calculate_t_photon_count(
     """
     Calculate the photon counting time.
 
+    This function computes the average time needed to detect one photon per pixel
+    based on the detector count rate and number of pixels.
+
     Parameters
     ----------
     det_npix : u.Quantity
         Number of detector pixels [pix]
     det_CR : u.Quantity
-        Detector count rate. [photons / s]
-
+        Detector count rate [photons / s]
 
     Returns
     -------
     u.Quantity
-        Photon counting time i.e. average time to detect one photon per pixel. [s * pixel / ph ]
-    Notes
-    -----
-
-    # According to Bernie Rauscher:
-    # effective_dark_current = dark_current - f * cic * (1+W_-1[q/e])^-1.
-    # If q = 0.99, (1+W_-1[q/e])^-1 = -6.73 such that
-    # effective_dark_current = dark_current + f * cic * 6.73,
-    # where f is the brightest pixel you care about in counts s^-1
-
-    From Stark 2019:
-    q is Geiger efficiency = quantifies the probability that one or fewer
-    photons arrive during a frame. [units: photons/frame?]
-
-    t=-1/CRsat*{1+W_-1[-q/e]}
-
-    CRsat = count rate of the brightest pixel for which we wish to achieve a given q.
-            -> WE ASSUME THAT IT IS det_CR I.E. THE NOISE AROUND THE IWA
-               CALCULATED EARLIER [electron / s]
-
-    If q = 0.99, (1+W_-1[q/e])^-1 = -6.73, so
-    t = -1/CRsat / -6.73 = 1/(CRsat*6.73) --> GOAL OF THIS FUNCTION
-
-    Which eventually becomes (in CRd):
-    effective_dark_current = dark_current - cic * CRsat (1+W_-1[q/e])^-1 =
-                            dark_current + cic/t = dark_current + cic*CRsat*6.73
-
-          UNITS:            [electrons/pix/s] +[electrons/pix/frame]/[s/frame]
-
-    So this means that t should have [s/frame] units
+        Photon counting time (average time to detect one photon per pixel) [s * pixel / ph]
     """
+
     counts_per_second_per_pixel = det_CR / det_npix  #  electron / s / pix
     # NOTE: I am just extrapolating that 6.73 has units [pix*frame/electron]
     t_photon_count = 1.0 / (
@@ -507,43 +382,30 @@ def calculate_CRbd(
     """
     Calculate the detector noise count rate.
 
+    This function computes the total detector noise count rate by combining
+    contributions from dark current, read noise, and clock-induced charge.
+
     Parameters
     ----------
     det_npix : u.Quantity
         Number of detector pixels [pix]
     det_DC : u.Quantity
-        Dark current. [electron / pix / s]
+        Dark current [electron / pix / s]
     det_RN : u.Quantity
-        Read noise. [electron / pix / read]
+        Read noise [electron / pix / read]
     det_tread : u.Quantity
-        Read time. [s]
+        Read time [s]
     det_CIC : u.Quantity
-        Clock-induced charge. [electron / pix / photon]
+        Clock-induced charge [electron / pix / photon]
     t_photon_count : u.Quantity
-        Photon counting time. [pix * s / electron]
+        Photon counting time [pix * s / electron]
+
     Returns
     -------
     u.Quantity
-        Detector noise count rate. [photons / s]
-
-    Notes
-    -----
-    DETECTOR NOISE
-
-    CRbd = n_{pix}(xi +RN^2/tau_{exposure}+CIC/t_{photon_count})
-        = npix (xi+RN^2/tau_{exposure}+ 6.73*CRsat*CIC
-
-    IN AYO:
-    CRbdfactor = det_DC + det_RN * det_RN/det_tread + det_CIC / t_photon_count;
-    -- DETECTOR:
-    N/A (calculated directly in ETC)
-    -- ETC:
-    det_npix = det_npix_multiplier * (omega_lod[index2] * oneodetpixscale_lod2) * nchannels;
-    CRbd = CRbdfactor * det_npix;
-    +++NOTE: Later added to CRb+++
-    +++ THEN: CRb += CRbd; +++
-
+        Detector noise count rate [electrons / s]
     """
+
     # Using the variance of the read noise but keeping the same units as det_RN alone.
     read_noise_variance = det_RN * det_RN.value
     return (
@@ -568,67 +430,38 @@ def calculate_CRnf(
     """
     Calculate the noise floor count rate.
 
+    This function computes the count rate corresponding to the noise floor
+    based on the stellar flux, telescope parameters, and the specified noise floor level.
+    The noise floor represents the limiting systematic noise that cannot be reduced
+    through longer integration times.
+
     Parameters
     ----------
     F0 : u.Quantity
-        Flux zero point. [photons / (s * cm^2 * nm)]
+        Flux zero point [photons / (s * cm^2 * nm)]
     Fs_over_F0 : u.Quantity
-        Stellar flux. [dimensionless]
+        Stellar flux [dimensionless]
     area : u.Quantity
-        Collecting area of the telescope. [cm^2]
+        Collecting area of the telescope [cm^2]
     pixscale : u.Quantity
-        Pixel scale of the detector. [lambda/D]
+        Pixel scale of the detector [lambda/D]
     throughput : u.Quantity
-        Throughput of the system. [dimensionless]
+        Throughput of the system [dimensionless]
     dlambda : u.Quantity
-        Bandwidth. [um]
+        Bandwidth [um]
     nchannels : int
-        Number of channels.
+        Number of channels
     SNR : float
-        Signal-to-noise ratio.
+        Signal-to-noise ratio
     noisefloor : u.Quantity
-        Noise floor level. [dimensionless]
+        Noise floor level [dimensionless]
 
     Returns
     -------
     u.Quantity
-        Noise floor count rate. [photons / s]
-
-    Notes
-    -----
-    Calculate the count rate of the noise floor.
-    This should be the stddev (over the "noise region") of
-    the difference of the photometric aperture-integrated
-    stellar PSFs. The photometric aperture integration, and
-    stddev of that have been calculated prior to the call to
-    this function, and was then divided by the number of pixels
-    in the photometric aperture. So here we calculate noise
-    using the same method as the leaked starlight.
-    The "noisefloor" array is equal to
-
-    stddev(integral(Istar1,dphotometric_ap) - integral(Istar2,dphotometric_ap))
-                            / (omega/(npix*npix))
-
-    Reminder:
-    self.noisefloor =parameters['noisefloor_factor']*self.contrast
-    # = 1 sigma systematic noise floor expressed as a contrast
-    (uniform over dark hole and unitless) # scalar
-
-    in AYO:
-
-    FATDL = F0 * A_cm * throughput * deltalambda_nm * nchannels
-    CRbsfactor = Fs_over_F0 * oneopixscale2 * FATDL  # for stellar leakage count
-    rate calculation
-    Fs_over_F0 = 10**(-0.4 * magstar)
-        tempCRnffactor = SNR * CRbsfactor * noisefloor_interp[index];
-
-
-    # NOTE: Since Omega is not used when calculating the detector
-    # noise components, this multiplication is done outside the
-    # function when needed. i.e.
-    # CRnoisefloor = tempCRnffactor * omega_lod[index2];
-
+        Noise floor count rate [photons / s]
     """
+
     return (
         SNR
         * (F0 * Fs_over_F0 * area * throughput * dlambda * nchannels / (pixscale**2))
@@ -642,26 +475,31 @@ def calculate_CRnf_ez(
     ez_PPF: u.Quantity,
 ) -> u.Quantity:
     """
-    Calculate the exozodi noise floor if EZ cannot be subtracted to the Poisson noise limit.
+    Calculate the exozodi noise floor count rate.
+
+    This function computes the noise floor contribution from exozodiacal light
+    when it cannot be subtracted to the Poisson noise limit. It accounts for
+    post-processing capabilities through the ez_PPF factor.
 
     Parameters
     ----------
     CRbez : u.Quantity
-        Count rate of the exozodi. [photons / s]
+        Count rate of the exozodi [photons / s]
     SNR : float
-        Signal-to-noise ratio.
+        Signal-to-noise ratio
     ez_PPF : u.Quantity
-        post processing factor of ez. [dimensionless]
+        Post-processing factor for exozodi [dimensionless]
+
     Returns
     -------
     u.Quantity
-        Noise floor count rate. [photons / s]
+        Exozodi noise floor count rate [photons / s]
     """
+
     return SNR * CRbez / ez_PPF
 
 
 def measure_coronagraph_performance_at_IWA(
-    # psf_trunc_ratio: u.Quantity, # commenting out so that we can use either psf_trunc_ratio or photometric_aperture_radius for omega calculation. This is not used anyway in this function.
     photometric_aperture_throughput: u.Quantity,
     Istar_interp: u.Quantity,
     skytrans: u.Quantity,
@@ -674,44 +512,39 @@ def measure_coronagraph_performance_at_IWA(
     """
     Measure the performance of the coronagraph at the Inner Working Angle (IWA).
 
-    This function determines the IWA and calculates various parameters at that point:
+    This function determines the IWA and calculates various coronagraph performance
+    parameters at that point. It identifies the IWA by finding where the photometric
+    aperture throughput falls to half its maximum value and then measures stellar
+    intensity, sky transmission, and other parameters in a 2-pixel annulus at the IWA.
 
-    1. Finds the psf_trunc_ratio closest to 0.3
-    2. Determines the IWA by finding where photometric_aperture_throughput falls to half its maximum value
-    3. Calculates maximum values of Istar, skytrans, photometric_aperture_throughput, and omega_lod in a 2-pixel annulus at the IWA
-
-
-     Parameters
+    Parameters
     ----------
-    psf_trunc_ratio : u.Quantity
-        PSF truncation ratios. [dimensionless]
     photometric_aperture_throughput : u.Quantity
-        Photometric aperture fractions. [dimensionless]
+        Photometric aperture fractions [dimensionless]
     Istar_interp : u.Quantity
-        Interpolated stellar intensity. [dimensionless]
+        Interpolated stellar intensity [dimensionless]
     skytrans : u.Quantity
-        Sky transmission. [dimensionless]
+        Sky transmission [dimensionless]
     omega_lod : u.Quantity
-        Solid angle of photometric aperture. [lambda/D]^2
+        Solid angle of photometric aperture [(lambda/D)^2]
     npix : int
-        Number of pixels in each dimension.
+        Number of pixels in each dimension
     xcenter : u.Quantity
-        X-coordinate of the center. [pixel]
+        X-coordinate of the center [pixel]
     ycenter : u.Quantity
-        Y-coordinate of the center. [pixel]
+        Y-coordinate of the center [pixel]
     oneopixscale_arcsec : u.Quantity
-        Inverse of pixel scale. [1/arcsec]
+        Inverse of pixel scale [1/arcsec]
 
     Returns
     -------
     Tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity, u.Quantity]
-        det_sep_pix: Separation at the IWA. [pixel]
-        det_sep: Separation at the IWA. [arcsec]
-        det_Istar: Maximum stellar intensity at the IWA. [dimensionless]
-        det_skytrans: Maximum sky transmission at the IWA. [dimensionless]
-        det_photometric_aperture_throughput: Maximum photometric aperture fraction at the IWA. [dimensionless]
-        det_omega_lod: Solid angle corresponding to max photometric_aperture_throughput at the IWA. [lambda/D]^2
-
+        det_sep_pix: Separation at the IWA [pixel]
+        det_sep: Separation at the IWA [arcsec]
+        det_Istar: Maximum stellar intensity at the IWA [dimensionless]
+        det_skytrans: Maximum sky transmission at the IWA [dimensionless]
+        det_photometric_aperture_throughput: Maximum photometric aperture fraction at the IWA [dimensionless]
+        det_omega_lod: Solid angle corresponding to max photometric_aperture_throughput at the IWA [(lambda/D)^2]
     """
 
     # Find psf_trunc_ratio closest to 0.3
@@ -775,22 +608,43 @@ def calculate_exposure_time_or_snr(
     mode: str = "exposure_time",
 ) -> None:
     """
-    Calculate the exposure time for each target and wavelength.
-    This function calculates the exposure time for each target star and wavelength,
-    taking into account various noise sources and coronagraph performance metrics.
-    It iterates through targets, wavelengths, orbits, and phases to compute
-    the required exposure time for planet detection.
+    Calculate exposure time or signal-to-noise ratio for an observation.
+
+    This function performs detailed calculations of exposure time or signal-to-noise
+    ratio for each wavelength in an observation, accounting for multiple noise sources,
+    coronagraph performance, and detector characteristics. The function handles both
+    'exposure_time' mode (calculating required exposure time for a given SNR) and
+    'signal_to_noise' mode (calculating achievable SNR for a given exposure time).
+    The function stores calculated photon counts, exposure times or SNR values
+    directly in the observation object. For planets outside the working angle
+    range or below the noise floor, infinity values are assigned.
 
     Parameters
     ----------
     observation : Observation
-        Object containing observation parameters.
+        Observation object containing observation parameters including wavelength,
+        target SNR or exposure time, and bandwidth information
     scene : AstrophysicalScene
-        Object containing scene parameters.
-    observatory: Observatory
-        Object containing observatory parameters.
-    verbose : boolean
-        Verbose flag.
+        AstrophysicalScene object containing scene parameters including planet
+        contrast, stellar properties, and zodiacal light levels
+    observatory : Observatory
+        Observatory object containing telescope, detector, and coronagraph parameters
+    verbose : bool
+        If True, print detailed calculation information to the console
+    ETC_validation : bool, optional
+        If True, use specific parameter values for validation against the ETC,
+        default is False
+    mode : str, optional
+        Calculation mode, either 'exposure_time' (to calculate required exposure
+        time for a given SNR) or 'signal_to_noise' (to calculate achievable SNR
+        for a given exposure time), default is 'exposure_time'
+
+    Raises
+    ------
+    ValueError
+        If an invalid mode is specified or if the observing_mode is not
+        'IMAGER' or 'IFS'
+
     """
 
     # Check modes
@@ -1373,8 +1227,10 @@ def calculate_exposure_time_or_snr(
                         # ([s^2/electron]*[electron/s]^2)/([electron]+[s^2/electron]*[electron/s]^2)=
                         # [electron]/[electron] = []
 
-                        observation.SNR[ilambd]=observation.fullsnr[ilambd] #this is the calculated snr now
-                        
+                        observation.SNR[ilambd] = observation.fullsnr[
+                            ilambd
+                        ]  # this is the calculated snr now
+
                     # Store the variables of interest
                     observation.validation_variables[ilambd] = {
                         "F0": scene.F0[ilambd],

@@ -37,13 +37,14 @@ Alei, E. and Currie, M. H. et al. (2025),.....
 
 
 ```{toctree}
-:maxdepth: 1
+:maxdepth: 2
 :caption: Contents:
 
 installation
 run_pyedith
 imaging_tutorial
 spectroscopy_tutorial
+advanced
 api
 glossary
 ```

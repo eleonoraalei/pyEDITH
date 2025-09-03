@@ -7,29 +7,47 @@ import pandas as pd
 import os
 
 
-def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict, Dict]:
+def parse_input_file(
+    file_path: Union[Path, str], secondary_flag: bool
+) -> Tuple[Dict, Dict]:
     """
-    Parses an input file and extracts variables and secondary variables.
+    Parse an input file and extract variables and secondary variables.
 
-    Parameters:
-    -----------
-    file_path : Union[Path,str]
-        Path to the input file.
+    This function reads a configuration file, processes its contents line by line,
+    and extracts primary and optional secondary variables. It handles various data
+    types including arrays, strings, and numeric values, and performs special
+    processing for IFS observing mode parameters. The function handles various data types including arrays, strings, and numbers.
+    Comments in the input file should start with ';'.
+
+    Parameters
+    ----------
+    file_path : Union[Path, str]
+        Path to the input file
     secondary_flag : bool
-        Flag indicating whether secondary variables are expected.
+        Flag indicating whether secondary variables are expected
 
-    Returns:
-    --------
+    Returns
+    -------
     Tuple[Dict, Dict]
         A tuple containing two dictionaries:
-        - variables: Primary variables extracted from the file.
-        - secondary_variables: Secondary variables extracted from the file
-          (any non-specified variable will be the same as in the variables dictionary).
 
-    Notes:
+        variables: dict
+            Primary variables extracted from the file
+
+        secondary_variables: dict
+            Secondary variables extracted from the file
+            (any non-specified variable will be the same as in the variables dictionary)
+
+    Raises
     ------
-    The function handles various data types including arrays, strings, and numbers.
-    Comments in the input file should start with ';'.
+    KeyError
+        If secondary flag is True but no secondary variables are found in the input file,
+        or if IMAGER mode is specified with multiple wavelengths
+    FileNotFoundError
+        If a specified spectrum file cannot be found
+    ValueError
+        If required parameters are missing or if there are issues with the spectrum file
+
     """
 
     with open(file_path, "r") as file:
@@ -145,28 +163,37 @@ def parse_input_file(file_path: Union[Path, str], secondary_flag) -> Tuple[Dict,
     return variables, secondary_variables
 
 
-def parse_parameters(parameters: dict, nlambda=None) -> dict:
+def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
     """
-    Parses and processes input parameters for the Edith simulation.
+    Parse and process input parameters for simulation.
 
     This function handles various parameter types including wavelength-dependent parameters,
-    target-specific parameters, and scalar values. It also processes coronagraph specifications.
+    target-specific parameters, and scalar values. It converts parameters to appropriate
+    data types and ensures arrays have the correct dimensions based on the number of
+    wavelength points.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     parameters : dict
-        A dictionary of input parameters.
+        A dictionary of input parameters
+    nlambda : int, optional
+        Number of wavelength points, if not specified in parameters
 
-    Returns:
-    --------
+    Returns
+    -------
     dict
-        A dictionary of parsed and processed parameters, including:
-        - Arrays of length nlambda (wavelength-dependent parameters)
-        - Scalar parameters
-        - Coronagraph specifications
+        A dictionary of parsed and processed parameters, including: arrays of length
+        nlambda (wavelength-dependent parameters), Scalar parameters, Coronagraph
+        specifications.
 
-    Notes:
+    Raises
     ------
+    ValueError
+        If wavelength information is missing and nlambda is not provided,
+        or if array parameters have incorrect dimensions
+
+    Note
+    -----
     The function assumes one target (ntargs = 1) for now.
     nmeananom and norbits are defaulted to 1.
     """
@@ -341,30 +368,32 @@ def parse_parameters(parameters: dict, nlambda=None) -> dict:
 
 
 def read_configuration(
-    input_file: Union[Path, str], secondary_flag=False
+    input_file: Union[Path, str], secondary_flag: bool = False
 ) -> Tuple[Dict, Dict]:
     """
-    Reads and parses the configuration from an input file.
+    Read and parse configuration from an input file.
 
     This function reads the input file, extracts parameters, and then parses both
-    the primary and secondary parameters.
+    the primary and secondary parameters. It serves as a high-level wrapper around
+    parse_input_file() and parse_parameters().
 
-    Parameters:
-    -----------
-    input_file : Union[Path,str]
-        Path to the input configuration file.
+    Parameters
+    ----------
+    input_file : Union[Path, str]
+        Path to the input configuration file
+    secondary_flag : bool, optional
+        Flag indicating whether secondary variables should be processed, default is False
 
-    Returns:
-    --------
+    Returns
+    -------
     Tuple[Dict, Dict]
         A tuple containing two dictionaries:
-        - parsed_parameters: Parsed primary parameters.
-        - parsed_secondary_parameters: Parsed secondary parameters.
 
-    Notes:
-    ------
-    This function uses parse_input_file() to read the raw parameters and
-    parse_parameters() to process them.
+        parsed_parameters: dict
+            Parsed primary parameters
+
+        parsed_secondary_parameters: dict
+            Parsed secondary parameters (empty if secondary_flag is False)
     """
 
     parameters, secondary_parameters = parse_input_file(input_file, secondary_flag)
@@ -383,8 +412,26 @@ def get_observatory_config(parameters: Dict[str, str]) -> Union[str, Dict[str, s
     """
     Generate observatory configuration from parameters.
 
-    Returns either a string (if all components are from the same type) or a dictionary (for mixed configurations).
+    This function extracts observatory configuration information from the parameters
+    dictionary. It either returns a preset name if specified or constructs a custom
+    configuration dictionary with telescope, coronagraph, and detector components.
+
+    Parameters
+    ----------
+    parameters : Dict[str, str]
+        Dictionary containing configuration parameters
+
+    Returns
+    -------
+    Union[str, Dict[str, str]]
+        Either a string (if using a preset) or a dictionary (for custom configurations)
+
+    Raises
+    ------
+    ValueError
+        If any required component type is not specified
     """
+
     if "observatory_preset" in parameters:
         config = parameters["observatory_preset"]
     else:
@@ -405,11 +452,17 @@ def print_observatory_config(config: Union[str, Dict[str, str]]) -> None:
     """
     Print the observatory configuration to the terminal.
 
-    Parameters:
-    -----------
+    This function formats and displays the observatory configuration in a
+    human-readable format, showing either the preset name or the individual
+    component selections.
+
+    Parameters
+    ----------
     config : Union[str, Dict[str, str]]
-        The observatory configuration, either as a string (preset) or a dictionary (custom).
+        The observatory configuration, either as a string (preset) or
+        a dictionary (custom configuration)
     """
+
     print("Observatory Configuration:")
     if isinstance(config, str):
         print(f"  Using preset: {config}")

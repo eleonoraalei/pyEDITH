@@ -79,18 +79,22 @@ def lambda_d_to_radians(
     """
     Convert a λ/D value to radians.
 
-    Parameters:
-    -----------
-    value_lod : Quantity
+    This function converts an angular measurement in units of λ/D (diffraction
+    limited resolution elements) to radians based on the provided wavelength
+    and telescope diameter.
+
+    Parameters
+    ----------
+    value_lod : u.Quantity
         The λ/D value (dimensionless)
-    wavelength : Quantity
+    wavelength : u.Quantity
         The wavelength
-    diameter : Quantity
+    diameter : u.Quantity
         The telescope diameter
 
-    Returns:
-    --------
-    Quantity
+    Returns
+    -------
+    u.Quantity
         The angle in radians
     """
     return (value_lod * wavelength / diameter).to(
@@ -104,17 +108,21 @@ def radians_to_lambda_d(
     """
     Convert an angle in radians to λ/D.
 
-    Parameters:
-    -----------
-    angle : Quantity
+    This function converts an angular measurement in radians to units of λ/D
+    (diffraction limited resolution elements) based on the provided wavelength
+    and telescope diameter.
+
+    Parameters
+    ----------
+    angle : u.Quantity
         The angle in radians
-    wavelength : Quantity
+    wavelength : u.Quantity
         The wavelength
-    diameter : Quantity
+    diameter : u.Quantity
         The telescope diameter
 
-    Returns:
-    --------
+    Returns
+    -------
     Quantity
         The value in λ/D (dimensionless)
     """
@@ -129,18 +137,22 @@ def lambda_d_to_arcsec(
     """
     Convert λ/D to arcseconds.
 
-    Parameters:
-    -----------
-    value_lod : Quantity
+    This function converts an angular measurement in units of λ/D (diffraction
+    limited resolution elements) to arcseconds based on the provided wavelength
+    and telescope diameter.
+
+    Parameters
+    ----------
+    value_lod : u.Quantity
         The λ/D value (dimensionless)
-    wavelength : Quantity
+    wavelength : u.Quantity
         Wavelength
-    diameter : Quantity
+    diameter : u.Quantity
         Telescope diameter
 
-    Returns:
-    --------
-    Quantity
+    Returns
+    -------
+    u.Quantity
         Angular size in arcseconds
     """
     return lambda_d_to_radians(value_lod, wavelength, diameter).to(u.arcsec)
@@ -152,18 +164,22 @@ def arcsec_to_lambda_d(
     """
     Convert arcseconds to λ/D.
 
-    Parameters:
-    -----------
-    angle : Quantity
+    This function converts an angular measurement in arcseconds to units of λ/D
+    (diffraction limited resolution elements) based on the provided wavelength
+    and telescope diameter.
+
+    Parameters
+    ----------
+    angle : u.Quantity
         Angle in arcseconds
-    wavelength : Quantity
+    wavelength : u.Quantity
         Wavelength
-    diameter : Quantity
+    diameter : u.Quantity
         Telescope diameter
 
-    Returns:
-    --------
-    Quantity
+    Returns
+    -------
+    u.Quantity
         Angular size in λ/D
     """
     return radians_to_lambda_d(angle.to(u.rad), wavelength, diameter)
@@ -171,30 +187,45 @@ def arcsec_to_lambda_d(
 
 def arcsec_to_au(angle: u.Quantity, distance: u.Quantity) -> u.Quantity:
     """
-    Convert an angle in arcseconds to a distance in AU, given a distance in parsecs.
+    Convert an angle in arcseconds to a distance in AU.
 
-    Parameters:
-    angle (Quantity): The angle in arcseconds
-    distance (Quantity): The distance in parsecs
+    This function converts an angular separation in arcseconds to a projected
+    physical separation in astronomical units, given a distance to the system.
 
-    Returns:
-    Quantity: The corresponding distance in AU
+    Parameters
+    ----------
+    angle : u.Quantity
+        The angle in arcseconds
+    distance : u.Quantity
+        The distance in parsecs
+
+    Returns
+    -------
+    u.Quantity
+        The corresponding distance in AU
     """
     return (angle.to(u.radian).value * distance).to(u.au)
 
 
-
-def to_arcsec(quantity: u.Quantity, observer_distance: u.Quantity):
+def to_arcsec(quantity: u.Quantity, observer_distance: u.Quantity) -> float:
     """
-    Convert a quantiy to a projected distance in arcsec, given a distance. 
-    Important: value and distance must have the same units! 
+    Convert a physical size to an angular size in arcseconds.
 
-    Parameters:
-    quantity (Quantity): The value to be converted to arcsec
-    distance (Quantity): The distance in parsecs
+    This function converts a physical length to a projected angular size in
+    arcseconds as seen from a given distance. Important: quantity and
+    observer_distance must have the same units!
 
-    Returns:
-    Quantity: The corresponding value in arcsec
+    Parameters
+    ----------
+    quantity : u.Quantity
+        The physical size to be converted to arcsec
+    observer_distance : u.Quantity
+        The distance to the object
+
+    Returns
+    -------
+    float
+        The corresponding angular size in arcsec
     """
     return np.arctan(quantity / observer_distance).to(u.arcsec).value
 

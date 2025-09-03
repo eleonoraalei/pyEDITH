@@ -32,12 +32,30 @@ class Telescope(ABC):
 
     @abstractmethod
     def load_configuration(self):
+        """
+        Load configuration parameters for the telescope.
+
+        This abstract method must be implemented by subclasses to define
+        how telescope configuration parameters are loaded and processed.
+        """
         pass  # pragma: no cover
 
     def validate_configuration(self):
         """
-        Check that mandatory variables are there and have the right format.
-        There can be other variables, but they are not needed for the calculation.
+        Check that mandatory variables are present and have the correct format.
+
+        This method validates that all required attributes exist on the telescope
+        object and that they have the expected types and units. Additional variables
+        may be present but are not required for calculations.
+
+        Raises
+        ------
+        AttributeError
+            If a required attribute is missing
+        TypeError
+            If an attribute has an incorrect type
+        ValueError
+            If a Quantity attribute has incorrect units
         """
         expected_args = {
             "diameter": LENGTH,
@@ -67,7 +85,16 @@ class ToyModelTelescope(Telescope):
     """
     A toy model telescope class that extends the base Telescope class.
 
-    This class represents a simplified telescope model for use in simulations.
+    This class represents a simplified telescope model for use in simulations
+    where users can specify telescope parameters manually rather than using
+    predefined models from configuration files.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to configuration files (not used in toy model)
+    keyword : str, optional
+        Keyword for configuration selection (not used in toy model)
     """
 
     DEFAULT_CONFIG = {
@@ -81,25 +108,39 @@ class ToyModelTelescope(Telescope):
         "T_contamination": 0.95 * DIMENSIONLESS,
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize a ToyModelTelescope instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to configuration files (not used in toy model)
+        keyword : str, optional
+            Keyword for configuration selection (not used in toy model)
+        """
+
         self.path = path
         self.keyword = keyword
 
-    def load_configuration(self, parameters, mediator) -> None:
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of
-        parameters that was read from the input file. If not provided, use default values.
+        Load configuration parameters for the toy model telescope simulation.
+
+        This method initializes various attributes of the Telescope object
+        using the provided parameters dictionary or default values. It calculates
+        the effective collecting area of the telescope based on the diameter
+        and unobscured area parameters.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        ALL OF THE CLASSES
-        Returns
-        -------
-        None
+            A dictionary containing simulation parameters including telescope
+            specifications and observational parameters
+        mediator : ObservatoryMediator
+            Mediator object providing access to other simulation components
         """
+
         # Load parameters, use defaults if not provided
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
@@ -116,9 +157,18 @@ class ToyModelTelescope(Telescope):
 
 class EACTelescope(Telescope):
     """
-    A toy model telescope class that extends the base Telescope class.
+    An EAC telescope class that extends the base Telescope class.
 
-    This class represents a simplified telescope model for use in simulations.
+    This class represents a telescope model that loads parameters from EAC YAML
+    configuration files through the module EACy, supporting both imaging and IFS
+    (Integral Field Spectroscopy) observing modes.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to configuration files (not used directly)
+    keyword : str
+        Keyword identifying the specific telescope model to load from EACy files
     """
 
     DEFAULT_CONFIG = {
@@ -135,25 +185,46 @@ class EACTelescope(Telescope):
         * TEMPERATURE,  # Temperature of the warm optics; NOTE: missing from YAML files
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize an EACTelescope instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to configuration files (not used directly)
+        keyword : str
+            Keyword identifying the specific telescope model to load from EACy files
+        """
+
         self.path = path
         self.keyword = keyword
 
-    def load_configuration(self, parameters, mediator) -> None:
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of
-        parameters that was read from the input file. If not provided, use default values.
+        Load configuration parameters from the YAML files using EACy.
+
+        This method initializes telescope attributes using parameters from EAC YAML
+        configuration files. It handles both IMAGER and IFS observing modes,
+        loading appropriate telescope characteristics including diameter and optical
+        throughput. For IMAGER mode, parameters are averaged over the specified
+        wavelength range, while for IFS mode, parameters are interpolated onto
+        the observation wavelength grid.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        ALL OF THE CLASSES
-        Returns
-        -------
-        None
+            A dictionary containing simulation parameters including observing mode
+            and telescope specifications
+        mediator : ObservatoryMediator
+            Mediator object providing access to observation and coronagraph parameters
+
+        Raises
+        ------
+        KeyError
+            If the observing mode is not 'IMAGER' or 'IFS'
         """
+
         # Check on possible modes
         if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
             raise KeyError(

@@ -34,13 +34,32 @@ class Detector(ABC):
 
     @abstractmethod
     def load_configuration(self):
+        """
+        Load configuration parameters for the detector.
+
+        This abstract method must be implemented by subclasses to define
+        how detector configuration parameters are loaded and processed.
+        """
         pass  # pragma: no cover
 
     def validate_configuration(self):
         """
-        Check that mandatory variables are there and have the right format.
-        There can be other variables, but they are not needed for the calculation.
+        Check that mandatory variables are present and have the correct format.
+
+        This method validates that all required attributes exist on the detector
+        object and that they have the expected types and units. Additional variables
+        may be present but are not required for calculations.
+
+        Raises
+        ------
+        AttributeError
+            If a required attribute is missing
+        TypeError
+            If an attribute has an incorrect type
+        ValueError
+            If a Quantity attribute has incorrect units
         """
+
         expected_args = {
             "pixscale_mas": MAS,
             "npix_multiplier": DIMENSIONLESS,
@@ -68,7 +87,16 @@ class ToyModelDetector(Detector):
     """
     A toy model detector class that extends the base Detector class.
 
-    This class represents a simplified detector model for use in simulations.
+    This class represents a simplified detector model for use in simulations
+    where users can specify all detector parameters manually rather than
+    using predefined models from configuration files.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to configuration files (not used in toy model)
+    keyword : str, optional
+        Keyword for configuration selection (not used in toy model)
     """
 
     DEFAULT_CONFIG = {
@@ -85,27 +113,37 @@ class ToyModelDetector(Detector):
         * DIMENSIONLESS,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize a ToyModelDetector instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to configuration files (not used in toy model)
+        keyword : str, optional
+            Keyword for configuration selection (not used in toy model)
+        """
         self.path = path
         self.keyword = keyword
 
-    def load_configuration(self, parameters, mediator) -> None:
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary.
+        Load configuration parameters for the toy model detector simulation.
 
         This method initializes various attributes of the Detector object
-        using the provided parameters dictionary.
+        using the provided parameters dictionary. It calculates the default
+        detector pixel scale based on telescope parameters and handles
+        wavelength-dependent detector properties by expanding single values
+        to arrays when multiple wavelengths are specified.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        mediator: ObservatoryMediator
-        Returns
-        -------
-        None
-
+            A dictionary containing simulation parameters including detector
+            specifications and observational parameters
+        mediator : ObservatoryMediator
+            Mediator object providing access to telescope and observation parameters
         """
 
         # Calculate default detector pixel scale based on telescope
@@ -154,9 +192,18 @@ class ToyModelDetector(Detector):
 
 class EACDetector(Detector):
     """
-    A toy model detector class that extends the base Detector class.
+    An EAC detector class that extends the base Detector class.
 
-    This class represents a simplified detector model for use in simulations.
+    This class represents a detector model that loads parameters from the EAC YAML
+    configuration files through the module EACy, supporting both imaging and IFS
+    (Integral Field Spectroscopy) observing modes.
+
+    Parameters
+    ----------
+    path : str, optional
+        Path to configuration files (not used in EAC detector)
+    keyword : str, optional
+        Keyword for configuration selection (not used in EAC detector)
     """
 
     DEFAULT_CONFIG = {
@@ -172,27 +219,45 @@ class EACDetector(Detector):
         "dQE": None,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
 
-    def __init__(self, path=None, keyword=None):
+    def __init__(self, path: str = None, keyword: str = None):
+        """
+        Initialize an EACDetector instance.
+
+        Parameters
+        ----------
+        path : str, optional
+            Path to configuration files (not used in EAC detector)
+        keyword : str, optional
+            Keyword for configuration selection (not used in EAC detector)
+        """
         self.path = path
         self.keyword = keyword
 
-    def load_configuration(self, parameters, mediator) -> None:
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary.
+        Load configuration parameters from the YAML files using EACy.
 
-        This method initializes various attributes of the Detector object
-        using the provided parameters dictionary.
+        This method initializes detector attributes using parameters from EAC YAML
+        detector configuration files. It handles both IMAGER and IFS observing modes,
+        loading appropriate detector characteristics including dark current, read noise,
+        and quantum efficiency. The method automatically selects VIS or NIR detector
+        parameters based on the observing wavelength.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        mediator: ObservatoryMediator
-        Returns
-        -------
-        None
+            A dictionary containing simulation parameters including observing mode,
+            detector specifications, and observational parameters
+        mediator : ObservatoryMediator
+            Mediator object providing access to observation, telescope, and coronagraph
+            parameters including wavelength arrays and bandwidth specifications
 
+        Raises
+        ------
+        KeyError
+            If the observing mode is not 'IMAGER' or 'IFS'
+        AssertionError
+            If the QE array contains NaN values after processing
         """
         # Check on possible modes
         if parameters["observing_mode"] not in ["IFS", "IMAGER"]:

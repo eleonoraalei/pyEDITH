@@ -38,23 +38,35 @@ class Observation:
     def __init__(self) -> None:
         """
         Initialize the default parameters of the Observation class.
+
+        Sets the default exposure time limit (td_limit) to a large value.
         """
+
         # Misc parameters that probably don't need to be changed
         self.td_limit = 1e20 * TIME  # limit placed on exposure times # scalar
 
     def load_configuration(self, parameters: dict) -> None:
         """
-        Load configuration parameters for the simulation from a dictionary of
-        parameters that was read from the input file.
+        Load configuration parameters for the observation from a dictionary.
+
+        This method initializes various observation parameters from the provided
+        dictionary, including wavelength arrays, signal-to-noise ratios, and
+        aperture settings. For IFS mode, it can calculate or regrid the wavelength
+        grid based on specified parameters.
 
         Parameters
         ----------
         parameters : dict
-            A dictionary containing simulation parameters including target star
-            parameters, planet parameters, and observational parameters.
-        Returns
-        -------
-        None
+            A dictionary containing observation parameters including wavelengths,
+            SNR values, aperture settings, and observation mode settings. Must
+            include 'observing_mode', 'wavelength', 'snr', and either
+            'psf_trunc_ratio' or 'photometric_aperture_radius'
+
+        Raises
+        ------
+        KeyError
+            If required parameters are missing or if regridding is requested without
+            necessary parameters
         """
 
         # -------- INPUTS ---------
@@ -151,15 +163,13 @@ class Observation:
 
     def set_output_arrays(self):
         """
-        Initialize output arrays:
+        Initialize arrays for storing observation results.
 
-        - tp : ndarray
-            Exposure time of every planet (nmeananom x norbits x ntargs array).
-        - exptime : ndarray
-            Exposure time for each target and wavelength.
-        - fullsnr : ndarray
-            Signal-to-noise ratio for each target and wavelength.
+        This method creates and initializes the arrays that will store the
+        calculated exposure times and signal-to-noise ratios for each
+        wavelength point in the observation.
         """
+
         # Initialize some arrays needed for outputs...
         self.tp = 0.0 * TIME  # exposure time of every planet
         # (nmeananom x norbits x ntargs array), used in c function
@@ -172,8 +182,21 @@ class Observation:
 
     def validate_configuration(self):
         """
-        Check that mandatory variables are there and have the right format.
-        There can be other variables, but they are not needed for the calculation.
+        Validate that all required observation parameters are present and correctly formatted.
+
+        This method checks that all mandatory attributes exist on the observation
+        object and that they have the expected types and units. It specifically
+        verifies that either photometric_aperture_radius or psf_trunc_ratio is
+        defined but not necessarily both.
+
+        Raises
+        ------
+        AttributeError
+            If neither photometric_aperture_radius nor psf_trunc_ratio is defined
+        TypeError
+            If an attribute has an incorrect type
+        ValueError
+            If a Quantity attribute has incorrect units
         """
         expected_args = {
             "wavelength": WAVELENGTH,

@@ -280,14 +280,14 @@ def calc_zodi_flux(
     ValueError
         If F0 and lambd have different lengths, or if starshade mode is inconsistent with ss_elongation.
 
-    Notes
-    -----
+    Note
+    ----
     - The function uses the zodiacal light model from Leinert et al. (1998).
     - For coronagraph mode, it assumes observations near solar longitude of 135 degrees.
     - Starshade functionality is currently not fully implemented.
 
     References:
-    -----------
+
     Leinert, C., et al. (1998). The 1997 reference of diffuse night sky brightness.
     Astronomy and Astrophysics Supplement Series, 127(1), 1-99.
     """
@@ -508,7 +508,7 @@ class AstrophysicalScene:
 
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         """
         Initialize the AstrophysicalScene object with default values for output arrays.
         """
@@ -743,10 +743,7 @@ class AstrophysicalScene:
         parameters : dict
             A dictionary containing simulation parameters including target star
             parameters, planet parameters, and observational parameters.
-
-            Must have keys:
-                wavelength : array_like
-                    Wavelengths for the observation.
+            Must include a "wavelength" key containing the wavelength array
         Returns
         -------
         None
@@ -810,23 +807,44 @@ class AstrophysicalScene:
         # spectra to regrid: F0, Fzodi_list, Fexozodi_list, Fbinary_list, Fp_over_Fs, Fs_over_F0
         print("Re-gridding spectra onto ETC wavelength grid...")
         self.F0 = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.F0, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.F0,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.Fzodi_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.Fzodi_list, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.Fzodi_list,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.Fexozodi_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.Fexozodi_list, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.Fexozodi_list,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.Fbinary_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.Fbinary_list, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.Fbinary_list,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.Fp_over_Fs = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.Fp_over_Fs, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.Fp_over_Fs,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.Fs_over_F0 = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.Fs_over_F0, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.Fs_over_F0,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
         self.ez_PPF = utils.regrid_spec_gaussconv(
-            parameters["wavelength"], self.ez_PPF, observation.wavelength.value, observation.delta_wavelength.value
+            parameters["wavelength"],
+            self.ez_PPF,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
         )
