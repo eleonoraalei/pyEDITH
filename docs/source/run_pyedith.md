@@ -1,4 +1,4 @@
-# Run `pyEDITH`
+# Run pyEDITH
 
 ## Running pyEDITH via Terminal
 

@@ -37,7 +37,7 @@ Alei, E. and Currie, M. H. et al. (2025),.....
 
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 :caption: Contents:
 
 installation

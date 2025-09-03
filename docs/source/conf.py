@@ -37,8 +37,6 @@ source_suffix = {
 # NBSphinx settings
 nbsphinx_execute = "auto"
 
-nbsphinx_toc_tree_section = 3
-
 # MyST settings
 myst_enable_extensions = [
     "colon_fence",
@@ -54,7 +52,6 @@ autodoc_default_options = {
     "exclude-members": "DEFAULT_CONFIG",
 }
 
-toctree_maxdepth = 4
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 
 
