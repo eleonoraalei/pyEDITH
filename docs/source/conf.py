@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath("../../src"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "pyEDITH"
-copyright = "2025, Alei, Eleonora & Currie, Miles et al."
+copyright = "2025 - Alei, Eleonora & Currie, Miles et al"
 author = "Alei, Eleonora & Currie, Miles et al."
 
 # -- General configuration ---------------------------------------------------
@@ -62,6 +62,10 @@ html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_theme_options = {
     "show_toc_level": 2,
+    "repository_url": "https://github.com/eleonoraalei/pyEDITH",
+    "path_to_docs": "docs/source",
+    "use_issues_button": True,
+    "use_repository_button": True,
 }
 html_logo = "_static/pyEDITH.png"  # replace with your logo's filename
 
