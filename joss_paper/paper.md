@@ -8,20 +8,21 @@ tags:
   - space telescopes
 authors:
   - name: Eleonora Alei
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0002-0006-1175
     equal-contrib: true
     affiliation: "1"
   - name: Miles H. Currie
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0003-3429-4142
     equal-contrib: true
     corresponding: true
     affiliation: "1"
   - name: Christopher C. Stark
-    orcid: 0000-0000-0000-0000
     affiliation: "1"
   - name: Aki Roberge
+    orcid: 0000-0002-2989-3725
     affiliation: "1"
   - name: Avi M. Mandell
+    orcid: 0000-0002-8119-3355
     affiliation: "1"
 affiliations:
  - name: NASA Goddard Space Flight Center
@@ -32,13 +33,13 @@ bibliography: paper.bib
 
 # Summary
 
-`pyEDITH` is a Python-based coronagraphic exposure time calculator built for NASA's next flagship mission, the Habitable Worlds Observatory (HWO), tasked with searching for signs of habitability and life in dozens of nearby exoplanet systems. `pyEDITH` is designed to simulate wavelength-dependent exposure times and signal-to-noise ratios (S/N) for both photometric and spectroscopic direct imaging observations. `pyEDITH` considers realistic engineering specifications, and allows the user to provide target system information, as well as alter observatory parameters, to calculate synthetic HWO observations of Earth-like exoplanets. We present a schematic of the `pyEDITH` framework in \autoref{fig:diagram}.
+`pyEDITH` is a Python-based coronagraphic exposure time calculator built for the recommended NASA flagship mission, the Habitable Worlds Observatory (HWO), tasked with searching for signs of habitability and life in dozens of nearby exoplanet systems. `pyEDITH` is designed to simulate wavelength-dependent exposure times and signal-to-noise ratios (S/N) for both photometric and spectroscopic direct imaging observations. `pyEDITH` considers realistic engineering specifications, and allows the user to provide target system information, to calculate synthetic HWO observations of Earth-like exoplanets. We present a schematic of the `pyEDITH` framework in \autoref{fig:diagram}.
 
 ![A schematic of the `pyEDITH` components and their relationships, and the data flow from inputs to final calculations.\label{fig:diagram}](pyedith_workflow.pdf)
 
 # Statement of need
 
-`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` has heritage from the Altruistic Yield Optimizer [@stark2014ayo], used for robust and fast calculations. Implementing this framework in Python enables easier integration with modern astronomical workflows and lowers the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by the scientific community at all skill levels for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. `pyEDITH` includes API documentation and tutorial notebooks, and has already been used by several forthcoming scientific publications [@Currie2025exozodi; @Alei2025]. It is endorsed by the HWO Project Office at NASA's Goddard Space Flight Center, and through its flexible and user-friendly design, it will enable efficient HWO mission design studies and inform the development of more advanced observer planning tools when HWO launches.
+`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` implements the Altruistic Yield Optimizer [@stark2014ayo] framework in Python, enabling easier integration with modern astronomical workflows and lowering the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by the scientific community at all skill levels for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. The `pyEDITH` package includes API documentation, tutorial notebooks, and has been used by forthcoming scientific publications [@Currie2025exozodi; @Alei2025]. 
 
 # Mathematical formalism
 
@@ -53,7 +54,7 @@ $$\mathrm{S/N} = \mathrm{CR}_p \left[\mathrm{CR}_\mathrm{nf}^2 + (\mathrm{CR}_\m
 ## Planetary Signal
 The count rate of the planetary target is given by:
     $$\mathrm{CR}_p = F_p\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_p$ is the planet flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] at the telescope, and before it proceeds through the observatory, $A$ is the collecting area [cm$^2$], $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the optics throughput, $\Delta\lambda$ is the wavelength bin width [nm].
+where $F_p$ is the planet flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] at the telescope before it proceeds through the instrumentation, $A$ is the collecting area [cm$^2$], $\Upsilon$ is the fraction of light entering the coronagraph that is within the photometric core of the off-axis (planetary) PSF assuming perfectly transmitting/reflecting optics, $T$ is the total throughput of the optics, and $\Delta\lambda$ is the wavelength bin width [nm].
 
 ## Background (noise) count rates
 The background count rate is composed of stellar leakage ($\mathrm{CR}_{b,*}$), zodiacal/exozodiacal light ($\mathrm{CR}_{b,\mathrm{zodi}}$ and $\mathrm{CR}_{b,\mathrm{exozodi}}$, respectively), observatory thermal radiation ($\mathrm{CR}_{b,\mathrm{thermal}}$), and detector noise ($\mathrm{CR}_{b,\mathrm{detector}}$); the equations for all count rates are given below.
@@ -67,24 +68,19 @@ $$\mathrm{CR}_{b,*} = F_{*} \ \zeta\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
 where $F_*$ is the stellar flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$], $\zeta$ is the contrast suppression factor of the coronagraph, and $\Omega$ is the photometric aperture.
 
 ### Zodiacal dust
-The count rate of the solar system zodiacal dust is given by:
+The count rate of the solar system zodiacal dust, assumed to be a gray scatterer, is given by:
 $$\mathrm{CR}_{b,\mathrm{zodi}}= F_0\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] and $z$ is the surface brightness of the zodi, nominally $23\ \mathrm{mag}/\mathrm{arcsec}^2$. The zodiacal dust is assumed to be a gray scatterer of stellar light. 
+where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] and $z$ is the surface brightness of the zodi, nominally $23\ \mathrm{mag}/\mathrm{arcsec}^2$. 
 
 ### Exozodiacal dust
-The count rate of habitable zone dust in exoplanet systems is given by:
+The count rate of habitable zone dust in exoplanet systems analogous to the zodiacal light, and is given by:
 $$\mathrm{CR}_{b,\mathrm{exozodi}}= F_0\ n 10^{-0.4x} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$ 
 where $x$ is the surface brightness in the V band of the exozodi, assumed to be $22\ \mathrm{mag}/\mathrm{arcsec}^2$ and a gray scatterer. $n$ is the exozodi multiplier, which controls the density of exozodiacal dust in a system as a multiple of zodiacal dust.
-
-<!-- ### Stellar binary companions
-The countrate accounting for flux leakage from stellar binary companions is given by:
-$$\mathrm{CR}_{b,\mathrm{binary}}= F_0\ 10^{-0.4m}\ \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$ 
-where $m$ is the magnitude of the binary star seen from the planet -->
 
 ### Thermal background
 The thermal emission of the observatory is given by:
 $$\mathrm{CR}_{b,\mathrm{thermal}}= \frac{B_\lambda}{E_\mathrm{photon}} \ \varepsilon_\mathrm{warm}\ T_\mathrm{cold}\ \mathrm{QE}\ \Omega\ A\ \Delta \lambda$$
-where $B_\lambda$ is the blackbody function per unit wavelength; $E_\mathrm{photon}$ is the energy of the photon; $\varepsilon_\mathrm{warm}$ is the effective emissivity of all warm optics; $T_\mathrm{cold}$ is the transmission/reflectivity of all cold optics; $QE$ is the detector's quantum efficiency. 
+where $B_\lambda$ is the blackbody function per unit wavelength; $E_\mathrm{photon}$ is the energy of the photon; $\varepsilon_\mathrm{warm}$ is the effective emissivity of all warm optics; $T_\mathrm{cold}$ is the transmission/reflectivity of all cold optics; $\mathrm{QE}$ is the detector's quantum efficiency. 
 
 ### Detector noise
 Noise from the detector is given by:
@@ -92,28 +88,22 @@ $$\mathrm{CR}_{b,\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mat
 where $N_\mathrm{pix}$ is the number of detector pixels; $\mathrm{DC}$ is the dark current [$e^-$/pix/s], $\mathrm{RN}$ is the read noise [$e^-$/pix/read], $t_\mathrm{read}$ is the read time [s], $\mathrm{CIC}$ is the clock-induced-charge [$e^-/\mathrm{pix}/\mathrm{photon}$]; and $t_\mathrm{count}$ the photon counting time [s]. 
 
 ### Noise floor
-The noise floor count rate simulating imperfect coronagraphic speckle subtraction is given by:
+The noise floor count rate simulates imperfect coronagraphic speckle subtraction and is given by:
 $$\mathrm{CR}_\mathrm{nf}=\mathrm{NF}\ F_*\ \frac{\Omega}{\mathrm{pixscale}^2}\ A\ T\ \Delta\lambda$$
-where $\mathrm{NF} = {\mathrm{PSF}_*}/\mathrm{PPF}$. $\mathrm{PSF}_*$ is the on-axis coronagraphic response function, $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30 for HWO, assuming $10^{-10} contrast is achieved), and pixscale is the pixel scale of the detector.
+where $\mathrm{NF} = {\mathrm{PSF}_*}/\mathrm{PPF}$. $\mathrm{PSF}_*$ is the on-axis coronagraphic response function, $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30 for HWO, assuming $10^{-10}$ contrast is achieved), and pixscale is the pixel scale of the detector.
 
 # Imaging mode
 
-In photometry mode, `pyEDITH` can calculate the exposure time $\tau$ needed to reach the S/N required for initial exoplanet detection surveys in the V-band (0.5 μm). Given the calculated time to exoplanet discovery, `pyEDITH` simultaneously calculates the corresponding S/N for other strategic bandpasses, which can be defined by the user. These multi-bandpass calculations are designed to flexibly explore different filter choices (including bandwidth) in the UV–NIR, enabling trade studies to determine the set of filters that maximizes the science return. See \autoref{fig:img} for an example demonstration of `pyEDITH`'s imaging mode. 
+In photometry mode, `pyEDITH` can calculate the exposure time $\tau$ needed to reach the S/N required for initial exoplanet detection surveys in any bandpass for user-defined exoplanet systems. For a user-defined "discovery band," `pyEDITH` simultaneously calculates the corresponding S/N for other strategic user-defined bandpasses. These multi-bandpass calculations (\autoref{fig:img}) enable trade studies to determine the set of filters that will maximize the photometric science return. 
 
 ![Example of photometric exposure times generated for different bandpasses/bandwidths. \label{fig:img}](img_demo.pdf)
 
 
 # Spectroscopy mode
 
-The spectroscopy mode in `pyEDITH` calculates exposure time and S/N as a function of wavelength. `pyEDITH` allows the user to input models of the host star and exoplanet reflectance spectra, then calculates exposure times and S/N for the user-defined wavelength grid. Alternatively, the user can define unlimited spectral channels and their corresponding resolutions, prompting `pyEDITH` to run calculations for an internal wavelength grid, enabling maximum flexibility for spectroscopic instrumentation trade studies. Finally, `pyEDITH` can synthesize noisy exoplanet observational data to use in precursor data analysis studies. See \autoref{fig:spec} for an example demonstration of `pyEDITH`'s spectroscopy mode. 
+The spectroscopy mode of `pyEDITH` calculates exposure time and S/N as a function of wavelength given user-defined models of the host star and exoplanet reflectance spectra. The user can define spectral channels and their corresponding resolutions, enabling maximum flexibility for spectroscopic instrumentation trade studies. Finally, `pyEDITH` can synthesize noisy exoplanet observational data to use in precursor data analysis studies (\autoref{fig:spec}). 
 
 ![Example of `pyEDITH`-synthesized HWO data (red) of an Earth-like exoplanet (upper) and the calculated S/N as a function of wavelength (lower).  \label{fig:spec}](spec_demo.pdf)
-
-# Documentation and Validation
-
-Documentation for `pyEDITH` is available in the GitHub repository, and includes an API and tutorial notebooks.  We validate `pyEDITH` against other available HWO exposure time calculators, and the results of this analysis are also found in the accompanying documentation.  
-
-<!-- following the prescription of @stark2025validation. Reproducing the validation scenarios in @stark2025validation by fixing our inputs, we compare the outputs of `pyEDITH` to the four other exposure time calculators and find agreement to within a few percent for most common parameters. Minor differences in reported zero-point fluxes can cause discrepancies up to 10% in some parameters; however, these differences also appear in the @stark2025validation comparison. -->
 
 # Acknowledgements
 
