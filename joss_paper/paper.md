@@ -39,9 +39,10 @@ bibliography: paper.bib
 
 # Statement of need
 
-`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` implements the Altruistic Yield Optimizer [@stark2014ayo] framework in Python, enabling easier integration with modern astronomical workflows and lowering the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by the scientific community at all skill levels for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. The `pyEDITH` package includes API documentation[^1], tutorial notebooks, and has been used by forthcoming scientific publications [@Currie2025exozodi; @Alei2025]. 
+`pyEDITH` is a Python package for developing the exoplanet detection and characterization capabilities of the Habitable Worlds Observatory mission. `pyEDITH` implements the Altruistic Yield Optimizer [@stark2014ayo] framework[^1] in Python, enabling easier integration with modern astronomical workflows and lowering the technical barrier for users to adopt the tool for their specific needs. `pyEDITH` was designed to be used by the scientific community at all skill levels for understanding the capabilities and limitations of different HWO architectures for exoplanet detection and characterization. The `pyEDITH` package includes API documentation[^2], tutorial notebooks, and has been used by forthcoming scientific publications [@Currie2025exozodi; @Alei2025]. 
 
-[^1]: https://pyedith.readthedocs.io/en/latest/
+[^1]: https://starkspace.com/code/hwo_etc.zip
+[^2]: https://pyedith.readthedocs.io/en/latest/
 
 # Mathematical formalism
 
