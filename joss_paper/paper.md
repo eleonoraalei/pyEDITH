@@ -70,7 +70,7 @@ where $F_*$ is the stellar flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \math
 ### Zodiacal dust
 The count rate of the solar system zodiacal dust, assumed to be a gray scatterer, is given by:
 $$\mathrm{CR}_{\mathrm{b},\mathrm{zodi}}= F_0\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] and $z$ is the surface brightness of the zodi [\mathrm{mag}/\mathrm{arcsec}^2$], scaled by the zodi optical depth integrated along the target line of sight [@leinert1998]. 
+where $F_0$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] and $z$ is the surface brightness of the zodi [$\mathrm{mag}/\mathrm{arcsec}^2$], scaled by the zodi optical depth integrated along the target line of sight [@leinert1998]. 
 
 ### Exozodiacal dust
 The count rate of habitable zone dust in exoplanet systems analogous to the zodiacal light, and is given by:
