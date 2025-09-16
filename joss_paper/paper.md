@@ -105,7 +105,7 @@ where $B_\lambda$ is the blackbody function per unit wavelength; $E_\mathrm{phot
 ### Detector noise
 Noise from the detector is given by:
 $$\mathrm{CR}_{\mathrm{b},\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mathrm{RN}^2}{t_\mathrm{read}}+\frac{\mathrm{CIC}}{t_\mathrm{count}}\right)$$
-where $N_\mathrm{pix}$ is the number of detector pixels; $\mathrm{DC}$ is the dark current [$e^-$/pix/s], $\mathrm{RN}$ is the read noise [$e^-$/pix/read], $t_\mathrm{read}$ is the read time [s], $\mathrm{CIC}$ is the clock-induced-charge [$e^-/\mathrm{pix}/\mathrm{photon}$]; and $t_\mathrm{count}$ the photon counting time [s].
+where $N_\mathrm{pix}$ is the number of detector pixels in the photometric aperture; $\mathrm{DC}$ is the dark current [$e^-$/pix/s], $\mathrm{RN}$ is the read noise [$e^-$/pix/read], $t_\mathrm{read}$ is the read time [s], $\mathrm{CIC}$ is the clock-induced-charge [$e^-/\mathrm{pix}/\mathrm{photon}$]; and $t_\mathrm{count}$ the photon counting time [s].
 
 
 ### Noise floor
