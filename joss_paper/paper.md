@@ -59,7 +59,7 @@ Mathematically, exposure times are calculated as:
 $$\tau=(\mathrm{S/N})^2 \left(\frac{\mathrm{CR}_\mathrm{p}+\alpha\ \mathrm{CR}_\mathrm{b}}{\mathrm{CR}_\mathrm{p}^2 - (\mathrm{S/N})^2\ \mathrm{CR}_\mathrm{nf}^2}\right) \tau_\mathrm{multi}+\tau_\mathrm{static}$$
 
 
-where S/N is the desired signal-to-noise ratio, $\mathrm{CR}_\mathrm{p}$, $\mathrm{CR}_\mathrm{b}$, and $\mathrm{CR}_\mathrm{nf}$ are the photon count rates of the planet, background, and noise floor, respectively. $\alpha$ parameterizes the PSF-subtraction method, and $\tau_\mathrm{multi}$ and $\tau_\mathrm{static}$ are multiplicative and fixed overhead times, respectively, accounting for telescope slew/settling time and achieving the required coronagraphic contrast ratio. Importantly, `pyEDITH` has functionality to calculate S/N given a desired exposure time by inverting the equation above:
+where S/N is the desired signal-to-noise ratio, $\mathrm{CR}_\mathrm{p}$, $\mathrm{CR}_\mathrm{b}$, and $\mathrm{CR}_\mathrm{nf}$ are the photon count rates of the planet, background, and noise floor, respectively. $\alpha$ parameterizes the point spread function (PSF) subtraction method, and $\tau_\mathrm{multi}$ and $\tau_\mathrm{static}$ are multiplicative and fixed overhead times, respectively, accounting for telescope slew/settling time and achieving the required coronagraphic contrast ratio. Importantly, `pyEDITH` has functionality to calculate S/N given a desired exposure time by inverting the equation above:
 
 
 $$\mathrm{S/N} = \mathrm{CR}_\mathrm{p} \left[\mathrm{CR}_\mathrm{nf}^2 + (\mathrm{CR}_\mathrm{p} + \alpha\mathrm{CR}_\mathrm{b})\left(\frac{\tau_\mathrm{multi}}{\tau - \tau_\mathrm{static}}\right)\right]^{-0.5}$$
@@ -87,7 +87,7 @@ where $F_*(\lambda)$ is the stellar flux [$\frac{\mathrm{photon}}{\mathrm{cm} \c
 ### Zodiacal dust
 The count rate of the solar system zodiacal dust, assumed to be a gray scatterer, is given by:
 $$\mathrm{CR}_{\mathrm{b},\mathrm{zodi}}= F_0(\lambda)\ 10^{-0.4z} \Omega\ A\ \Upsilon\ T\ \Delta \lambda$$
-where $F_0(\lambda)$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] as a function of wavelength and $z$ is the surface brightness of the zodi [$\mathrm{mag}/\mathrm{arcsec}^2$], scaled by the zodi optical depth integrated along the target line of sight [@leinert1998].
+where $F_0(\lambda)$ is the zero-point flux [$\frac{\mathrm{photon}}{\mathrm{cm} \cdot \mathrm{s} \cdot \mathrm{nm}}$] as a function of wavelength and $z$ is the V-band surface brightness of the zodi [$\mathrm{mag}/\mathrm{arcsec}^2$], scaled by the zodi optical depth integrated along the target line of sight [@leinert1998].
 
 
 ### Exozodiacal dust
@@ -105,7 +105,7 @@ where $B_\lambda$ is the blackbody function per unit wavelength; $E_\mathrm{phot
 ### Detector noise
 Noise from the detector is given by:
 $$\mathrm{CR}_{\mathrm{b},\mathrm{detector}}= N_\mathrm{pix} \left(\mathrm{DC}+\frac{\mathrm{RN}^2}{t_\mathrm{read}}+\frac{\mathrm{CIC}}{t_\mathrm{count}}\right)$$
-where $N_\mathrm{pix}$ is the number of detector pixels in the photometric aperture; $\mathrm{DC}$ is the dark current [$e^-$/pix/s], $\mathrm{RN}$ is the read noise [$e^-$/pix/read], $t_\mathrm{read}$ is the read time [s], $\mathrm{CIC}$ is the clock-induced-charge [$e^-/\mathrm{pix}/\mathrm{photon}$]; and $t_\mathrm{count}$ the photon counting time [s].
+where $N_\mathrm{pix}$ is the number of detector pixels in the photometric aperture; $\mathrm{DC}$ is the dark current [$e^-$/pix/s], $\mathrm{RN}^2$ is the read noise [$e^-$/pix/read], $t_\mathrm{read}$ is the read time [s], $\mathrm{CIC}$ is the clock-induced-charge [$e^-/\mathrm{pix}/\mathrm{photon}$]; and $t_\mathrm{count}$ the photon counting time [s].
 
 
 ### Noise floor
@@ -115,7 +115,7 @@ where $\mathrm{PPF}$ is an assumed post-processing factor (nominally 30 for HWO,
 
 
 # Imaging mode
-In broadband photometry mode, pyEDITH can calculate the exposure time 𝜏 needed to reach the S/N required for initial exoplanet detection surveys in any bandpass for user-defined exoplanet systems (\autoref{fig:img}). This enables trade studies to determine the set of filters that will maximize the photometric science return of HWO. As a consequence, pyEDITH also allows the study of multi-bandpass photometric strategies, as described in Alei et al. 2025.
+In broadband photometry mode, pyEDITH can calculate the exposure time 𝜏 needed to reach the S/N required for initial exoplanet detection surveys in any bandpass for user-defined exoplanet systems (\autoref{fig:img}). This enables trade studies to determine the set of filters that will maximize the photometric science return of HWO. As a consequence, pyEDITH also allows the study of multi-bandpass photometric strategies, as described in @Alei2025.
 
 
 ![Example of photometric exposure times required to achieve SNR=7 in  different bandpasses and bandwidths, assuming an underlying Earth-like spectrum. \label{fig:img}](img_demo.pdf)
@@ -123,8 +123,7 @@ In broadband photometry mode, pyEDITH can calculate the exposure time 𝜏 neede
 
 # Spectroscopy mode
 
-
-The spectroscopy mode of `pyEDITH` calculates exposure time and S/N as a function of wavelength given user-defined models of the host star and exoplanet reflectance spectra. The user can define spectral channels and their corresponding resolutions (excluding a line spread function at the time of writing), enabling maximum flexibility for spectroscopic instrumentation trade studies. Finally, `pyEDITH` can synthesize noisy exoplanet observational data to use in precursor data analysis studies (\autoref{fig:spec}).
+The spectroscopy mode of `pyEDITH` calculates exposure time and S/N as a function of wavelength given user-defined models of the host star and exoplanet reflectance spectra. The user can define spectral channels and their corresponding resolutions, enabling maximum flexibility for spectroscopic instrumentation trade studies; however, we do not consider a line spread function at the time of writing. Finally, `pyEDITH` can synthesize noisy exoplanet observational data to use in precursor data analysis studies (see \autoref{fig:spec} and @Currie2025exozodi).
 
 
 ![Example of `pyEDITH`-synthesized HWO data (red) of an Earth-like exoplanet (upper) and the calculated S/N as a function of wavelength (lower).  \label{fig:spec}](spec_demo.pdf)
