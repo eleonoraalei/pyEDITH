@@ -1,9 +1,18 @@
+<p align="center">
+  <img src="docs/source/_static/pyEDITH.png" alt="pyEDITH logo">
+</p>
 
-!['pyEDITH logo'](docs/source/_static/pyEDITH.png)
-
-[![Codecov](https://img.shields.io/codecov/c/github/eleonoraalei/pyEDITH?style=for-the-badge&logo=codecov)](https://app.codecov.io/gh/eleonoraalei/pyEDITH)
-[![Documentation Status](https://readthedocs.org/projects/pyedith/badge/?version=latest&style=for-the-badge)](https://pyedith.readthedocs.io/en/latest/)
-[![CI](https://img.shields.io/github/actions/workflow/status/eleonoraalei/pyEDITH/run_and_test.yml?branch=main&logo=github&style=for-the-badge)](https://github.com/eleonoraalei/pyEDITH/actions/workflows/run_and_test.yml/)
+<p align="center">
+  <a href="https://app.codecov.io/gh/eleonoraalei/pyEDITH">
+    <img src="https://img.shields.io/codecov/c/github/eleonoraalei/pyEDITH?style=for-the-badge&logo=codecov" alt="Codecov">
+  </a>
+  <a href="https://pyedith.readthedocs.io/en/latest/">
+    <img src="https://readthedocs.org/projects/pyedith/badge/?version=latest&style=for-the-badge" alt="Documentation Status">
+  </a>
+  <a href="https://github.com/eleonoraalei/pyEDITH/actions/workflows/run_and_test.yml/">
+    <img src="https://img.shields.io/github/actions/workflow/status/eleonoraalei/pyEDITH/run_and_test.yml?branch=main&logo=github&style=for-the-badge" alt="CI">
+  </a>
+</p>
 
 
 # pyEDITH
