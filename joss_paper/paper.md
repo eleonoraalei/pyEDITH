@@ -24,6 +24,9 @@ authors:
   - name: Avi M. Mandell
     orcid: 0000-0002-8119-3355
     affiliation: "1"
+  - name: Corey Spohn
+    orcid: 0000-0002-3138-0240
+    affiliation: "1"
 affiliations:
  - name: NASA Goddard Space Flight Center
    index: 1
