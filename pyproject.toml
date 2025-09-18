@@ -33,8 +33,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 package-dir = {"" = "src"}
 packages = ["pyEDITH","pyEDITH.components"]
+include-package-data = true
 
 [tool.setuptools.package-data]
-pyedith = ["*.so"]
+"pyEDITH.components" = ["registry.json"] 
+
 [project.scripts]
 pyedith = "pyEDITH.cli:main"
