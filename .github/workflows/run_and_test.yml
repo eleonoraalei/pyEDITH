@@ -33,7 +33,7 @@ jobs:
 
       - name: Clone required repository
         run: |
-            git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface/tree/main/hwo_sci_eng sci-eng-repo
+            git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface sci-eng-repo
             echo "SCI_ENG_DIR=${{ github.workspace }}/sci-eng-repo" >> $GITHUB_ENV
             
       - name: Run tests
