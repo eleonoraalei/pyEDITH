@@ -31,7 +31,7 @@ jobs:
             echo "SCI_ENG_DIR=${{ github.workspace }}/sci-eng-repo/hwo_sci_eng" >> $GITHUB_ENV
             
       - name: Run tests
-        run: pytest --cov .
+        run: pytest --cov-report  --cov=src/pyEDITH tests/
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
