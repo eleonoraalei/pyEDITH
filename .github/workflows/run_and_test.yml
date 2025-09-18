@@ -1,12 +1,12 @@
 name: Run tests and upload coverage
 
 on: 
-  push
+  [push,pull_request]
 
 jobs:
   test:
     name: Run tests and collect coverage
-    runs-on: ubuntu-latest
+    runs-on: macos
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest pytest-cov numpy astropy scipy pandas yippy openpyxl synphot eacy
-          pip install .
+          pip install -r requirements .
           
       - name: Lint with flake8
         run: |
@@ -32,7 +32,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
           
       - name: Run tests
-        run: pytest --cov-report=xml  --cov=src/pyEDITH tests/
+        run: pytest --cov .
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
