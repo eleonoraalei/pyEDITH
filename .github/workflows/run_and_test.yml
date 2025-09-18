@@ -1,41 +1,43 @@
 name: Run tests and upload coverage
 
-on: 
-  [push,pull_request]
+on: [push, pull_request]
 
 jobs:
   test:
     name: Run tests and collect coverage
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]  # Based on your requires-python >= 3.10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov numpy astropy scipy pandas yippy openpyxl synphot eacy
+          pip install pytest-cov  # Add pytest-cov since it's not in your dependencies
           pip install -e .
-          
 
       - name: Clone required repository
         run: |
-            git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface sci-eng-repo
-            echo "SCI_ENG_DIR=${{ github.workspace }}/sci-eng-repo/hwo_sci_eng" >> $GITHUB_ENV
+          git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface sci-eng-repo
+          echo "SCI_ENG_DIR=${{ github.workspace }}/sci-eng-repo/hwo_sci_eng" >> $GITHUB_ENV
             
       - name: Run tests
-        run:  pytest tests/ --cov=src/pyEDITH --cov-report=xml
+        run: pytest tests/ --cov=src/pyEDITH --cov-report=xml
 
       - name: Upload results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v5.4.3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-
+          flags: smart-tests
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

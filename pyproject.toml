@@ -13,10 +13,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies= [
+dependencies = [
   "numpy",
   "scipy",
-  "pytest",
   "astropy",
   "pandas",
   "yippy",
@@ -24,12 +23,22 @@ dependencies= [
   "synphot",
   "eacy"
 ]
+
+# Optional dependencies for testing
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "pytest-cov"
+]
+
 [project.urls]
 Homepage = "https://github.com/eleonoraalei/pyEDITH/"
 Issues = "https://github.com/eleonoraalei/pyEDITH/issues"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 packages = ["pyEDITH","pyEDITH.components"]
