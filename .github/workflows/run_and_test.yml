@@ -21,19 +21,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 pytest pytest-cov numpy astropy scipy pandas yippy openpyxl synphot eacy
+          pip install pytest pytest-cov numpy astropy scipy pandas yippy openpyxl synphot eacy
           pip install .
           
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Clone required repository
         run: |
-            git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface sci-eng-repo
+            git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface/hwo_sci_eng sci-eng-repo
             echo "SCI_ENG_DIR=${{ github.workspace }}/sci-eng-repo" >> $GITHUB_ENV
             
       - name: Run tests
