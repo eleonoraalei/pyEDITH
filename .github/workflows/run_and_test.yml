@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest pytest-cov numpy astropy scipy pandas yippy openpyxl synphot eacy
-          pip install -r requirements .
+          pip install .
           
       - name: Lint with flake8
         run: |
