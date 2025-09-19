@@ -1,3 +1,20 @@
+<p align="center">
+  <img src="docs/source/_static/pyEDITH.png" alt="pyEDITH logo">
+</p>
+
+<p align="center">
+  <a href="https://app.codecov.io/gh/eleonoraalei/pyEDITH">
+    <img src="https://img.shields.io/codecov/c/github/eleonoraalei/pyEDITH?style=for-the-badge&logo=codecov" alt="Codecov">
+  </a>
+  <a href="https://pyedith.readthedocs.io/en/latest/">
+    <img src="https://readthedocs.org/projects/pyedith/badge/?version=latest&style=for-the-badge" alt="Documentation Status">
+  </a>
+  <a href="https://github.com/eleonoraalei/pyEDITH/actions/workflows/run_and_test.yml/">
+    <img src="https://img.shields.io/github/actions/workflow/status/eleonoraalei/pyEDITH/run_and_test.yml?branch=main&logo=github&style=for-the-badge" alt="CI">
+  </a>
+</p>
+
+
 # pyEDITH
 Exposure Direct Imaging Timer for HWO (Python Version)
 
