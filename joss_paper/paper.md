@@ -134,7 +134,7 @@ The spectroscopy mode of `pyEDITH` calculates exposure time and S/N as a functio
 # Acknowledgements
 
 
-We acknowledge helpful feedback from Adric Riedel, Andrew Myers, and Jason Tumlinson and the broader Habitable Worlds Observatory community, including early beta testers. The work of M.H.C., E.A., and C.S. was supported by appointments to the NASA Postdoctoral Program at the NASA Goddard Space Flight Center, administered by Oak Ridge Associated Universities under contract with NASA.
+We acknowledge helpful feedback from Adric Riedel, Andrew Myers, and Jason Tumlinson and the broader Habitable Worlds Observatory community, including early beta testers. The work of M.H.C., E.A., and C.S. was supported by appointments to the NASA Postdoctoral Program at the NASA Goddard Space Flight Center, administered by Oak Ridge Associated Universities under contract with NASA (ORAU-80HQTR21CA005).
 
 
 # References
