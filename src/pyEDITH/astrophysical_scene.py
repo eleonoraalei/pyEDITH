@@ -872,3 +872,17 @@ class AstrophysicalScene:
             observation.wavelength.value,
             observation.delta_wavelength.value,
         )
+
+        # unsupported but still to be safe
+        self.mag = utils.regrid_spec_gaussconv(
+            parameters["wavelength"],
+            self.mag,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
+        )
+        self.deltamag = utils.regrid_spec_gaussconv(
+            parameters["wavelength"],
+            self.deltamag,
+            observation.wavelength.value,
+            observation.delta_wavelength.value,
+        )

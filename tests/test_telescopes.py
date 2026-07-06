@@ -7,7 +7,6 @@ from pyEDITH.units import LENGTH, TIME, DIMENSIONLESS, TEMPERATURE, WAVELENGTH
 from pyEDITH.utils import average_over_bandpass, interpolate_over_bandpass
 from copy import deepcopy
 
-
 # ============================================================================
 # Mock Objects and Fixtures
 # ============================================================================
@@ -25,6 +24,11 @@ class MockMediator:
                 return np.array([0.5, 0.7, 1.1]) * WAVELENGTH
             elif self.observing_mode == "IMAGER":
                 return np.array([0.7]) * WAVELENGTH
+        if param == "delta_wavelength":
+            if self.observing_mode == "IFS":
+                return np.array([0.5 / 140, 0.7 / 140, 1.1 / 140]) * WAVELENGTH
+            elif self.observing_mode == "IMAGER":
+                return np.array([0.7 / 140]) * WAVELENGTH
         return 1.0
 
     def get_coronagraph_parameter(self, param):

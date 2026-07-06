@@ -134,8 +134,6 @@ def test_toy_model_load_configuration_basic_parameters(caplog):
         coronagraph = ToyModelCoronagraph()
         parameters = {
             "pixscale": 0.3,
-            "minimum_IWA": 2.5,
-            "maximum_OWA": 90.0,
             "contrast": 1e-10,
             "noisefloor_factor": 0.05,
             "bandwidth": 0.1,
@@ -150,8 +148,6 @@ def test_toy_model_load_configuration_basic_parameters(caplog):
         coronagraph.load_configuration(parameters, mediator)
 
         assert coronagraph.pixscale == 0.3 * LAMBDA_D
-        assert coronagraph.minimum_IWA == 2.5 * LAMBDA_D
-        assert coronagraph.maximum_OWA == 90.0 * LAMBDA_D
         assert coronagraph.contrast == 1e-10 * DIMENSIONLESS
         assert coronagraph.noisefloor_factor == 0.05 * DIMENSIONLESS
         assert coronagraph.bandwidth == 0.1
@@ -167,8 +163,6 @@ def test_toy_model_load_configuration_default_values():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -190,8 +184,6 @@ def test_toy_model_load_configuration_calculated_attributes():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -224,8 +216,6 @@ def test_toy_model_load_configuration_pixel_grid():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -249,8 +239,6 @@ def test_toy_model_load_configuration_radial_grid():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -273,8 +261,6 @@ def test_toy_model_load_configuration_omega_lod():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -300,8 +286,6 @@ def test_toy_model_load_configuration_skytrans():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -324,8 +308,6 @@ def test_toy_model_load_configuration_photometric_aperture_throughput():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -348,18 +330,6 @@ def test_toy_model_load_configuration_photometric_aperture_throughput():
         (coronagraph.photometric_aperture_throughput == 0.3 * DIMENSIONLESS)
         | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
     )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r < coronagraph.minimum_IWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r > coronagraph.maximum_OWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
 
 
 def test_toy_model_load_configuration_psf_peak():
@@ -367,8 +337,6 @@ def test_toy_model_load_configuration_psf_peak():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -390,8 +358,6 @@ def test_toy_model_load_configuration_istar():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -415,8 +381,6 @@ def test_toy_model_load_configuration_noisefloor_with_factor(caplog):
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "noisefloor_factor": 0.05,
         "bandwidth": 0.1,
@@ -450,8 +414,6 @@ def test_toy_model_load_configuration_noisefloor_ppf_raises_error():
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "bandwidth": 0.1,
         "Tcore": 0.3,
@@ -474,8 +436,6 @@ def test_toy_model_load_configuration_default_noisefloor_factor(caplog):
     coronagraph = ToyModelCoronagraph()
     parameters = {
         "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
         "contrast": 1e-10,
         "bandwidth": 0.1,
         "Tcore": 0.3,
@@ -562,7 +522,6 @@ def test_coronagraph_yip_load_configuration_imager_basic_parameters(
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
     parameters = {
         "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
         "bandwidth": 0.1,
         "psf_trunc_ratio": 0.3,
         "nrolls": 2,
@@ -574,8 +533,6 @@ def test_coronagraph_yip_load_configuration_imager_basic_parameters(
     coronagraph.load_configuration(parameters, mediator)
 
     assert coronagraph.pixscale == yippy_coronagraph.header.pixscale.value * LAMBDA_D
-    assert coronagraph.minimum_IWA == 2.0 * LAMBDA_D
-    assert coronagraph.maximum_OWA == 90.0 * LAMBDA_D
     assert coronagraph.bandwidth == 0.1
     assert coronagraph.nrolls == 2
     assert coronagraph.nchannels == 1
@@ -1203,18 +1160,6 @@ def test_coronagraph_yip_photometric_aperture_throughput_iwa_owa(
         (coronagraph.photometric_aperture_throughput == 0.5 * DIMENSIONLESS)
         | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
     )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r < coronagraph.minimum_IWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r > coronagraph.maximum_OWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
 
 
 @patch("eacy.load_instrument")
@@ -1433,8 +1378,6 @@ def test_validate_configuration_valid_setup():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1459,8 +1402,6 @@ def test_validate_configuration_missing_istar():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1486,8 +1427,6 @@ def test_validate_configuration_incorrect_npix_type():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1515,8 +1454,6 @@ def test_validate_configuration_incorrect_bandwidth_type():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1544,8 +1481,6 @@ def test_validate_configuration_incorrect_pixscale_units():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1573,8 +1508,6 @@ def test_validate_configuration_pixscale_not_quantity():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 
@@ -1601,8 +1534,6 @@ def test_validate_configuration_with_psf_trunc_ratio():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
     coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
@@ -1628,8 +1559,6 @@ def test_validate_configuration_missing_both_aperture_params():
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
     coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
 

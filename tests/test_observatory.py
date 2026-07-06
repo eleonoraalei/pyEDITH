@@ -78,8 +78,6 @@ class MockCoronagraph(Coronagraph):
     def load_configuration(self, parameters, mediator):
         self.path = None
         self.pixscale = 30.0 * LAMBDA_D
-        self.minimum_IWA = 1.0 * LAMBDA_D
-        self.maximum_OWA = 60.0 * LAMBDA_D
         self.contrast = 1.05e-13 * DIMENSIONLESS
         self.noisefloor_factor = 0.03 * DIMENSIONLESS
         self.bandwidth = 0.2

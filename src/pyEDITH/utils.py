@@ -307,12 +307,10 @@ def print_array_info(
             max_val = np.max(arr)
             min_val = np.min(arr)
             if has_units:
-
                 file.write(
                     f"max value: {max_val.value:.6e}, min value: {min_val.value:.6e}\n"
                 )
             else:
-
                 file.write(f"max value: {max_val:.6e}, min value: {min_val:.6e}\n")
 
 
@@ -320,132 +318,29 @@ def print_all_variables(
     observation: object,
     scene: object,
     observatory: object,
-    deltalambda_nm: np.ndarray,
-    lod: np.ndarray,
-    lod_rad: np.ndarray,
-    lod_arcsec: np.ndarray,
-    area_cm2: np.ndarray,
-    detpixscale_lod: np.ndarray,
-    stellar_diam_lod: np.ndarray,
-    pixscale_rad: np.ndarray,
-    oneopixscale_arcsec: np.ndarray,
-    det_sep_pix: np.ndarray,
-    det_sep: np.ndarray,
-    det_Istar: np.ndarray,
-    det_skytrans: np.ndarray,
-    det_photometric_aperture_throughput: np.ndarray,
-    det_omega_lod: np.ndarray,
-    det_CRp: np.ndarray,
-    det_CRbs: np.ndarray,
-    det_CRbz: np.ndarray,
-    det_CRbez: np.ndarray,
-    det_CRbbin: np.ndarray,
-    det_CRbth: np.ndarray,
-    det_CR: np.ndarray,
-    ix: int,
-    iy: int,
-    sp_lod: float,
-    CRp: np.ndarray,
-    CRnf: np.ndarray,
-    CRbs: np.ndarray,
-    CRbz: np.ndarray,
-    CRbez: np.ndarray,
-    CRbbin: np.ndarray,
-    t_photon_count: np.ndarray,
-    CRbd: np.ndarray,
-    CRbth: np.ndarray,
-    CRb: np.ndarray,
 ) -> None:
     """
     Write comprehensive debug information to files for observation calculations.
 
-    This function outputs detailed information about all relevant parameters
-    and calculated variables used in the observation simulation to both validation
-    and full_info text files. It includes observation parameters, scene properties,
-    observatory characteristics, and all intermediate calculations.
+    Reads all intermediate and final arrays from observation.validation_variables
+    (populated by the vectorized compute path) and writes them to both
+    pyedith_validation.txt and pyedith_full_info.txt.
 
     Parameters
     ----------
     observation : Observation
-        Observation object containing observation-specific parameters
+        Observation object containing observation-specific parameters and
+        a populated `validation_variables` dict.
     scene : AstrophysicalScene
-        Scene object containing astrophysical scene parameters
+        Scene object containing astrophysical scene parameters.
     observatory : Observatory
-        Observatory object containing telescope, coronagraph, and detector parameters
-    deltalambda_nm : np.ndarray
-        Wavelength intervals in nanometers
-    lod : np.ndarray
-        Lambda over D values
-    lod_rad : np.ndarray
-        Lambda over D values in radians
-    lod_arcsec : np.ndarray
-        Lambda over D values in arcseconds
-    area_cm2 : np.ndarray
-        Telescope area in cm²
-    detpixscale_lod : np.ndarray
-        Detector pixel scale in λ/D units
-    stellar_diam_lod : np.ndarray
-        Stellar diameter in λ/D units
-    pixscale_rad : np.ndarray
-        Pixel scale in radians
-    oneopixscale_arcsec : np.ndarray
-        Single pixel scale in arcseconds
-    det_sep_pix : np.ndarray
-        Detector separation in pixels
-    det_sep : np.ndarray
-        Detector separation
-    det_Istar : np.ndarray
-        Detector stellar intensity
-    det_skytrans : np.ndarray
-        Detector sky transmission
-    det_photometric_aperture_throughput : np.ndarray
-        Detector photometric aperture throughput
-    det_omega_lod : np.ndarray
-        Detector solid angle in λ/D units
-    det_CRp : np.ndarray
-        Detector planet count rate
-    det_CRbs : np.ndarray
-        Detector background star count rate
-    det_CRbz : np.ndarray
-        Detector zodiacal background count rate
-    det_CRbez : np.ndarray
-        Detector exozodiacal background count rate
-    det_CRbbin : np.ndarray
-        Detector binary background count rate
-    det_CRbth : np.ndarray
-        Detector thermal background count rate
-    det_CR : np.ndarray
-        Total detector count rate
-    ix : int
-        X pixel coordinate
-    iy : int
-        Y pixel coordinate
-    sp_lod : float
-        Separation in λ/D units
-    CRp : np.ndarray
-        Planet count rate
-    CRnf : np.ndarray
-        Noise floor count rate
-    CRbs : np.ndarray
-        Background star count rate
-    CRbz : np.ndarray
-        Zodiacal background count rate
-    CRbez : np.ndarray
-        Exozodiacal background count rate
-    CRbbin : np.ndarray
-        Binary background count rate
-    t_photon_count : np.ndarray
-        Photon counting time
-    CRbd : np.ndarray
-        Detector background count rate
-    CRbth : np.ndarray
-        Thermal background count rate
-    CRb : np.ndarray
-        Total background count rate
+        Observatory object containing telescope, coronagraph, and detector parameters.
     """
     logger.debug(
         "Printing all relevant variables in pyedith_validation.txt and pyedith_full_info.txt."
     )
+
+    vv = observation.validation_variables  # shorthand
 
     for mode in ["validation", "full_info"]:
         with open("pyedith_" + mode + ".txt", "w") as file:
@@ -514,15 +409,13 @@ def print_all_variables(
                 ("observatory.coronagraph.pixscale", observatory.coronagraph.pixscale),
                 (
                     "observatory.coronagraph.psf_trunc_ratio",
-                    getattr(
-                        observatory.coronagraph, "psf_trunc_ratio", None
-                    ),  # optional
+                    getattr(observatory.coronagraph, "psf_trunc_ratio", None),
                 ),
                 (
                     "observatory.coronagraph.photometric_aperture_throughput",
                     getattr(
                         observatory.coronagraph, "photometric_aperture_throughput", None
-                    ),  # optional
+                    ),
                 ),
                 ("observatory.coronagraph.skytrans", observatory.coronagraph.skytrans),
                 (
@@ -534,14 +427,6 @@ def print_all_variables(
                 (
                     "observatory.coronagraph.nchannels",
                     observatory.coronagraph.nchannels,
-                ),
-                (
-                    "observatory.coronagraph.minimum_IWA",
-                    observatory.coronagraph.minimum_IWA,
-                ),
-                (
-                    "observatory.coronagraph.maximum_OWA",
-                    observatory.coronagraph.maximum_OWA,
                 ),
                 (
                     "observatory.coronagraph.npsfratios",
@@ -576,13 +461,13 @@ def print_all_variables(
             file.write("\n1. Initial Calculations:\n")
             for item_name, item in [
                 ("Fs_over_F0", scene.Fs_over_F0),
-                ("deltalambda_nm", deltalambda_nm),
-                ("lod", lod),
-                ("lod_rad", lod_rad),
-                ("lod_arcsec", lod_arcsec),
-                ("area_cm2", area_cm2),
-                ("detpixscale_lod", detpixscale_lod),
-                ("stellar_diam_lod", stellar_diam_lod),
+                ("deltalambda_nm", vv.get("deltalambda_nm")),
+                ("lod", vv.get("lod")),
+                ("lod_rad", vv.get("lod_rad")),
+                ("lod_arcsec", vv.get("lod_arcsec")),
+                ("area_cm2", vv.get("area_cm2")),
+                ("detpixscale_lod", vv.get("detpixscale_lod")),
+                ("stellar_diam_lod", vv.get("stellar_diam_lod")),
             ]:
                 print_array_info(file, item_name, item, mode)
 
@@ -595,48 +480,52 @@ def print_all_variables(
 
             file.write("\n3. Coronagraph Performance Measurements:\n")
             for item_name, item in [
-                ("pixscale_rad", pixscale_rad),
-                ("oneopixscale_arcsec", oneopixscale_arcsec),
-                ("det_sep_pix", det_sep_pix),
-                ("det_sep", det_sep),
-                ("det_Istar", det_Istar),
-                ("det_skytrans", det_skytrans),
+                ("pixscale_rad", vv.get("pixscale_rad")),
+                ("oneopixscale_arcsec", vv.get("oneopixscale_arcsec")),
+                ("det_sep_pix", vv.get("det_sep_pix")),
+                ("det_sep", vv.get("det_sep")),
+                ("det_Istar", vv.get("det_Istar")),
+                ("det_skytrans", vv.get("det_skytrans")),
                 (
                     "det_photometric_aperture_throughput",
-                    det_photometric_aperture_throughput,
+                    vv.get("det_photometric_aperture_throughput"),
                 ),
-                ("det_omega_lod", det_omega_lod),
+                ("det_omega_lod", vv.get("det_omega_lod")),
             ]:
                 print_array_info(file, item_name, item, mode)
 
             file.write("\n4. Detector Noise Calculations:\n")
             for item_name, item in [
-                ("det_CRp", det_CRp),
-                ("det_CRbs", det_CRbs),
-                ("det_CRbz", det_CRbz),
-                ("det_CRbez", det_CRbez),
-                ("det_CRbbin", det_CRbbin),
-                ("det_CRbth", det_CRbth),
-                ("det_CR", det_CR),
+                ("det_CRp", vv.get("det_CRp")),
+                ("det_CRbs", vv.get("det_CRbs")),
+                ("det_CRbz", vv.get("det_CRbz")),
+                ("det_CRbez", vv.get("det_CRbez")),
+                ("det_CRbbin", vv.get("det_CRbbin")),
+                ("det_CRbth", vv.get("det_CRbth")),
+                ("det_CR", vv.get("det_CR")),
             ]:
                 print_array_info(file, item_name, item, mode)
 
             file.write("\n5. Planet Position and Separation:\n")
-            for item_name, item in [("ix", ix), ("iy", iy), ("sp_lod", sp_lod)]:
+            for item_name, item in [
+                ("ix", vv.get("ix")),
+                ("iy", vv.get("iy")),
+                ("sp_lod", vv.get("sp_lod")),
+            ]:
                 print_array_info(file, item_name, item, mode)
 
             file.write("\n6. Count Rates and Exposure Time Calculation:\n")
             for item_name, item in [
-                ("CRp", CRp),
-                ("CRnf", CRnf),
-                ("CRbs", CRbs),
-                ("CRbz", CRbz),
-                ("CRbez", CRbez),
-                ("CRbbin", CRbbin),
-                ("t_photon_count", t_photon_count),
-                ("CRbd", CRbd),
-                ("CRbth", CRbth),
-                ("CRb", CRb),
+                ("CRp", vv.get("CRp")),
+                ("CRnf", vv.get("CRnf")),
+                ("CRbs", vv.get("CRbs")),
+                ("CRbz", vv.get("CRbz")),
+                ("CRbez", vv.get("CRbez")),
+                ("CRbbin", vv.get("CRbbin")),
+                ("t_photon_count", vv.get("t_photon_count")),
+                ("CRbd", vv.get("CRbd")),
+                ("CRbth", vv.get("CRbth")),
+                ("CRb", vv.get("CRb")),
             ]:
                 print_array_info(file, item_name, item, mode)
 
@@ -702,6 +591,7 @@ def synthesize_observation(
 
 def wavelength_grid_fixed_res(x_min: float, x_max: float, res: float = -1) -> tuple:
     """
+    LEGACY
     Generate a wavelength grid at a fixed spectral resolution.
 
     This function creates a wavelength grid with constant resolution across
@@ -741,6 +631,7 @@ def wavelength_grid_fixed_res(x_min: float, x_max: float, res: float = -1) -> tu
 
 def gen_wavelength_grid(x_min: list, x_max: list, res: list) -> tuple:
     """
+    LEGACY
     Generate a continuous wavelength grid for multiple spectral channels.
 
     This function creates wavelength grids at fixed resolution for each spectral
@@ -783,6 +674,7 @@ def regrid_wavelengths(
     input_wls: np.ndarray, res: list, lam_low: list = None, lam_high: list = None
 ) -> tuple:
     """
+    LEGACY
     Create a new wavelength grid with specified resolution and channel boundaries.
 
     This function generates a new wavelength grid given the resolution and

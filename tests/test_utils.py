@@ -110,8 +110,6 @@ def mock_observatory():
     observatory.coronagraph.xcenter = 50 * u.pix
     observatory.coronagraph.ycenter = 50 * u.pix
     observatory.coronagraph.nchannels = 2
-    observatory.coronagraph.minimum_IWA = 2 * LAMBDA_D
-    observatory.coronagraph.maximum_OWA = 10 * LAMBDA_D
     observatory.coronagraph.npsfratios = 1
     observatory.coronagraph.nrolls = 1
 
@@ -541,20 +539,27 @@ def test_print_array_info_none_scalar_validation():
 # ============================================================================
 
 
-@pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_creates_files(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
-    """Test that print_all_variables creates output files with expected structure."""
+    """Test that print_all_variables creates both output files."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
 
-            assert os.path.exists(f"pyedith_{mode}.txt")
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
+
+            # A single call writes BOTH files via the internal `for mode` loop.
+            assert os.path.exists("pyedith_validation.txt")
+            assert os.path.exists("pyedith_full_info.txt")
 
         finally:
             os.chdir(original_dir)
@@ -562,16 +567,22 @@ def test_print_all_variables_creates_files(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_file_structure(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
     """Test that output file contains all expected sections."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -592,16 +603,22 @@ def test_print_all_variables_file_structure(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_includes_attributes(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
     """Test that output file includes specific object attributes."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -619,16 +636,23 @@ def test_print_all_variables_includes_attributes(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_includes_calculated_vars(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
-    """Test that output file includes calculated variables."""
+    """Test that output file includes calculated variables read from
+    observation.validation_variables."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -644,16 +668,22 @@ def test_print_all_variables_includes_calculated_vars(
 
 
 def test_print_all_variables_mode_specific_output_full_info(
-    mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
     """Test that full_info mode includes shape and unit information."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open("pyedith_full_info.txt", "r") as file:
                 content = file.read()
@@ -666,16 +696,22 @@ def test_print_all_variables_mode_specific_output_full_info(
 
 
 def test_print_all_variables_mode_specific_output_validation(
-    mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
     """Test that validation mode includes value information."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open("pyedith_validation.txt", "r") as file:
                 content = file.read()

@@ -151,10 +151,6 @@ class Coronagraph(ABC):
         Number of roll angles.
     nchannels : int
         Number of channels.
-    minimum_IWA : float
-        Minimum Inner Working Angle (lambd/D)
-    maximum_OWA : float
-        Maximum Outer Working Angle (lambd/D)
     coronagraph_optical_throughput: np.ndarray
         Throughput for all coronagraph optics in the optical path
     """
@@ -201,8 +197,6 @@ class Coronagraph(ABC):
             "npsfratios": int,
             "nrolls": int,
             "nchannels": int,
-            "minimum_IWA": LAMBDA_D,
-            "maximum_OWA": LAMBDA_D,
             "coronagraph_optical_throughput": DIMENSIONLESS,
             "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
@@ -242,8 +236,6 @@ class ToyModelCoronagraph(Coronagraph):
 
     DEFAULT_CONFIG = {
         "pixscale": 0.25 * LAMBDA_D,
-        "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
-        "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         "contrast": 1.05e-13
         * DIMENSIONLESS,  # noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03
@@ -255,7 +247,7 @@ class ToyModelCoronagraph(Coronagraph):
         "TLyot": 0.65
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans
         "nrolls": 1,  # number of rolls
-        "nchannels": 2,  # number of channels
+        "nchannels": 1,  # number of channels
         "coronagraph_optical_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
         "coronagraph_spectral_resolution": 1
@@ -326,11 +318,6 @@ class ToyModelCoronagraph(Coronagraph):
         # j = np.where(r lt self.IWA or r gt self.OWA)
         # find separations interior to IWA or exterior to OWA
         # if j[0] ne -1 then photometric_aperture_throughput1[j] = 0.0
-
-        self.photometric_aperture_throughput[self.r < self.minimum_IWA] = (
-            0.0  # index 0 is the
-        )
-        self.photometric_aperture_throughput[self.r > self.maximum_OWA] = 0.0
 
         # put in the right dimensions (3d arrays), but third dimension
         # is 1 (number of psf_trunc_ratio)
@@ -409,8 +396,6 @@ class CoronagraphYIP(Coronagraph):
     """
 
     DEFAULT_CONFIG = {
-        "minimum_IWA": 2.0 * LAMBDA_D,  # smallest WA to allow (lambda/D) (scalar)
-        "maximum_OWA": 100.0 * LAMBDA_D,  # largest WA to allow (lambda/D) (scalar)
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_PPF": 30.0,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
         "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
@@ -623,13 +608,6 @@ class CoronagraphYIP(Coronagraph):
                 )
                 * self.Tcore.unit
             )  # core throughput at all separations (npix,npix,len(psftruncratio))
-
-            photometric_aperture_throughput[
-                self.DEFAULT_CONFIG["r"] < self.DEFAULT_CONFIG["minimum_IWA"]
-            ] = 0.0  # index 0 is the
-            photometric_aperture_throughput[
-                self.DEFAULT_CONFIG["r"] > self.DEFAULT_CONFIG["maximum_OWA"]
-            ] = 0.0
 
         omega_lod = np.maximum(omega_lod, 0)
         photometric_aperture_throughput = np.maximum(photometric_aperture_throughput, 0)

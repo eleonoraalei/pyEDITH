@@ -522,8 +522,6 @@ def test_parse_parameters_scalar_params():
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",
-        "minimum_IWA",
-        "maximum_OWA",
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
@@ -581,11 +579,27 @@ def test_parse_parameters_observatory_specs():
 
 def test_parse_parameters_regrid_wavelength_bool():
     """Test parsing regrid_wavelength as boolean."""
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": True})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is True
     assert isinstance(parsed["regrid_wavelength"], bool)
 
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": False})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": False,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is False
     assert isinstance(parsed["regrid_wavelength"], bool)
 
@@ -594,14 +608,28 @@ def test_parse_parameters_regrid_wavelength_string():
     """Test parsing regrid_wavelength from string."""
     # Test true-like strings
     for true_string in ["true", "True", "TRUE", "1", "yes", "Yes", "YES"]:
-        parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": true_string})
+        parsed = parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": true_string,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
+        )
         assert parsed["regrid_wavelength"] is True
         assert isinstance(parsed["regrid_wavelength"], bool)
 
     # Test false-like strings
     for false_string in ["false", "False", "FALSE", "0", "no", "No", "NO"]:
         parsed = parse_parameters(
-            {"wavelength": 0.5, "regrid_wavelength": false_string}
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": false_string,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
         )
         assert parsed["regrid_wavelength"] is False
         assert isinstance(parsed["regrid_wavelength"], bool)
@@ -609,13 +637,242 @@ def test_parse_parameters_regrid_wavelength_string():
 
 def test_parse_parameters_regrid_wavelength_int():
     """Test parsing regrid_wavelength from integer."""
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": 1})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": 1,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is True
     assert isinstance(parsed["regrid_wavelength"], bool)
 
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": 0})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": 0,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is False
     assert isinstance(parsed["regrid_wavelength"], bool)
+
+
+def test_parse_parameters_regrid_wavelength_missing_lam_low():
+    """Test that regrid_wavelength=True with missing lam_low raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_low' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_missing_lam_high():
+    """Test that regrid_wavelength=True with missing lam_high raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_high' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_missing_all_required():
+    """Test that regrid_wavelength=True with all required parameters missing raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'spectral_resolution' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters({"wavelength": 0.5, "regrid_wavelength": True})
+
+
+def test_parse_parameters_regrid_wavelength_spectral_resolution_not_array():
+    """Test that regrid_wavelength=True with scalar spectral_resolution raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'spectral_resolution' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": 100,  # scalar instead of array
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_lam_low_not_array():
+    """Test that regrid_wavelength=True with scalar lam_low raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_low' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": 0.4,  # scalar instead of array
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_lam_high_not_array():
+    """Test that regrid_wavelength=True with scalar lam_high raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_high' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": 1.0,  # scalar instead of array
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_mismatched_lengths_two_params():
+    """Test that regrid_wavelength=True with two parameters of different lengths raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
+        ".*spectral_resolution.*2.*lam_low.*2.*lam_high.*3.* All must have the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100, 200],
+                "lam_low": [0.4, 0.5],
+                "lam_high": [1.0, 1.5, 2.0],  # different length
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_mismatched_lengths_all_different():
+    """Test that regrid_wavelength=True with all parameters of different lengths raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
+        ".*spectral_resolution.*1.*lam_low.*2.*lam_high.*3.* All must have the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4, 0.5],
+                "lam_high": [1.0, 1.5, 2.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_valid_lists():
+    """Test that regrid_wavelength=True with valid lists succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100, 200],
+            "lam_low": [0.4, 0.5],
+            "lam_high": [1.0, 1.5],
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
+    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
+    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
+
+
+def test_parse_parameters_regrid_wavelength_valid_numpy_arrays():
+    """Test that regrid_wavelength=True with numpy arrays succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": np.array([100, 200]),
+            "lam_low": np.array([0.4, 0.5]),
+            "lam_high": np.array([1.0, 1.5]),
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
+    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
+    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
+
+
+def test_parse_parameters_regrid_wavelength_valid_quantities():
+    """Test that regrid_wavelength=True with Quantity arrays succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100, 200] * u.dimensionless_unscaled,
+            "lam_low": [0.4, 0.5] * u.um,
+            "lam_high": [1.0, 1.5] * u.um,
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert isinstance(parsed["spectral_resolution"], u.Quantity)
+    assert isinstance(parsed["lam_low"], u.Quantity)
+    assert isinstance(parsed["lam_high"], u.Quantity)
+
+
+def test_parse_parameters_regrid_wavelength_false_no_validation():
+    """Test that regrid_wavelength=False skips validation of required parameters."""
+    # Should not raise even though required parameters are missing
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": False,
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is False
+
+
+def test_parse_parameters_regrid_wavelength_absent_no_validation():
+    """Test that absence of regrid_wavelength skips validation of required parameters."""
+    # Should not raise even though required parameters are missing
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+        }
+    )
+
+    assert "regrid_wavelength" not in parsed
 
 
 # ============================================================================

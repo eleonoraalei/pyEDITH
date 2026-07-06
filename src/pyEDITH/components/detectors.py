@@ -26,9 +26,9 @@ class Detector(ABC):
         Read time in seconds.
     CIC : ndarray
         Clock-induced charge in counts per pixel per photon count.
-    dQE: ndarray
-        Quantum efficiency of detector
     QE: ndarray
+        Quantum efficiency of detector
+    dQE: ndarray
         Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     """
 
@@ -146,7 +146,8 @@ class ToyModelDetector(Detector):
             Mediator object providing access to telescope and observation parameters
         """
 
-        # Calculate default detector pixel scale based on telescope
+        # Calculate default detector pixel scale based on telescope diameter
+        # Uses 0.5 * lambda/D at reference wavelength of 0.5 microns
         self.DEFAULT_CONFIG["pixscale_mas"] = (
             0.5
             * lambda_d_to_arcsec(
@@ -156,11 +157,10 @@ class ToyModelDetector(Detector):
             )
         ).to(MAS)
 
-        # Convert to arrays if lambda > 1:
-
-        # Load parameters, use defaults if not provided
+        # Load parameters from user input, falling back to defaults if not provided
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
 
+        # List of detector parameters that should be arrays matching wavelength array length
         array_params = [
             "npix_multiplier",
             "DC",
@@ -173,10 +173,12 @@ class ToyModelDetector(Detector):
 
         for param in array_params:
 
+            # Check if input parameter has only one value but multiple wavelengths are being used
             if (
                 len(getattr(self, param)) == 1
                 and len(mediator.get_observation_parameter("wavelength").value) > 1
             ):
+                # If so, replicate the single value across all wavelengths
                 setattr(
                     self,
                     param,
@@ -368,7 +370,7 @@ class EACDetector(Detector):
 
         dQE_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
 
-        # for now, hardcoded to 0.75
+        # for now, hardcoded to 0.75 TODO change
         dQE_arr.fill(0.75)
         self.DEFAULT_CONFIG["dQE"] = dQE_arr * DIMENSIONLESS
         # self.DEFAULT_CONFIG["dQE"] = [
@@ -386,6 +388,7 @@ class EACDetector(Detector):
         ).to(MAS)
 
         # fill in tread and CIC to match the length of the wavelength array
+        # TODO read from YAML files
         self.DEFAULT_CONFIG["tread"] = (
             np.full_like(
                 mediator.get_observation_parameter("wavelength").value,

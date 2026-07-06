@@ -6,7 +6,6 @@ import logging
 from pyEDITH.observation import Observation
 from pyEDITH.units import WAVELENGTH, DIMENSIONLESS, LAMBDA_D, TIME, MAGNITUDE
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================
@@ -28,7 +27,7 @@ def ifs_observation_params():
     """Fixture providing IFS mode observation parameters."""
     return {
         "wavelength": np.linspace(0.2, 1.8, 1000),
-        "snr": [7.0, 7.0, 7.0],
+        "snr": [7.0] * np.ones(1000),
         "spectral_resolution": [140, 40],
         "lam_low": [0.5, 1.0],
         "lam_high": [1.0, 1.7],
@@ -107,6 +106,9 @@ def test_observation_load_configuration_ifs_mode(ifs_observation_params):
         obs.wavelength[channel_2_mask] / obs.delta_wavelength[channel_2_mask]
         == ifs_observation_params["spectral_resolution"][1]
     )
+    assert len(obs.SNR) == len(obs.wavelength)
+    assert len(obs.SNR) != len(ifs_observation_params["wavelength"])
+    assert obs.SNR.unit == DIMENSIONLESS
 
 
 def test_observation_load_configuration_ifs_missing_spectral_resolution():
@@ -234,7 +236,6 @@ def test_observation_set_output_arrays(basic_observation_params):
     obs.load_configuration(basic_observation_params)
     obs.set_output_arrays()
 
-    assert obs.tp == 0.0 * TIME
     assert obs.exptime.shape == (3,)
     assert obs.fullsnr.shape == (3,)
     assert np.all(obs.exptime == 0.0 * TIME)

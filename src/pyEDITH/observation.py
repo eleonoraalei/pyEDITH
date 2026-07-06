@@ -2,6 +2,7 @@ import numpy as np
 from .units import *
 from . import utils
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 
@@ -22,13 +23,11 @@ class Observation:
     nlambd : int
         Number of wavelength points.
     SNR : np.ndarray
-        Signal-to-noise ratio array.
-    tp : ndarray
-        Exposure time of every planet (nmeananom x norbits x ntargs array).
+        Desired bulk SNR.
     exptime : ndarray
-        Exposure time for each target and wavelength.
+        Exposure time per single wavelength datapoint.
     fullsnr : ndarray
-        Signal-to-noise ratio for each target and wavelength.
+        Signal-to-noise ratio per single wavelength datapoint.
     td_limit : float
         Limit placed on exposure times.
 
@@ -76,6 +75,10 @@ class Observation:
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
+            self.SNR = (
+                parameters["snr"] * DIMENSIONLESS
+            )  # signal to noise # nlambd array
+
         elif (
             parameters["observing_mode"] == "IFS"
             and bool(parameters["regrid_wavelength"]) is False
@@ -96,7 +99,9 @@ class Observation:
                 )  # default resolution
                 dlam_um = self.wavelength / IFS_resolution
             self.delta_wavelength = dlam_um
-
+            self.SNR = (
+                parameters["snr"] * DIMENSIONLESS
+            )  # signal to noise # nlambd array
         elif (
             parameters["observing_mode"] == "IFS"
             and bool(parameters["regrid_wavelength"]) is True
@@ -126,7 +131,13 @@ class Observation:
             )  # wavelength # nlambd array #unit: micron
             self.delta_wavelength = new_dlam * WAVELENGTH
 
-        self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
+            # PRELIMINARY to rebin SNR, treat it as a spectrum #TODO debate if it should be wavelength-dependent in the first place
+            self.SNR = utils.regrid_spec_gaussconv(
+                parameters["wavelength"],
+                parameters["snr"] * DIMENSIONLESS,
+                self.wavelength.value,
+                self.delta_wavelength.value,
+            )  # signal to noise # nlambd array
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
@@ -142,10 +153,6 @@ class Observation:
         """
 
         # Initialize some arrays needed for outputs...
-        self.tp = 0.0 * TIME  # exposure time of every planet
-        # (nmeananom x norbits x ntargs array), used in c function
-        # [NOTE: nmeananom = nphases in C code]
-        # NOTE: ntargs fixed to 1.
         self.exptime = np.full((self.nlambd), 0.0) * TIME
 
         # only used for snr calculation

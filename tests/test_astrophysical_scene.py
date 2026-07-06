@@ -24,7 +24,6 @@ from pyEDITH.astrophysical_scene import (
 )
 import logging
 
-
 # ============================================================================
 # Tests for calc_flux_zero_point
 # ============================================================================
@@ -1233,6 +1232,10 @@ def test_regrid_spectra_basic_functionality():
     )
     scene.ez_PPF = 100 * np.ones(len(scene.Fexozodi_list)) * DIMENSIONLESS
 
+    scene.mag = np.random.randn(len(parameters["wavelength"])) * MAGNITUDE
+
+    scene.deltamag = np.random.randn(len(parameters["wavelength"])) * MAGNITUDE
+
     scene.regrid_spectra(parameters, observation)
 
     # Check that all arrays match observation wavelength grid
@@ -1242,6 +1245,8 @@ def test_regrid_spectra_basic_functionality():
     assert len(scene.Fbinary_list) == observation.nlambd
     assert len(scene.Fp_over_Fs) == observation.nlambd
     assert len(scene.Fs_over_F0) == observation.nlambd
+    assert len(scene.mag) == observation.nlambd
+    assert len(scene.deltamag) == observation.nlambd
 
 
 def test_regrid_spectra_preserves_units():
@@ -1271,6 +1276,8 @@ def test_regrid_spectra_preserves_units():
     scene.Fp_over_Fs = np.random.randn(len(parameters["wavelength"])) * DIMENSIONLESS
     scene.Fs_over_F0 = np.random.randn(len(parameters["wavelength"])) * DIMENSIONLESS
     scene.ez_PPF = 100 * np.ones(len(scene.Fexozodi_list)) * DIMENSIONLESS
+    scene.mag = np.random.randn(len(parameters["wavelength"])) * MAGNITUDE
+    scene.deltamag = np.random.randn(len(parameters["wavelength"])) * MAGNITUDE
 
     original_units = {
         "F0": scene.F0.unit,
@@ -1279,6 +1286,8 @@ def test_regrid_spectra_preserves_units():
         "Fbinary_list": scene.Fbinary_list.unit,
         "Fp_over_Fs": scene.Fp_over_Fs.unit,
         "Fs_over_F0": scene.Fs_over_F0.unit,
+        "mag": scene.mag.unit,
+        "deltamag": scene.deltamag.unit,
     }
 
     scene.regrid_spectra(parameters, observation)
@@ -1290,3 +1299,5 @@ def test_regrid_spectra_preserves_units():
     assert scene.Fbinary_list.unit == original_units["Fbinary_list"]
     assert scene.Fp_over_Fs.unit == original_units["Fp_over_Fs"]
     assert scene.Fs_over_F0.unit == original_units["Fs_over_F0"]
+    assert scene.mag.unit == original_units["mag"]
+    assert scene.deltamag.unit == original_units["deltamag"]

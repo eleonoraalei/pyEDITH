@@ -333,8 +333,6 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",
-        "minimum_IWA",
-        "maximum_OWA",
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
@@ -375,6 +373,38 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         else:
             parsed_params["regrid_wavelength"] = bool(value)
 
+    if parsed_params.get("regrid_wavelength", False):
+        required_keys = ["spectral_resolution", "lam_low", "lam_high"]
+        for key in required_keys:
+            if key not in parameters:
+                raise ValueError(
+                    f"regrid_wavelength is True, but '{key}' is missing. "
+                    f"Required parameters: {', '.join(required_keys)}"
+                )
+
+        # Check that all required parameters are arrays/lists
+        lengths = []
+        for key in required_keys:
+            val = parameters[key]
+            if not isinstance(val, (list, np.ndarray, u.Quantity)):
+                raise ValueError(
+                    f"regrid_wavelength is True, but '{key}' is not an array. "
+                    f"All of {', '.join(required_keys)} must be arrays of the same length."
+                )
+            lengths.append(len(val))
+
+        # Check that all arrays have the same length
+        if len(set(lengths)) != 1:
+            raise ValueError(
+                f"regrid_wavelength is True, but {', '.join(required_keys)} have different lengths: "
+                f"{dict(zip(required_keys, lengths))}. All must have the same length."
+            )
+
+        # Add to parsed_params
+        for key in required_keys:
+            parsed_params[key] = parse_list_param(key, lengths[0])
+
+    parsed_params["_pyedith_parsed"] = True
     return parsed_params
 
 
