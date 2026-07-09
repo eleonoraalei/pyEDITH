@@ -3,6 +3,7 @@ import numpy as np
 from .. import utils
 import astropy.units as u
 from ..units import *
+from pyEDITH import parse_input
 
 
 class Detector(ABC):
@@ -31,6 +32,10 @@ class Detector(ABC):
     dQE: ndarray
         Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     """
+
+    # Keys that a user is NOT allowed to override for this detector mode.
+    # Subclasses override this. An empty set means "everything is user-editable".
+    LOCKED_KEYS: set = set()
 
     @abstractmethod
     def load_configuration(self):
@@ -99,6 +104,8 @@ class ToyModelDetector(Detector):
         Keyword for configuration selection (not used in toy model)
     """
 
+    # In toy-model mode EVERY parameter is user-editable, so nothing is locked.
+    LOCKED_KEYS: set = set()
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
         "npix_multiplier": [1]
@@ -145,6 +152,7 @@ class ToyModelDetector(Detector):
         mediator : ObservatoryMediator
             Mediator object providing access to telescope and observation parameters
         """
+        parameters = parse_input.parse_parameters(parameters)
 
         # Calculate default detector pixel scale based on telescope diameter
         # Uses 0.5 * lambda/D at reference wavelength of 0.5 microns
@@ -157,10 +165,8 @@ class ToyModelDetector(Detector):
             )
         ).to(MAS)
 
-        # Load parameters from user input, falling back to defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
-
-        # List of detector parameters that should be arrays matching wavelength array length
+        # For IFS, the default config won't work. It needs to be propagated at every wavelength.
+        # Normalize list shapes just in case.
         array_params = [
             "npix_multiplier",
             "DC",
@@ -170,25 +176,19 @@ class ToyModelDetector(Detector):
             "QE",
             "dQE",
         ]
-
-        for param in array_params:
-
-            # Check if input parameter has only one value but multiple wavelengths are being used
-            if (
-                len(getattr(self, param)) == 1
-                and len(mediator.get_observation_parameter("wavelength").value) > 1
-            ):
-                # If so, replicate the single value across all wavelengths
-                setattr(
-                    self,
-                    param,
-                    getattr(self, param)[0]
-                    * np.ones_like(
-                        mediator.get_observation_parameter("wavelength").value
-                    ),
+        self.DEFAULT_CONFIG.update(
+            {
+                key: parse_input.normalize_list_shapes(
+                    self.DEFAULT_CONFIG,
+                    key,
+                    mediator.get_observation_parameter("nlambda"),
                 )
+                for key in array_params
+            }
+        )
 
-        # # Convert to numpy array when appropriate
+        # Load parameters from user input, falling back to defaults if not provided
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG, self.LOCKED_KEYS)
         utils.convert_to_numpy_array(self, array_params)
 
 
@@ -207,6 +207,20 @@ class EACDetector(Detector):
     keyword : str, optional
         Keyword for configuration selection (not used in EAC detector)
     """
+
+    # In EAC mode these quantities are OWNED by the YAML files and must stay
+    # consistent with the loaded package. The user is NOT allowed to override
+    # them; if they try, fill_parameters will warn and keep the YAML value.
+    # Anything not listed here  remains user-editable.
+    LOCKED_KEYS: set = {
+        "npix_multiplier",
+        "DC",
+        "RN",
+        "tread",
+        "CIC",
+        "QE",
+        "dQE",
+    }
 
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
@@ -261,19 +275,17 @@ class EACDetector(Detector):
         AssertionError
             If the QE array contains NaN values after processing
         """
-        # Check on possible modes
-        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
-            raise KeyError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
+        parameters = parse_input.parse_parameters(parameters)
 
         from eacy import load_detector
 
         # ****** Update Default Config when necessary ******
 
-        detector_params = load_detector(parameters["observing_mode"]).__dict__
+        raw_detector_params = load_detector(
+            mediator.get_observation_parameter("observing_mode")
+        ).__dict__
 
-        if parameters["observing_mode"] == "IMAGER":
+        if mediator.get_observation_parameter("observing_mode") == "IMAGER":
             wavelength_range = [
                 mediator.get_observation_parameter("wavelength")
                 * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
@@ -282,13 +294,15 @@ class EACDetector(Detector):
             ]
 
             detector_params = utils.average_over_bandpass(
-                detector_params, wavelength_range
-            )
-        elif parameters["observing_mode"] == "IFS":
-            detector_params = utils.interpolate_over_bandpass(
-                detector_params, mediator.get_observation_parameter("wavelength")
+                raw_detector_params, wavelength_range
             )
 
+        elif mediator.get_observation_parameter("observing_mode") == "IFS":
+            detector_params = utils.interpolate_over_bandpass(
+                raw_detector_params, mediator.get_observation_parameter("wavelength")
+            )
+
+        # scalar values projected to an array of length nlambda
         dc_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
         dc_arr[mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH] = (
             detector_params["dc_vis"]
@@ -300,18 +314,6 @@ class EACDetector(Detector):
             dc_arr * DARK_CURRENT
         )  # Dark current (counts pix^-1 s^-1, nlambd array)
 
-        # self.DEFAULT_CONFIG["DC"] = (
-        #     np.array(
-        #         [
-        #             (
-        #                 float(detector_params["dc_vis"])
-        #                 if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #                 else float(detector_params["dc_nir"])
-        #             )
-        #         ]
-        #     )
-        #     * DARK_CURRENT
-        # )
         # Dark current (counts pix^-1 s^-1, nlambd array)
 
         rn_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
@@ -322,51 +324,17 @@ class EACDetector(Detector):
             detector_params["rn_nir"]
         )
         self.DEFAULT_CONFIG["RN"] = rn_arr * READ_NOISE
-        # self.DEFAULT_CONFIG["RN"] = [
-        #     (
-        #         detector_params["rn_vis"]
-        #         if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #         else detector_params["rn_nir"]
-        #     )
-        # ] * READ_NOISE
 
-        if parameters["observing_mode"] == "IMAGER":
-            qe_arr = [
-                (
-                    detector_params["qe_vis"]
-                    if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-                    else detector_params["qe_nir"]
-                )
-            ]
-        elif parameters["observing_mode"] == "IFS":
-            # combine the vis and nir qe arrays into a single array.
-            qe_arr = np.empty_like(
-                mediator.get_observation_parameter("wavelength").value
-            )
-            qe_arr[
-                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-            ] = detector_params["qe_vis"][
-                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-            ]
-            qe_arr[
-                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
-            ] = detector_params["qe_nir"][
-                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
-            ]
-            # if qe_arr contains NaNs, then likely the wavelength range is outside of the qe range.
-            # set the NaN values to zero
-            qe_arr = np.nan_to_num(qe_arr)
-            # make sure qe_arr does not contain NaNs
-            assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
+        # array values binned at wavelength points must just be stacked
+        vis = np.atleast_1d(np.asarray(detector_params["qe_vis"], dtype=float))
+        nir = np.atleast_1d(np.asarray(detector_params["qe_nir"], dtype=float))
+        qe_arr = np.where(np.isnan(vis), nir, vis)
+        # A NaN here means the selected curve did not cover its side of the
+        # 1 um split (a genuine coverage gap), so fail loudly rather than
+        # silently zeroing it out.
+        assert not np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
 
         self.DEFAULT_CONFIG["QE"] = qe_arr * QUANTUM_EFFICIENCY
-        # self.DEFAULT_CONFIG["QE"] = [
-        #     (
-        #         detector_params["qe_vis"]
-        #         if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #         else detector_params["qe_nir"]
-        #     )
-        # ] * QUANTUM_EFFICIENCY
 
         dQE_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
 
@@ -408,31 +376,6 @@ class EACDetector(Detector):
 
         # Load parameters, use defaults if not provided
         utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
-
-        # ***** Convert to numpy array when appropriate *****
-        array_params = [
-            "npix_multiplier",
-            "DC",
-            "RN",
-            "tread",
-            "CIC",
-            "QE",
-            "dQE",
-        ]
-        utils.convert_to_numpy_array(self, array_params)
-
-        # Ensure npix_multiplier has the same length as wavelength (the other ones are taken care of by EACy)
-        if len(self.npix_multiplier) != len(
-            mediator.get_observation_parameter("wavelength")
-        ):
-            self.npix_multiplier = (
-                np.full_like(
-                    mediator.get_observation_parameter("wavelength").value,
-                    self.npix_multiplier[0],
-                    dtype=np.float64,
-                )
-                * DIMENSIONLESS
-            )
 
         # USED ONLY TO VALIDATE ETCs
         if "t_photon_count_input" in parameters.keys():

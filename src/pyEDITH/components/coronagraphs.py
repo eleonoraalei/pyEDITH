@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d
 from yippy import Coronagraph as yippycoro
 from lod_unit import lod
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 
@@ -155,6 +156,10 @@ class Coronagraph(ABC):
         Throughput for all coronagraph optics in the optical path
     """
 
+    # Keys that a user is NOT allowed to override for this coronagraph mode.
+    # Subclasses override this. An empty set means "everything is user-editable".
+    LOCKED_KEYS: set = set()
+
     @abstractmethod
     def load_configuration(self) -> None:  # pragma: no cover
         """
@@ -234,6 +239,9 @@ class ToyModelCoronagraph(Coronagraph):
         Path to configuration files (not used in toy model)
     """
 
+    # In toy-model mode EVERY parameter is user-editable, so nothing is locked.
+    LOCKED_KEYS: set = set()
+
     DEFAULT_CONFIG = {
         "pixscale": 0.25 * LAMBDA_D,
         "contrast": 1.05e-13
@@ -282,8 +290,11 @@ class ToyModelCoronagraph(Coronagraph):
         mediator : ObservatoryMediator
             Mediator object providing access to observation and scene parameters
         """
+        parameters = parse_input.parse_parameters(parameters)
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(
+            self, parameters, self.DEFAULT_CONFIG, locked_keys=self.LOCKED_KEYS
+        )
 
         # Convert to numpy array when appropriate
         array_params = ["coronagraph_optical_throughput"]
@@ -395,6 +406,26 @@ class CoronagraphYIP(Coronagraph):
         Path to the YIP files containing coronagraph response data
     """
 
+    # In YIP mode these quantities are OWNED by the YIP / yippy and must stay
+    # consistent with the loaded package. The user is NOT allowed to override
+    # them; if they try, fill_parameters will warn and keep the YIP value.
+    # Anything not listed here (e.g. bandwidth, noisefloor_PPF, Tcore, az_avg,
+    # coronagraph_spectral_resolution) remains user-editable.
+    LOCKED_KEYS: set = {
+        "pixscale",
+        "npix",
+        "xcenter",
+        "ycenter",
+        "skytrans",
+        "r",
+        "npsfratios",
+        "nrolls",
+        "omega_lod",
+        "photometric_aperture_throughput",
+        "Istar",
+        "noisefloor",
+    }
+
     DEFAULT_CONFIG = {
         # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_PPF": 30.0,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
@@ -405,7 +436,7 @@ class CoronagraphYIP(Coronagraph):
         "coronagraph_optical_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
-        "nchannels": 2,  # number of channels
+        "nchannels": 1,  # number of channels
         # "TLyot": 0.65
         # * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "az_avg": True,  # azimuthally average the contrast maps and noise floor if True
@@ -430,7 +461,7 @@ class CoronagraphYIP(Coronagraph):
         self.path = path
         self.yippy_coro = yippy_coro
 
-    def load_configuration(self, parameters, mediator):
+    def load_configuration(self, parameters: dict, mediator: object) -> None:
         """
         Load configuration parameters from YIP files and user specifications.
 
@@ -456,6 +487,8 @@ class CoronagraphYIP(Coronagraph):
         AssertionError
             If stellar angular diameter is outside valid bounds (0 <= diameter < 1 λ/D)
         """
+        parameters = parse_input.parse_parameters(parameters)
+
         from eacy import load_instrument, load_telescope
 
         # ***** Set the bandwith *****
@@ -583,13 +616,18 @@ class CoronagraphYIP(Coronagraph):
             # ***** Tcore *****
             if "Tcore" in parameters.keys():
                 logger.info("Using user-defined Tcore...")
+                setattr(
+                    self,
+                    "Tcore",
+                    parameters.get("Tcore") * DIMENSIONLESS,
+                )
             else:
                 logger.info("Using default Tcore...")
-            setattr(
-                self,
-                "Tcore",
-                parameters.get("Tcore", self.DEFAULT_CONFIG["Tcore"]),
-            )
+                setattr(
+                    self,
+                    "Tcore",
+                    self.DEFAULT_CONFIG["Tcore"],
+                )
 
             # simple omega calculation, omega = pi * (photometric_aperture_radius)**2, where photometric_aperture_radius is in lambda/D
 
@@ -640,7 +678,6 @@ class CoronagraphYIP(Coronagraph):
 
         # Load az_avg if the user provided it, otherwise use default
         setattr(self, "az_avg", parameters.get("az_avg", self.DEFAULT_CONFIG["az_avg"]))
-
         if self.az_avg:
             # Radial profile projection (replaces 100x rotate-and-average)
             self.DEFAULT_CONFIG["Istar"] = (
@@ -670,7 +707,7 @@ class CoronagraphYIP(Coronagraph):
         )
 
         # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES ****
-        # for coronagraph, allow replacement only in terms of scaling factors?
-        # NOTE what should be allowed to be replaced?
-        # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+        # Load parameters, use defaults if not provided. Yippy parameters are locked
+        utils.fill_parameters(
+            self, parameters, self.DEFAULT_CONFIG, locked_keys=self.LOCKED_KEYS
+        )

@@ -124,13 +124,13 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | Variable Name   | Length    | Unit                        | Meaning                                           | User Editable |
 | --------------- | --------- | --------------------------- | ------------------------------------------------- | ------------- |
 | pixscale_mas    | Scalar    | Milliarcsecond              | Detector pixel scale                              | Yes           |
-| npix_multiplier | [nlambda] | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes           |
-| DC              | [nlambda] | Electron / (Pixel * Second) | Dark current                                      | Yes           |
-| RN              | [nlambda] | Electron / (Pixel * Read)   | Read noise                                        | Yes           |
-| tread           | [nlambda] | Second                      | Read time                                         | Yes           |
-| CIC             | [nlambda] | Electron / (Pixel * Photon) | Clock-induced charge                              | Yes           |
-| QE              | [nlambda] | Electron / Photon           | Quantum efficiency of detector                    | Yes           |
-| dQE             | [nlambda] | Dimensionless               | Effective QE due to degradation                   | Yes           |
+| npix_multiplier | [nlambda] | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes (Toymodel only)           |
+| DC              | [nlambda] | Electron / (Pixel * Second) | Dark current                                      | Yes (Toymodel only)                 |
+| RN              | [nlambda] | Electron / (Pixel * Read)   | Read noise                                        |  Yes (Toymodel only)                |
+| tread           | [nlambda] | Second                      | Read time                                         |  Yes (Toymodel only)                 |
+| CIC             | [nlambda] | Electron / (Pixel * Photon) | Clock-induced charge                              |  Yes (Toymodel only)                 |
+| QE              | [nlambda] | Electron / Photon           | Quantum efficiency of detector                    |  Yes (Toymodel only)                 |
+| dQE             | [nlambda] | Dimensionless               | Effective QE due to degradation                   |  Yes (Toymodel only)                |
 
 
 ## Within `observation.py`

@@ -17,6 +17,17 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
     wavelength boundaries. The wavelength array is expected to be stored under
     the key "lam" in the params dictionary.
 
+    Out-of-domain behaviour
+    -----------------------
+    Some curves (e.g. ``qe_vis`` / ``qe_nir``) are only physically defined over
+    part of the wavelength axis. When a requested ``wavelength_range`` does not
+    straddle any tabulated point for a given curve, that curve is interpolated
+    at the *center* of ``wavelength_range``. If that center lies outside the
+    curve's native domain the interpolation deliberately returns ``NaN`` (via
+    ``bounds_error=False, fill_value=np.nan``) rather than raising, so the NaN
+    can be used downstream to mark the region where a curve does not apply
+    (this is how the vis/nir split is reconstructed).
+
     Parameters
     ----------
     params : dict
@@ -37,14 +48,32 @@ def average_over_bandpass(params: dict, wavelength_range: list) -> dict:
     numpy_array_variables = {
         key: value for key, value in params.items() if isinstance(value, np.ndarray)
     }
+
+    lam_values = params["lam"].value
+    mask = (lam_values >= wavelength_range[0].value) & (
+        lam_values <= wavelength_range[1].value
+    )
+    # Center of the requested bandpass, used only for the empty-slice fallback.
+    center_wavelength = 0.5 * (wavelength_range[0].value + wavelength_range[1].value)
+
     for key, value in numpy_array_variables.items():
         if key != "lam":
-            params[key] = np.mean(
-                params[key][
-                    (params["lam"].value >= wavelength_range[0].value)
-                    & (params["lam"].value <= wavelength_range[1].value)
-                ]
-            )
+            if mask.any():
+                params[key] = np.mean(params[key][mask])
+            else:
+                # No tabulated sample points fall inside the requested
+                # bandpass; interpolate the curve at the band center instead.
+                # Points outside the curve's native domain return NaN (rather
+                # than raising) so the NaN can flag where the curve does not
+                # apply -- this is what lets the vis/nir curves be stitched
+                # back together element-wise downstream.
+                interp_func = interp1d(
+                    params["lam"],
+                    params[key],
+                    bounds_error=False,
+                    fill_value=np.nan,
+                )
+                params[key] = interp_func(center_wavelength)
     return params
 
 
@@ -56,6 +85,16 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     parameters (except the wavelength array itself) onto a new set of wavelength
     points using 1D linear interpolation. The original wavelength array is expected
     to be stored under the key "lam" in the params dictionary.
+
+    Out-of-domain behaviour
+    -----------------------
+    Interpolation points that fall outside a curve's native wavelength domain
+    return ``NaN`` (via ``bounds_error=False, fill_value=np.nan``) rather than
+    raising. This is intentional: curves such as ``qe_vis`` / ``qe_nir`` are
+    only defined over part of the spectrum, and the resulting NaNs mark the
+    region where each curve does not apply so the vis/nir arrays can be stitched
+    together element-wise (e.g. ``qe_vis = [finite, finite, nan]`` and
+    ``qe_nir = [nan, nan, finite]``).
 
     Parameters
     ----------
@@ -80,7 +119,12 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
     }
     for key, value in numpy_array_variables.items():
         if key != "lam":
-            interp_func = interp1d(params["lam"], params[key])
+            interp_func = interp1d(
+                params["lam"],
+                params[key],
+                bounds_error=False,
+                fill_value=np.nan,
+            )
             ynew = interp_func(
                 wavelengths
             )  # interpolates the CG throughput values onto native wl grid
@@ -89,46 +133,61 @@ def interpolate_over_bandpass(params: dict, wavelengths: list) -> dict:
 
 
 def fill_parameters(
-    class_obj: object, parameters: dict, default_parameters: dict
+    class_obj: object,
+    parameters: dict,
+    default_parameters: dict,
+    locked_keys: set = None,
 ) -> None:
     """
     Populate class object attributes with user parameters or default values.
 
-    This function sets attributes on a class object by loading user-provided
-    parameters or falling back to default values. It handles both regular values
-    and astropy Quantity objects with units, ensuring proper unit consistency
-    when dealing with physical quantities.
-
     Parameters
     ----------
     class_obj : object
-        Class instance whose attributes will be set
+        Class instance whose attributes will be set.
     parameters : dict
-        Dictionary of user-provided parameter values
+        Dictionary of user-provided parameter values.
     default_parameters : dict
-        Dictionary of default parameter values with keys matching expected
-        attribute names. Values can be regular types or astropy Quantities
+        Dictionary of default (or, for YIP mode, YIP-loaded) parameter values.
+    locked_keys : set, optional
+        Keys that must NOT be overridden by the user. For these keys the value
+        staged in ``default_parameters`` is always used (e.g. values loaded
+        from a YIP), regardless of what the user supplied. If the user does
+        supply a locked key a warning is emitted so the override is transparent.
     """
-
-    # Load parameters, use defaults if not provided
+    if locked_keys is None:
+        locked_keys = set()
     for key, default_value in default_parameters.items():
-        if key in parameters:
-            # User provided a value
+        is_locked = key in locked_keys
+        if key in parameters and is_locked:
+            # User tried to set a value that is owned by the model (e.g. YIP).
+            logger.warning(
+                f"Parameter '{key}' is locked in this mode and "
+                f"cannot be user-overridden; using the model-provided value "
+                f"instead of the supplied value {parameters[key]!r}."
+            )
+
+            setattr(class_obj, key, default_value)
+
+        elif key in parameters and not is_locked:
+            # User provided a value AND it is allowed to be overridden.
             user_value = parameters[key]
             if isinstance(default_value, u.Quantity):
-                # Ensure the user value has the same unit as the default
-                # TODO Implement conversion of units from the input file
-
                 if isinstance(user_value, u.Quantity):
-                    setattr(class_obj, key, user_value.to(default_value.unit))
+
+                    final_value = user_value.to(default_value.unit)
                 else:
-                    setattr(class_obj, key, u.Quantity(user_value, default_value.unit))
+
+                    final_value = u.Quantity(user_value, default_value.unit)
+                setattr(class_obj, key, final_value)
             else:
-                # For non-Quantity values (like integers), use as is
                 setattr(class_obj, key, user_value)
+                final_value = user_value
+            logger.debug(f"Parameter '{key}' set to user-provided value: {final_value}")
         else:
-            # Use default value
+            # Use default / model-provided value (also the path for locked keys).
             setattr(class_obj, key, default_value)
+            logger.debug(f"Parameter '{key}' set to default value: {default_value}")
 
 
 def convert_to_numpy_array(class_obj: object, array_params: list) -> None:
@@ -758,8 +817,6 @@ def regrid_spec_gaussconv(
         1D array containing the regridded spectrum with original units preserved
     """
 
-    input_spec_unit = input_spec.unit
-
     R_arr = new_lam / new_dlam
 
     # interpolate original spectrum onto a fine log-lambda grid
@@ -801,7 +858,7 @@ def regrid_spec_gaussconv(
         kernel_segment = kernel[k1:k2]
         spec_regrid[i] = np.sum(flux_segment * kernel_segment)
 
-    return spec_regrid * input_spec_unit
+    return spec_regrid
 
 
 def regrid_spec_interp(
@@ -829,7 +886,105 @@ def regrid_spec_interp(
         1D array containing the regridded spectrum with original units preserved
     """
 
-    input_spec_unit = input_spec.unit
     interp_func = interp1d(input_wls, input_spec)
     spec_regrid = interp_func(new_lam)
-    return spec_regrid * input_spec_unit
+    return spec_regrid
+
+
+def regrid_to_grid(
+    values,
+    from_wavelength,
+    to_wavelength,
+    to_delta_wavelength=None,
+    *,  # Forces all subsequent parameters to be keyword-only (must be called as name="value")
+    name: str = "parameter",
+    interpolation: str = "1d",  # 1d or Gaussian
+):
+    """
+    Fit an already-shaped array onto a resolved wavelength grid.
+
+    The rule is centralized here so no consumer re-implements it:
+
+      * length 1                        -> broadcast the single value to the grid
+      * length == len(to_wavelength)    -> already on the grid, pass through
+      * any other length                -> regrid onto the grid
+
+    Note that any length > 1 that is neither 1 nor a mismatch requiring regrid
+    for *user-supplied* params has already been vetted by ``parse_parameters``;
+    this helper additionally covers *defaults* or values that never passed through it.
+
+    Parameters
+    ----------
+    values : array-like
+        The values to fit onto the grid (a plain array or Quantity value).
+    from_wavelength : array-like
+        The wavelength grid ``values`` currently live on. For consumers this
+        should be ``parsed_params["input_wavelength"]`` (the pre-regrid grid).
+    to_wavelength : array-like
+        The target (resolved) wavelength grid, i.e. ``observation.wavelength``.
+    to_delta_wavelength : array-like, optional
+        Bin widths of the target grid, required only when a regrid is needed.
+    name : str, optional
+        Name used in log messages.
+
+    Returns
+    -------
+    np.ndarray
+        A float64 array of length ``len(to_wavelength)``.
+    """
+    if isinstance(values, u.Quantity):
+        unit = values.unit
+        values_plain = np.atleast_1d(np.asarray(values.value, dtype=np.float64))
+    else:
+        unit = None
+        values_plain = np.atleast_1d(np.asarray(values, dtype=np.float64))
+
+    to_wavelength = np.asarray(to_wavelength, dtype=np.float64)
+    n_target = len(to_wavelength)
+
+    # length 1 -> broadcast
+    if len(values_plain) == 1 and n_target > 1:
+        result = values_plain[0] * np.ones(n_target, dtype=np.float64)
+
+    # already on the grid -> pass through
+    elif len(values_plain) == n_target:
+        result = values_plain
+
+    # otherwise -> regrid
+    else:
+        logger.info(
+            f"'{name}' has length {len(values_plain)} but the resolved wavelength grid "
+            f"has length {n_target}. Rebinning..."
+        )
+        if interpolation == "1d":
+            result = regrid_spec_interp(
+                np.asarray(from_wavelength, dtype=np.float64),
+                values_plain,
+                to_wavelength,
+            )
+        elif interpolation == "Gaussian":
+            if to_delta_wavelength is None:
+                raise ValueError(
+                    f"'{name}' must be regridded onto the resolved grid, but "
+                    f"'to_delta_wavelength' was not provided."
+                )
+            result = regrid_spec_gaussconv(
+                np.asarray(from_wavelength, dtype=np.float64),
+                values_plain,
+                to_wavelength,
+                to_delta_wavelength,
+            )
+
+        else:
+            raise ValueError(
+                "Unknown interpolation type. Possible values are '1d' for 1D "
+                "interpolation and 'Gaussian' for Gaussian kernel interpolation "
+                "(recommended for spectral quantities)."
+            )
+
+    # ------------------------------------------------------------------
+    # Unit reattachment: return a Quantity if the input was one.
+    # ------------------------------------------------------------------
+    if unit is not None:
+        return result * unit
+    return result

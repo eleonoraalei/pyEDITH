@@ -10,6 +10,7 @@ from yippy import fetch_yip
 from yippy import Coronagraph as yippycoro
 
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 
@@ -385,6 +386,7 @@ class Observatory(ABC):  # abstract class
             Mediator object providing access to observation parameters including
             wavelength array
         """
+        parameters = parse_input.parse_parameters(parameters)
 
         if "T_optical" in parameters.keys():
             logger.info("Calculating optics_throughput from input...")
@@ -431,6 +433,8 @@ class Observatory(ABC):  # abstract class
 
         if "epswarmTrcold" in parameters.keys():
             logger.info("Calculating epswarmTrcold from input...")
+            parameters = parse_input.parse_parameters(parameters)
+
             self.epswarmTrcold = parameters["epswarmTrcold"] * DIMENSIONLESS
         else:
             logger.info("Calculating epswarmTrcold as 1 - optics throughput...")

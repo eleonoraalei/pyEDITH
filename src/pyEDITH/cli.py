@@ -194,7 +194,7 @@ def calculate_texp(parameters: dict, ETC_validation: bool = False) -> np.array:
         parameters["observing_mode"] == "IFS"
         and parameters["regrid_wavelength"] is True
     ):
-        scene.regrid_spectra(parameters, observation)
+        scene.regrid_spectra(observation)
 
     # Create and configure Observatory
     observatory_config = parse_input.get_observatory_config(parameters)
@@ -257,7 +257,7 @@ def calculate_snr(parameters: dict, reference_texp: float):
         parameters["observing_mode"] == "IFS"
         and parameters["regrid_wavelength"] is True
     ):
-        scene.regrid_spectra(parameters, observation)
+        scene.regrid_spectra(observation)
 
     # Create and configure Observatory
     observatory_config = parse_input.get_observatory_config(parameters)

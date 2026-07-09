@@ -6,6 +6,7 @@ from .units import *
 from . import utils
 from astropy.coordinates import SkyCoord
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 # def calc_flux_zero_point_synphot(lam: u.Quantity):
@@ -204,7 +205,6 @@ def calc_exozodi_flux(
         This is equivalent to 10^(-0.4*magOmega_EZ).
 
     """
-
     if len(lambd) > 1:
         if len(lambd) != lambdmag.shape[0]:
             raise ValueError(
@@ -224,16 +224,12 @@ def calc_exozodi_flux(
     # received at V band
     nlambd = len(lambd)
 
-    flux_exozodi_lambd = np.zeros((nlambd)) * DIMENSIONLESS  # modulo factor F0
-
-    # Adjust flux for each wavelength
-    for ilambd in range(nlambd):
-        flux_exozodi_lambd[ilambd] = (
-            nexozodis
-            * vflux_1zodi
-            * 10.0 ** (-0.4 * (M_V - M_V_sun).value)
-            * 10.0 ** (-0.4 * (lambdmag[ilambd] - vmag).value)
-        )
+    flux_exozodi_lambd = (
+        nexozodis
+        * vflux_1zodi
+        * 10.0 ** (-0.4 * (M_V - M_V_sun).value)
+        * 10.0 ** (-0.4 * (lambdmag - vmag).value)
+    ) * DIMENSIONLESS
 
     return (
         flux_exozodi_lambd * INV_SQUARE_ARCSEC
@@ -452,9 +448,7 @@ def calc_zodi_flux(
 
     # Calculate final zodi flux
     nlambd = len(lambd)
-    flux_zodi = u.Quantity(np.zeros((nlambd)), unit=I90fabsfco.unit)
-    for ilambd in range(nlambd):
-        flux_zodi[ilambd] = f * I90fabsfco[ilambd]
+    flux_zodi = f * I90fabsfco
 
     return flux_zodi  # 1/arcsec^2 (UNITS OF SPECTRAL RADIANCE)
 
@@ -542,9 +536,11 @@ class AstrophysicalScene:
 
         Raises
         ------
-        ValueError
+        KeyError
             If a required parameter is missing from the input dictionary.
         """
+
+        parameters = parse_input.parse_parameters(parameters)
 
         # -------- INPUTS ---------
 
@@ -581,7 +577,6 @@ class AstrophysicalScene:
             # stellar mag (not absolute mag!!) at V band # used to be (ntargs array) now scalar
             self.vmag = parameters["magV"] * MAGNITUDE
 
-            # stellar mag at desired lambd # used to be (ntargs array) now scalar
             self.mag = parameters["mag"] * MAGNITUDE
 
             # difference in mag between planet and host star
@@ -632,7 +627,7 @@ class AstrophysicalScene:
                 "FstarV_10pc" not in parameters
                 and parameters["observing_mode"] == "IMAGER"
             ):
-                raise ValueError("FstarV_10pc missing in parameters.")
+                raise KeyError("FstarV_10pc missing in parameters.")
             else:
                 Fstar_V_10pc = parameters["FstarV_10pc"] * PHOTON_FLUX_DENSITY
 
@@ -663,7 +658,7 @@ class AstrophysicalScene:
                 if param not in parameters
             ]
 
-            raise ValueError(
+            raise KeyError(
                 f"Insufficient parameters provided. You must provide either:\n"
                 f"1. All magnitude parameters: {', '.join(['magV', 'mag', 'delta_mag'])}\n"
                 f"   Missing: {', '.join(missing_mag_params)}\n"
@@ -709,7 +704,7 @@ class AstrophysicalScene:
                 * ARCSEC
             )
         else:
-            raise ValueError(
+            raise KeyError(
                 "Either separation [arcsec] or semimajor_axis [AU] must be provided."
             )
 
@@ -718,13 +713,9 @@ class AstrophysicalScene:
 
         # set the exozodi PPF
         if "ez_PPF" in parameters.keys():
-            if not isinstance(parameters["ez_PPF"], (list, np.ndarray)):
-                self.ez_PPF = parameters["ez_PPF"] * np.ones_like(self.Fp_over_Fs)
-            else:
-                assert len(parameters["ez_PPF"]) == len(
-                    self.Fp_over_Fs
-                ), "length of ez_PPF does not match length of Fp_over_Fs"
-                self.ez_PPF = np.array(parameters["ez_PPF"])
+            # It has already been parsed to be of length nlambda
+            self.ez_PPF = parameters["ez_PPF"]
+
         else:
             logger.warning(
                 "ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)"
@@ -758,6 +749,8 @@ class AstrophysicalScene:
             If parameters dictionary is missing required keys
 
         """
+        parameters = parse_input.parse_parameters(parameters)
+
         # Validate that scene has been properly configured
         required_attributes = ["vmag", "dist", "dec", "ra", "F0", "nzodis", "mag"]
         missing_attrs = [
@@ -771,8 +764,9 @@ class AstrophysicalScene:
             )
 
         # Validate parameters dictionary
-        if "wavelength" not in parameters:
-            raise KeyError("parameters dictionary must contain 'wavelength' key")
+        # if "wavelength" not in parameters:
+        #     raise KeyError("parameters dictionary must contain 'wavelength' key")
+        # NOTE As of July 06, 2026, this is taken into account into parse_params
 
         # calculate flux at zero point for the V band and the prescribed lambda
 
@@ -826,63 +820,30 @@ class AstrophysicalScene:
         }
         utils.validate_attributes(self, expected_args)
 
-    def regrid_spectra(self, parameters, observation):
+    def regrid_spectra(self, observation):
         """function to re-grid onto a new wavelength grid if the user specified this option"""
         # spectra to regrid: F0, Fzodi_list, Fexozodi_list, Fbinary_list, Fp_over_Fs, Fs_over_F0
         logger.info("Re-gridding spectra onto ETC wavelength grid...")
-        self.F0 = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.F0,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.Fzodi_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.Fzodi_list,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.Fexozodi_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.Fexozodi_list,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.Fbinary_list = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.Fbinary_list,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.Fp_over_Fs = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.Fp_over_Fs,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.Fs_over_F0 = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.Fs_over_F0,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.ez_PPF = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.ez_PPF,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-
-        # unsupported but still to be safe
-        self.mag = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.mag,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
-        self.deltamag = utils.regrid_spec_gaussconv(
-            parameters["wavelength"],
-            self.deltamag,
-            observation.wavelength.value,
-            observation.delta_wavelength.value,
-        )
+        for attr_name in [
+            "F0",
+            "Fzodi_list",
+            "Fexozodi_list",
+            "Fbinary_list",
+            "Fp_over_Fs",
+            "Fs_over_F0",
+            "ez_PPF",
+            "mag",
+            "deltamag",
+        ]:
+            setattr(
+                self,
+                attr_name,
+                utils.regrid_to_grid(
+                    getattr(self, attr_name),
+                    observation._input_wavelength,
+                    observation.wavelength.value,
+                    observation.delta_wavelength.value,
+                    name=attr_name,
+                    interpolation="Gaussian",
+                ),
+            )

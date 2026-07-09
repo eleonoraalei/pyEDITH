@@ -105,8 +105,6 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | npsfratios              | Integer                      | Scalar                   | Number of PSF ratios                              |     |
 | nrolls                  | Integer                      | Scalar                   | Number of roll angles                             |     |
 | nchannels               | Integer                      | Scalar                   | Number of channels                                |     |
-| minimum_IWA             | λ/D                          | Scalar                   | Minimum Inner Working Angle                       |     |
-| maximum_OWA             | λ/D                          | Scalar                   | Maximum Outer Working Angle                       |     |
 | coronagraph_optical_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
 | diameter                | Length                       | Scalar                   | Circumscribed diameter of telescope aperture      |     |
 | Area                    | Length²                      | Scalar                   | Effective collecting area of telescope            |     |
@@ -169,7 +167,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | photometric_aperture_throughput                     | [npix, npix, npsfratios] | Dimensionless | fraction of light entering the coronagraph that ends up within the photometric core of the off-axis (planet) PSF assuming perfectly reflecting/transmitting optics, where the core is the solid angle area `Omega` and is set by either `psf_trunc_ratio` or `photometric_aperture_radius`.                                 | No            |
 | omega_lod                       | [npix, npix, npsfratios] | (λ/D)²        | Solid angle of the photometric aperture                      | No            |
 | skytrans                        | [npix, npix]             | Dimensionless | Sky transmission; the coronagraph’s performance when observing an infinitely extended source                                           | No            |
-| pixscale                        | Scalar                   | λ/D           | Pixel scale of the coronagraph model                              | No            |
+| pixscale                        | Scalar                   | λ/D           | Pixel scale of the coronagraph model                              | Only ToyModel            |
 | npix                            | Scalar                   | Dimensionless       | length of one side of the coronagraph model images (assuming a square)                               | No            |
 | xcenter                         | Scalar                   | Pixel         | X-coordinate of the image center                             | No            |
 | ycenter                         | Scalar                   | Pixel         | Y-coordinate of the image center                             | No            |
@@ -179,15 +177,13 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
 | nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |
-| minimum_IWA                     | Scalar                   | λ/D           | Minimum Inner Working Angle                                  | Yes           |
-| maximum_OWA                     | Scalar                   | λ/D           | Maximum Outer Working Angle                                  | Yes           |
 | coronagraph_optical_throughput          | [nlambda]                | Dimensionless | Throughput for all coronagraph optics                        | Yes           |
 | coronagraph_spectral_resolution | Scalar                   | Dimensionless | Spectral resolution of the coronagraph                       | Yes           |
-| contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes           |
-| noisefloor_factor               | Scalar                   | Dimensionless | Systematic noise floor factor                                | Yes           |
-| noisefloor_PPF               | Scalar                   | Dimensionless | Noise floor post-processing factor                                | Yes           |
-| Tcore                           | Scalar                   | Dimensionless | Core throughput of coronagraph (used in ToyModel only, or if photometric_aperture_radius is specified for omega_lod calculation)       | Yes           |
-| TLyot                           | Scalar                   | Dimensionless | Lyot transmission of the coronagraph (used in ToyModel only) | Yes           |
+| contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes (ToyModel only)           |
+| noisefloor_factor               | Scalar                   | Dimensionless | Systematic noise floor factor                                | Yes (ToyModel only)           |
+| noisefloor_PPF               | Scalar                   | Dimensionless | Noise floor post-processing factor                                | Yes (YIP only)          |
+| Tcore                           | Scalar                   | Dimensionless | Core throughput of coronagraph (used in ToyModel only, or if photometric_aperture_radius is specified for omega_lod calculation)       | Yes (ToyModel only)        |
+| TLyot                           | Scalar                   | Dimensionless | Lyot transmission of the coronagraph (used in ToyModel only) | Yes (ToyModel only)          |
 | PSFpeak                         | Scalar                   | Dimensionless | Peak value of the off-axis PSF                                        | No            |
 
 ### A note on calculating `omega_lod`:

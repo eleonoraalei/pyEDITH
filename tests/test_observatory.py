@@ -667,7 +667,7 @@ def test_calculate_optics_throughput_with_t_optical(
     configured_mock_observatory, mock_observation, mock_scene
 ):
     """Test calculation of optics throughput with explicit T_optical parameter."""
-    parameters = {"T_optical": [0.8], "observing_mode": "IMAGER"}
+    parameters = {"T_optical": 0.8, "observing_mode": "IMAGER", "wavelength": 0.5}
     mediator = ObservatoryMediator(
         configured_mock_observatory, mock_observation, mock_scene
     )
@@ -681,21 +681,33 @@ def test_calculate_optics_throughput_ifs_mode(
     configured_mock_observatory, mock_observation, mock_scene
 ):
     """Test calculation of optics throughput in IFS mode with IFS efficiency."""
-    parameters = {"T_optical": [0.8], "observing_mode": "IFS", "IFS_eff": [0.9]}
+    parameters = {
+        "T_optical": [0.8, 0.84],
+        "observing_mode": "IFS",
+        "IFS_eff": [0.9, 0.92],
+        "wavelength": [0.5, 0.6],
+    }
     mediator = ObservatoryMediator(
         configured_mock_observatory, mock_observation, mock_scene
     )
 
     configured_mock_observatory.calculate_optics_throughput(parameters, mediator)
 
-    assert configured_mock_observatory.optics_throughput.value == [0.8 * 0.9]
+    assert np.allclose(
+        configured_mock_observatory.optics_throughput.value,
+        [
+            0.8 * 0.9,
+            0.84 * 0.92,
+        ],
+        rtol=1e-5,
+    )
 
 
 def test_calculate_optics_throughput_from_components(
     configured_mock_observatory, mock_observation, mock_scene
 ):
     """Test calculation of optics throughput from component throughputs."""
-    parameters = {"observing_mode": "IMAGER"}
+    parameters = {"observing_mode": "IMAGER", "wavelength": 0.5}
     mediator = ObservatoryMediator(
         configured_mock_observatory, mock_observation, mock_scene
     )
@@ -720,7 +732,7 @@ def test_calculate_warmemissivity_coldtransmission_explicit(
     configured_mock_observatory, mock_observation, mock_scene
 ):
     """Test calculation with explicit epswarmTrcold parameter."""
-    parameters = {"epswarmTrcold": 0.3}
+    parameters = {"epswarmTrcold": 0.3, "wavelength": 0.5}
     mediator = ObservatoryMediator(
         configured_mock_observatory, mock_observation, mock_scene
     )
@@ -736,7 +748,7 @@ def test_calculate_warmemissivity_coldtransmission_calculated(
     configured_mock_observatory, mock_observation, mock_scene
 ):
     """Test calculation derived from optics throughput."""
-    parameters = {}
+    parameters = {"wavelength": 0.5}
     configured_mock_observatory.optics_throughput = [0.8] * DIMENSIONLESS
     mediator = ObservatoryMediator(
         configured_mock_observatory, mock_observation, mock_scene
@@ -775,7 +787,7 @@ def test_calculate_total_throughput(mock_observatory):
 
 def test_observatory_load_configuration(mock_observatory, mock_observation, mock_scene):
     """Test loading complete observatory configuration."""
-    parameters = {"observing_mode": "IMAGER", "T_optical": [0.8]}
+    parameters = {"observing_mode": "IMAGER", "T_optical": 0.8, "wavelength": 0.5}
 
     mock_observatory.load_configuration(parameters, mock_observation, mock_scene)
 

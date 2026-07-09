@@ -19,7 +19,6 @@ from pyEDITH.units import (
     FRAME,
 )
 
-
 # ============================================================================
 # Mock Objects and Fixtures
 # ============================================================================
@@ -47,6 +46,8 @@ class MockMediator:
                 return np.array([0.5, 0.7, 1.2]) * WAVELENGTH
             elif self.observing_mode == "IMAGER":
                 return np.array([0.5]) * WAVELENGTH
+        elif param == "observing_mode":
+            return self.observing_mode
         return 1.0
 
     def get_coronagraph_parameter(self, param):
@@ -135,11 +136,13 @@ def mock_detector():
     def _create_mock(detector_type):
         mock = MagicMock()
 
-        mock.lam = np.array([0.2, 0.8, 1.1, 1.6]) * u.um
+        mock.lam = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]) * u.um
         mock.verbose = False
 
-        qe_vis = np.array([0.9, 0.9, np.nan, np.nan])
-        qe_nir = np.array([np.nan, np.nan, 0.85, 0.85])
+        qe_vis = np.array([0.9, 0.9, 0.9, 0.9, 0.9, np.nan, np.nan, np.nan, np.nan])
+        qe_nir = np.array(
+            [np.nan, np.nan, np.nan, np.nan, np.nan, 0.85, 0.85, 0.85, 0.85]
+        )
 
         common_dict = {
             "lam": mock.lam,
@@ -177,16 +180,45 @@ def mock_detector():
 
 
 @pytest.fixture
-def toy_detector_parameters():
+def imager_toy_detector_parameters():
     """Fixture providing standard parameters for ToyModelDetector testing."""
     return {
         "pixscale_mas": 10,
-        "npix_multiplier": [2],
-        "DC": [4e-5],
-        "RN": [1.0],
-        "tread": [1100],
-        "CIC": [1.5e-3],
+        "npix_multiplier": 2,
+        "DC": 4e-5,
+        "RN": 1.0,
+        "tread": 1100,
+        "CIC": 1.5e-3,
+        "wavelength": 0.5,
+        "observing_mode": "IMAGER",
     }
+
+
+@pytest.fixture
+def ifs_toy_detector_parameters():
+    """Fixture providing standard parameters for ToyModelDetector testing."""
+    return {
+        "pixscale_mas": 10,
+        "npix_multiplier": 2,
+        "DC": 4e-5,
+        "RN": 1.0,
+        "tread": 1100,
+        "CIC": 1.5e-3,
+        "wavelength": [0.5, 0.7, 1.2],
+        "observing_mode": "IFS",
+    }
+
+
+@pytest.fixture
+def imager_eac_detector_parameters():
+    """Fixture providing standard parameters for EACDetector testing."""
+    return {"wavelength": 0.5, "observing_mode": "IMAGER"}
+
+
+@pytest.fixture
+def ifs_eac_detector_parameters():
+    """Fixture providing standard parameters for EACDetector testing."""
+    return {"wavelength": [0.5, 0.7, 1.2], "observing_mode": "IFS"}
 
 
 # ============================================================================
@@ -208,13 +240,14 @@ def test_toy_model_detector_init():
 
 
 def test_toy_model_detector_load_configuration_imager_user_params(
-    toy_detector_parameters,
+    imager_toy_detector_parameters,
 ):
     """Test loading ToyModelDetector configuration with user parameters in IMAGER mode."""
     detector = ToyModelDetector()
     mediator = MockMediator("IMAGER")
+    parameters = imager_toy_detector_parameters.copy()
 
-    detector.load_configuration(toy_detector_parameters, mediator)
+    detector.load_configuration(parameters, mediator)
 
     assert detector.pixscale_mas == 10 * MAS
     assert np.all(detector.npix_multiplier == [2] * DIMENSIONLESS)
@@ -222,25 +255,8 @@ def test_toy_model_detector_load_configuration_imager_user_params(
     assert np.all(detector.RN == [1.0] * READ_NOISE)
     assert np.all(detector.tread == [1100] * READ_TIME)
     assert np.all(detector.CIC == [1.5e-3] * CLOCK_INDUCED_CHARGE)
-
-
-def test_toy_model_detector_load_configuration_imager_default_qe():
-    """Test that default QE and dQE values are used in IMAGER mode."""
-    detector = ToyModelDetector()
-    mediator = MockMediator("IMAGER")
-    parameters = {
-        "pixscale_mas": 10,
-        "npix_multiplier": [2],
-        "DC": [4e-5],
-        "RN": [1.0],
-        "tread": [1100],
-        "CIC": [1.5e-3],
-    }
-
-    detector.load_configuration(parameters, mediator)
-
-    assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)
-    assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)
+    assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)  # default
+    assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)  # default
 
 
 def test_toy_model_detector_load_configuration_imager_defaults():
@@ -248,9 +264,16 @@ def test_toy_model_detector_load_configuration_imager_defaults():
     detector = ToyModelDetector()
     mediator = MockMediator("IMAGER")
 
-    detector.load_configuration({}, mediator)
+    detector.load_configuration({"wavelength": 0.5}, mediator)
 
     assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
+    assert np.all(detector.npix_multiplier == [1] * DIMENSIONLESS)
+    assert np.all(detector.DC == [3e-5] * DARK_CURRENT)
+    assert np.all(detector.RN == [0.0] * READ_NOISE)
+    assert np.all(detector.tread == [1000] * READ_TIME)
+    assert np.all(detector.CIC == [1.3e-3] * CLOCK_INDUCED_CHARGE)
+    assert np.all(detector.QE == [0.9] * QUANTUM_EFFICIENCY)  # defaults
+    assert np.all(detector.dQE == [0.75] * DIMENSIONLESS)  # defaults
 
 
 # ============================================================================
@@ -258,12 +281,14 @@ def test_toy_model_detector_load_configuration_imager_defaults():
 # ============================================================================
 
 
-def test_toy_model_detector_load_configuration_ifs_user_params(toy_detector_parameters):
+def test_toy_model_detector_load_configuration_ifs_user_params(
+    ifs_toy_detector_parameters,
+):
     """Test loading ToyModelDetector configuration with user parameters in IFS mode."""
     detector = ToyModelDetector()
     mediator = MockMediator("IFS")
 
-    detector.load_configuration(toy_detector_parameters, mediator)
+    detector.load_configuration(ifs_toy_detector_parameters, mediator)
 
     assert detector.pixscale_mas == 10 * MAS
     assert np.all(detector.npix_multiplier == [2, 2, 2] * DIMENSIONLESS)
@@ -271,25 +296,8 @@ def test_toy_model_detector_load_configuration_ifs_user_params(toy_detector_para
     assert np.all(detector.RN == [1.0, 1.0, 1.0] * READ_NOISE)
     assert np.all(detector.tread == [1100, 1100, 1100] * READ_TIME)
     assert np.all(detector.CIC == [1.5e-3, 1.5e-3, 1.5e-3] * CLOCK_INDUCED_CHARGE)
-
-
-def test_toy_model_detector_load_configuration_ifs_default_qe():
-    """Test that default QE and dQE values are broadcast in IFS mode."""
-    detector = ToyModelDetector()
-    mediator = MockMediator("IFS")
-    parameters = {
-        "pixscale_mas": 10,
-        "npix_multiplier": [2],
-        "DC": [4e-5],
-        "RN": [1.0],
-        "tread": [1100],
-        "CIC": [1.5e-3],
-    }
-
-    detector.load_configuration(parameters, mediator)
-
-    assert np.all(detector.QE == [0.9, 0.9, 0.9] * QUANTUM_EFFICIENCY)
-    assert np.all(detector.dQE == [0.75, 0.75, 0.75] * DIMENSIONLESS)
+    assert np.all(detector.QE == [0.9, 0.9, 0.9] * QUANTUM_EFFICIENCY)  # defaults
+    assert np.all(detector.dQE == [0.75, 0.75, 0.75] * DIMENSIONLESS)  # defaults
 
 
 def test_toy_model_detector_load_configuration_ifs_defaults():
@@ -297,27 +305,37 @@ def test_toy_model_detector_load_configuration_ifs_defaults():
     detector = ToyModelDetector()
     mediator = MockMediator("IFS")
 
-    detector.load_configuration({}, mediator)
+    detector.load_configuration({"wavelength": [0.5, 0.7, 1.2]}, mediator)
 
     assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
+    assert np.all(detector.npix_multiplier == [1, 1, 1] * DIMENSIONLESS)
+    assert np.all(detector.DC == [3e-5, 3e-5, 3e-5] * DARK_CURRENT)
+    assert np.all(detector.RN == [0.0, 0.0, 0.0] * READ_NOISE)
+    assert np.all(detector.tread == [1000, 1000, 1000] * READ_TIME)
+    assert np.all(detector.CIC == [1.3e-3, 1.3e-3, 1.3e-3] * CLOCK_INDUCED_CHARGE)
+    assert np.all(detector.QE == [0.9, 0.9, 0.9] * QUANTUM_EFFICIENCY)  # defaults
+    assert np.all(detector.dQE == [0.75, 0.75, 0.75] * DIMENSIONLESS)  # defaults
 
 
-# ============================================================================
-# Tests for EACDetector.load_configuration - IMAGER mode
-# ============================================================================
+# # ============================================================================
+# # Tests for EACDetector.load_configuration - IMAGER mode
+# # ============================================================================
 
 
 @patch("eacy.load_detector")
 @patch("eacy.load_instrument")
 def test_eac_detector_load_configuration_imager_basic(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
+    mock_load_instrument,
+    mock_load_detector,
+    mock_instrument,
+    mock_detector,
+    imager_eac_detector_parameters,
 ):
     """Test basic EACDetector configuration loading in IMAGER mode."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_detector.return_value = mock_detector("IMAGER")
-
+    parameters = imager_eac_detector_parameters.copy()
     detector = EACDetector()
-    parameters = {"observing_mode": "IMAGER"}
     mediator = MockMediator("IMAGER")
 
     detector.load_configuration(parameters, mediator)
@@ -325,68 +343,21 @@ def test_eac_detector_load_configuration_imager_basic(
     assert detector.pixscale_mas is not None
     assert np.all(detector.npix_multiplier == 1 * DIMENSIONLESS)
 
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_imager_units(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that all detector parameters have correct units in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IMAGER")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IMAGER"}
-    mediator = MockMediator("IMAGER")
-
-    detector.load_configuration(parameters, mediator)
-
     assert detector.DC.unit == DARK_CURRENT
     assert detector.RN.unit == READ_NOISE
     assert detector.tread.unit == READ_TIME
     assert detector.CIC.unit == CLOCK_INDUCED_CHARGE
     assert detector.QE.unit == QUANTUM_EFFICIENCY
     assert detector.dQE.unit == DIMENSIONLESS
-
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_imager_shapes(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that detector parameter arrays have correct shapes in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IMAGER")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IMAGER"}
-    mediator = MockMediator("IMAGER")
-
-    detector.load_configuration(parameters, mediator)
-
     expected_shape = (1,)
     assert detector.DC.shape == expected_shape
     assert detector.RN.shape == expected_shape
     assert detector.QE.shape == expected_shape
 
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_imager_values(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that detector parameters have correct values in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IMAGER")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IMAGER"}
-    mediator = MockMediator("IMAGER")
-
-    detector.load_configuration(parameters, mediator)
-
-    assert np.allclose(detector.DC.value, 3e-05)
-    assert np.allclose(detector.RN.value, 0.1)
+    assert np.allclose(detector.DC.value, 3e-05)  # vis channel
+    assert np.allclose(detector.RN.value, 0.1)  # vis channel
+    assert np.allclose(detector.QE.value, 0.9)  # vis channel
+    assert np.allclose(detector.dQE.value, 0.75)  # hardcoded
 
 
 # ============================================================================
@@ -397,37 +368,24 @@ def test_eac_detector_load_configuration_imager_values(
 @patch("eacy.load_detector")
 @patch("eacy.load_instrument")
 def test_eac_detector_load_configuration_ifs_basic(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
+    mock_load_instrument,
+    mock_load_detector,
+    mock_instrument,
+    mock_detector,
+    ifs_eac_detector_parameters,
 ):
     """Test basic EACDetector configuration loading in IFS mode."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_detector.return_value = mock_detector("IFS")
 
     detector = EACDetector()
-    parameters = {"observing_mode": "IFS"}
+    parameters = ifs_eac_detector_parameters.copy()
     mediator = MockMediator("IFS")
 
     detector.load_configuration(parameters, mediator)
 
     assert detector.pixscale_mas is not None
     assert np.all(detector.npix_multiplier == 1 * DIMENSIONLESS)
-
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_ifs_units(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that all detector parameters have correct units in IFS mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IFS")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IFS"}
-    mediator = MockMediator("IFS")
-
-    detector.load_configuration(parameters, mediator)
-
     assert detector.DC.unit == DARK_CURRENT
     assert detector.RN.unit == READ_NOISE
     assert detector.tread.unit == READ_TIME
@@ -435,43 +393,11 @@ def test_eac_detector_load_configuration_ifs_units(
     assert detector.QE.unit == QUANTUM_EFFICIENCY
     assert detector.dQE.unit == DIMENSIONLESS
 
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_ifs_shapes(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that detector parameter arrays have correct shapes in IFS mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IFS")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IFS"}
-    mediator = MockMediator("IFS")
-
-    detector.load_configuration(parameters, mediator)
-
     expected_shape = (3,)
     assert detector.DC.shape == expected_shape
     assert detector.RN.shape == expected_shape
     assert detector.QE.shape == expected_shape
     assert detector.CIC.shape == expected_shape
-
-
-@patch("eacy.load_detector")
-@patch("eacy.load_instrument")
-def test_eac_detector_load_configuration_ifs_wavelength_dependent_values(
-    mock_load_instrument, mock_load_detector, mock_instrument, mock_detector
-):
-    """Test that detector parameters vary correctly with wavelength in IFS mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_detector.return_value = mock_detector("IFS")
-
-    detector = EACDetector()
-    parameters = {"observing_mode": "IFS"}
-    mediator = MockMediator("IFS")
-
-    detector.load_configuration(parameters, mediator)
 
     # VIS wavelengths (< 1 μm)
     assert np.allclose(detector.DC[:2].value, 3e-05)
@@ -482,54 +408,32 @@ def test_eac_detector_load_configuration_ifs_wavelength_dependent_values(
     assert np.allclose(detector.RN[2:].value, 0.4)
 
 
-# ============================================================================
-# Tests for EACDetector.load_configuration - Error handling
-# ============================================================================
-
-
-def test_eac_detector_load_configuration_unsupported_mode():
-    """Test that unsupported observing mode raises KeyError."""
-    detector = EACDetector()
-    parameters = {"observing_mode": "test"}
-    mediator = MockMediator("test")
-
-    with pytest.raises(KeyError, match="Unsupported observing mode: test"):
-        detector.load_configuration(parameters, mediator)
-
-
-def test_eac_detector_load_configuration_invalid_mode():
-    """Test that invalid observing mode raises KeyError."""
-    detector = EACDetector()
-    parameters = {"observing_mode": "INVALID"}
-    mediator = MockMediator("IMAGER")
-
-    with pytest.raises(KeyError, match="Unsupported observing mode: INVALID"):
-        detector.load_configuration(parameters, mediator)
-
-
-# ============================================================================
-# Tests for EACDetector validation inputs
-# ============================================================================
+# # ============================================================================
+# # Tests for EACDetector validation inputs
+# # ============================================================================
 
 
 @pytest.mark.parametrize("observing_mode", ["IMAGER", "IFS"])
-def test_eac_detector_etc_validation_inputs(observing_mode):
+def test_eac_detector_etc_validation_inputs(
+    observing_mode, ifs_eac_detector_parameters, imager_eac_detector_parameters
+):
     """Test that ETC validation inputs are correctly loaded."""
     detector = EACDetector()
     mediator = MockMediator(observing_mode)
-
-    parameters = {
-        "observing_mode": observing_mode,
-        "t_photon_count_input": 0.7,
-        "det_npix_input": 200,
-    }
+    parameters = (
+        imager_eac_detector_parameters
+        if observing_mode == "IMAGER"
+        else ifs_eac_detector_parameters
+    )
+    parameters["t_photon_count_input"] = 0.7
+    parameters["det_npix_input"] = 200
 
     detector.load_configuration(parameters, mediator)
 
     assert hasattr(detector, "t_photon_count_input")
     assert hasattr(detector, "det_npix_input")
     assert detector.t_photon_count_input == 0.7 * SECOND / FRAME
-    assert detector.det_npix_input == 200 * DIMENSIONLESS
+    assert np.allclose(detector.det_npix_input, 200 * DIMENSIONLESS)
 
 
 # ============================================================================
@@ -537,11 +441,11 @@ def test_eac_detector_etc_validation_inputs(observing_mode):
 # ============================================================================
 
 
-def test_detector_validate_configuration_all_valid(toy_detector_parameters):
+def test_detector_validate_configuration_all_valid(imager_toy_detector_parameters):
     """Test that validation passes with all correct attributes."""
     detector = ToyModelDetector()
     parameters = {
-        **toy_detector_parameters,
+        **imager_toy_detector_parameters,
         "QE": [0.95],
         "dQE": [0.8],
     }
@@ -553,12 +457,14 @@ def test_detector_validate_configuration_all_valid(toy_detector_parameters):
     detector.validate_configuration()
 
 
-def test_detector_validate_configuration_missing_pixscale(toy_detector_parameters):
+def test_detector_validate_configuration_missing_pixscale(
+    imager_toy_detector_parameters,
+):
     """Test that missing pixscale_mas attribute raises AttributeError."""
     detector = ToyModelDetector()
     mediator = MockMediator()
 
-    detector.load_configuration(toy_detector_parameters, mediator)
+    detector.load_configuration(imager_toy_detector_parameters, mediator)
     delattr(detector, "pixscale_mas")
 
     with pytest.raises(
@@ -567,12 +473,14 @@ def test_detector_validate_configuration_missing_pixscale(toy_detector_parameter
         detector.validate_configuration()
 
 
-def test_detector_validate_configuration_pixscale_not_quantity(toy_detector_parameters):
+def test_detector_validate_configuration_pixscale_not_quantity(
+    imager_toy_detector_parameters,
+):
     """Test that non-Quantity pixscale_mas raises TypeError."""
     detector = ToyModelDetector()
     mediator = MockMediator()
 
-    detector.load_configuration(toy_detector_parameters, mediator)
+    detector.load_configuration(imager_toy_detector_parameters, mediator)
     detector.pixscale_mas = 10  # Not a Quantity
 
     with pytest.raises(
@@ -582,13 +490,13 @@ def test_detector_validate_configuration_pixscale_not_quantity(toy_detector_para
 
 
 def test_detector_validate_configuration_incorrect_pixscale_units(
-    toy_detector_parameters,
+    imager_toy_detector_parameters,
 ):
     """Test that pixscale_mas with incorrect units raises ValueError."""
     detector = ToyModelDetector()
     mediator = MockMediator()
 
-    detector.load_configuration(toy_detector_parameters, mediator)
+    detector.load_configuration(imager_toy_detector_parameters, mediator)
     detector.pixscale_mas = 10 * u.arcsec  # Wrong unit
 
     with pytest.raises(
@@ -597,9 +505,9 @@ def test_detector_validate_configuration_incorrect_pixscale_units(
         detector.validate_configuration()
 
 
-# ============================================================================
-# Tests for parameter broadcasting in IFS mode
-# ============================================================================
+# # ============================================================================
+# # Tests for parameter broadcasting in IFS mode
+# # ============================================================================
 
 
 def test_toy_model_detector_scalar_to_array_broadcasting():
@@ -612,6 +520,8 @@ def test_toy_model_detector_scalar_to_array_broadcasting():
         "RN": [1.0],
         "tread": [1100],
         "CIC": [1.5e-3],
+        "wavelength": [0.5, 0.6, 0.7],
+        "observing_mode": "IFS",
     }
 
     detector.load_configuration(parameters, mediator)

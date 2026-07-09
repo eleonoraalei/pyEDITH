@@ -322,20 +322,22 @@ def test_load_configuration_with_magnitudes():
         "ra": 180.0,
         "dec": 0.0,
         "separation": 0.1,
-        "delta_mag": 20.0,
+        "delta_mag": [20.0, 20.1],
         "delta_mag_min": 25,
     }
 
     scene.load_configuration(parameters)
-
     assert scene.dist == 10 * DISTANCE
     assert scene.vmag == 5.0 * MAGNITUDE
+    assert np.allclose(scene.mag.value, [5.1, 5.2])
+    assert scene.mag.unit == MAGNITUDE
     assert np.isclose(scene.stellar_angular_diameter_arcsec.value, 0.00093009345219)
     assert scene.nzodis == 3.0 * ZODI
     assert scene.ra == 180.0 * DEG
     assert scene.dec == 0.0 * DEG
     assert scene.separation == 0.1 * ARCSEC
-    assert scene.deltamag == 20.0 * MAGNITUDE
+    assert np.allclose(scene.deltamag.value, [20.0, 20.1])
+    assert scene.deltamag.unit == MAGNITUDE
     assert scene.min_deltamag == 25.0 * MAGNITUDE
 
 
@@ -384,8 +386,8 @@ def test_load_configuration_with_custom_F0():
     }
 
     scene.load_configuration(parameters)
-
-    assert scene.F0 == parameters["F0"] * PHOTON_FLUX_DENSITY
+    assert np.allclose(scene.F0.value, [13400, 13400])  # parsed to len(wavelength)
+    assert scene.F0.unit == PHOTON_FLUX_DENSITY
 
 
 def test_load_configuration_with_semimajor_axis():
@@ -412,7 +414,7 @@ def test_load_configuration_with_semimajor_axis():
 
 
 def test_load_configuration_missing_separation_and_semimajor_axis():
-    """Test that missing both separation and semimajor_axis raises ValueError."""
+    """Test that missing both separation and semimajor_axis raises KeyError."""
     scene = AstrophysicalScene()
     parameters = {
         "wavelength": [0.5, 0.55],
@@ -428,7 +430,7 @@ def test_load_configuration_missing_separation_and_semimajor_axis():
     }
 
     with pytest.raises(
-        ValueError,
+        KeyError,
         match="Either separation \\[arcsec\\] or semimajor_axis \\[AU\\] must be provided.",
     ):
         scene.load_configuration(parameters)
@@ -586,11 +588,16 @@ def test_load_configuration_insufficient_parameters():
     scene = AstrophysicalScene()
 
     with pytest.raises(KeyError):
-        scene.load_configuration({"distance": 1.0})
+        scene.load_configuration(
+            {
+                "distance": 1.0,
+                "wavelength": [0.5, 0.55],
+            }
+        )
 
 
 def test_load_configuration_mixed_magnitude_flux_inputs():
-    """Test that mixing magnitude and flux inputs raises ValueError."""
+    """Test that mixing magnitude and flux inputs raises KeyError."""
     scene = AstrophysicalScene()
     mixed_parameters = {
         "wavelength": [0.5, 0.55],
@@ -602,11 +609,11 @@ def test_load_configuration_mixed_magnitude_flux_inputs():
         "ra": 180.0,
         "dec": 0.0,
         "separation": 0.1,
-        "delta_mag": 20.0,
+        "delta_mag": [20.0, 20.1],
         "delta_mag_min": 25,
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         scene.load_configuration(mixed_parameters)
 
 
@@ -685,7 +692,7 @@ def test_load_configuration_ifs_mode_fstarv_interpolation():
 
 
 def test_load_configuration_imager_mode_missing_fstarv():
-    """Test that missing FstarV_10pc in IMAGER mode raises ValueError."""
+    """Test that missing FstarV_10pc in IMAGER mode raises KeyError."""
     scene = AstrophysicalScene()
     parameters = {
         "wavelength": 0.5,
@@ -701,7 +708,7 @@ def test_load_configuration_imager_mode_missing_fstarv():
         "observing_mode": "IMAGER",
     }
 
-    with pytest.raises(ValueError, match="FstarV_10pc missing in parameters."):
+    with pytest.raises(KeyError, match="FstarV_10pc missing in parameters."):
         scene.load_configuration(parameters)
 
 
@@ -770,11 +777,11 @@ def test_load_configuration_ez_ppf_mismatched_length():
         "ra": 236.0075773682300,
         "dec": 02.5151668316500,
         "separation": 0.1,
-        "ez_PPF": [100.0],  # Wrong length
+        "ez_PPF": [100.0, 100.0],  # Wrong length
     }
 
     with pytest.raises(
-        AssertionError, match="length of ez_PPF does not match length of Fp_over_Fs"
+        ValueError, match="ez_PPF should be a list of length 3, but it has length 2."
     ):
         scene.load_configuration(parameters)
 
@@ -942,32 +949,11 @@ def test_calculate_zodi_exozodi_missing_parameters():
 
     # Try to calculate without configuring the scene first
     with pytest.raises(AttributeError, match="must be configured before"):
-        scene.calculate_zodi_exozodi({})
-
-
-def test_calculate_zodi_exozodi_missing_wavelength():
-    """Test that calculate_zodi_exozodi raises error when wavelength is missing."""
-    scene = AstrophysicalScene()
-
-    # Configure the scene properly
-    parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
-        "distance": 14.8,
-        "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
-        "stellar_radius": 1,
-        "nzodis": 3.0,
-        "ra": 236.0075773682300,
-        "dec": 02.5151668316500,
-        "separation": 0.1,
-        "delta_mag": 25.5,
-        "delta_mag_min": 25.0,
-    }
-    scene.load_configuration(parameters)
-
-    # Now try to calculate with missing wavelength
-    with pytest.raises(KeyError, match="wavelength"):
-        scene.calculate_zodi_exozodi({})
+        scene.calculate_zodi_exozodi(
+            {
+                "wavelength": [0.5, 0.55, 0.6],
+            }
+        )
 
 
 # ============================================================================
@@ -1210,6 +1196,7 @@ def test_regrid_spectra_basic_functionality():
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
         nlambd = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
+        _input_wavelength = parameters["wavelength"]
 
     observation = MockObservation()
 
@@ -1236,7 +1223,7 @@ def test_regrid_spectra_basic_functionality():
 
     scene.deltamag = np.random.randn(len(parameters["wavelength"])) * MAGNITUDE
 
-    scene.regrid_spectra(parameters, observation)
+    scene.regrid_spectra(observation)
 
     # Check that all arrays match observation wavelength grid
     assert len(scene.F0) == observation.nlambd
@@ -1261,6 +1248,7 @@ def test_regrid_spectra_preserves_units():
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
         nlambd = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
+        _input_wavelength = parameters["wavelength"]
 
     observation = MockObservation()
 
@@ -1290,7 +1278,7 @@ def test_regrid_spectra_preserves_units():
         "deltamag": scene.deltamag.unit,
     }
 
-    scene.regrid_spectra(parameters, observation)
+    scene.regrid_spectra(observation)
 
     # Check that units are preserved
     assert scene.F0.unit == original_units["F0"]

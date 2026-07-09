@@ -52,6 +52,20 @@ class Observation:
         aperture settings. For IFS mode, it can calculate or regrid the wavelength
         grid based on specified parameters.
 
+        Grid model
+        ----------
+        This method is the place where the *resolved* wavelength grid is defined,
+        and it is designed to be safely re-callable (e.g. inside a loop that
+        rebins the grid between iterations). To make that safe:
+
+        * ``parameters["wavelength"]`` is stored verbatim as
+            ``self._input_wavelength`` -- the pristine, pre-regrid source grid.
+            This is the single source of truth used as ``from_wavelength`` and is
+            NEVER overwritten with a regridded array.
+        * Per-wavelength inputs (currently ``snr``) are parsed with ``parse_parameters``
+          and then aligned onto the current resolved grid via ``regrid_to_grid``,
+          always regridding FROM the input wavelength.
+
         Parameters
         ----------
         parameters : dict
@@ -65,9 +79,16 @@ class Observation:
             If required parameters are missing or if regridding is requested without
             necessary parameters
         """
+
+        parameters = parse_input.parse_parameters(parameters)
         self.observing_mode = parameters["observing_mode"]
-        if self.observing_mode not in ["IMAGER", "IFS"]:
-            raise KeyError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
+
+        # ------------------------------------------------------------------
+        # Pristine source grid: the single source of truth for from_wavelength.
+        # Store it once, before any rebinning, and never overwrite it with a
+        # regridded array. Everything per-wavelength is regridded FROM this.
+        # ------------------------------------------------------------------
+        self._input_wavelength = np.asarray(parameters["wavelength"], dtype=np.float64)
 
         # -------- INPUTS ---------
         # Observational parameters
@@ -75,9 +96,8 @@ class Observation:
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
-            self.SNR = (
-                parameters["snr"] * DIMENSIONLESS
-            )  # signal to noise # nlambd array
+            # IMAGER has no meaningful bin widths for regridding; broadcast-only
+            self.delta_wavelength = None
 
         elif (
             parameters["observing_mode"] == "IFS"
@@ -99,29 +119,15 @@ class Observation:
                 )  # default resolution
                 dlam_um = self.wavelength / IFS_resolution
             self.delta_wavelength = dlam_um
-            self.SNR = (
-                parameters["snr"] * DIMENSIONLESS
-            )  # signal to noise # nlambd array
+
         elif (
             parameters["observing_mode"] == "IFS"
             and bool(parameters["regrid_wavelength"]) is True
         ):
             logger.info("Calculating a new wavelength grid and re-gridding spectra...")
-            if "spectral_resolution" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify new resolution for each spectral channel: parameters['spectral_resolution']."
-                )
-            if "lam_low" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_low']."
-                )
-            if "lam_high" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_high']."
-                )
 
             new_lam, new_dlam = utils.regrid_wavelengths(
-                parameters["wavelength"],
+                self._input_wavelength,
                 parameters["spectral_resolution"],
                 parameters["lam_low"],
                 parameters["lam_high"],
@@ -131,17 +137,32 @@ class Observation:
             )  # wavelength # nlambd array #unit: micron
             self.delta_wavelength = new_dlam * WAVELENGTH
 
-            # PRELIMINARY to rebin SNR, treat it as a spectrum #TODO debate if it should be wavelength-dependent in the first place
-            self.SNR = utils.regrid_spec_gaussconv(
-                parameters["wavelength"],
-                parameters["snr"] * DIMENSIONLESS,
-                self.wavelength.value,
-                self.delta_wavelength.value,
-            )  # signal to noise # nlambd array
+        # ------------------------------------------------------------------
+        # Length of the current resolved grid. Any per-wavelength parameter is
+        # aligned against this via regrid_to_grid.
+        # ------------------------------------------------------------------
+        self.nlambd = len(self.wavelength)
+
+        # Target bin widths (as plain floats) for the regrid branch, if defined.
+        to_delta = (
+            None
+            if self.delta_wavelength is None
+            else np.asarray(self.delta_wavelength.value, dtype=np.float64)
+        )
+
+        # ------------------------------------------------------------------
+        # SNR: align onto the current resolved grid.
+        # ------------------------------------------------------------------
+        self.SNR = utils.regrid_to_grid(
+            parameters["snr"] * DIMENSIONLESS,
+            from_wavelength=self._input_wavelength,
+            to_wavelength=self.wavelength.value,
+            to_delta_wavelength=to_delta,
+            name="snr",
+            interpolation="1d",
+        )  # signal to noise # nlambd array
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
-
-        self.nlambd = len(self.wavelength)
 
     def set_output_arrays(self):
         """
