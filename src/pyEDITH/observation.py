@@ -79,7 +79,6 @@ class Observation:
             If required parameters are missing or if regridding is requested without
             necessary parameters
         """
-
         parameters = parse_input.parse_parameters(parameters)
         self.observing_mode = parameters["observing_mode"]
 

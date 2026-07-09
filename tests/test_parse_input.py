@@ -428,33 +428,20 @@ def test_normalize_list_shapes_excess_length_single_wavelength(caplog):
     """Test multi-element array preserved when default_len=1 for downstream regridding."""
     parameters = {"snr": [10.0, 20.0, 30.0]}
 
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        result = normalize_list_shapes(parameters, "snr", default_len=1)
-
-    np.testing.assert_array_equal(result, np.array([10.0, 20.0, 30.0]))
-    assert isinstance(result, np.ndarray)
-    assert any(
-        "snr has length 3 but the expected input size is 1" in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
+    with pytest.raises(
+        ValueError, match="snr has length 3 but the expected input size is 1"
+    ):
+        normalize_list_shapes(parameters, "snr", default_len=1)
 
 
 def test_normalize_list_shapes_excess_length_quantity_single_wavelength(caplog):
     """Test multi-element Quantity preserved when default_len=1 for downstream regridding."""
     parameters = {"DC": u.Quantity([10.0, 20.0, 30.0], DARK_CURRENT)}
 
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        result = normalize_list_shapes(parameters, "DC", default_len=1)
-
-    assert isinstance(result, u.Quantity)
-    np.testing.assert_array_equal(result.value, np.array([10.0, 20.0, 30.0]))
-    assert result.unit == DARK_CURRENT
-    assert any(
-        "DC has length 3 but the expected input size is 1" in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
+    with pytest.raises(
+        ValueError, match="DC has length 3 but the expected input size is 1"
+    ):
+        normalize_list_shapes(parameters, "DC", default_len=1)
 
 
 def test_normalize_list_shapes_numpy_array():
@@ -555,14 +542,12 @@ def test_parse_parameters_wavelength_dependent_single():
         "snr",
         "T_optical",
         "epswarmTrcold",
-        "npix_multiplier",
         "DC",
         "RN",
         "tread",
         "CIC",
         "QE",
         "dQE",
-        "IFS_eff",
         "mag",
         "Fstar_10pc",
         "Fp/Fs",
@@ -633,36 +618,20 @@ def test_parse_parameters_wavelength_dependent_mismatched_length():
 
 
 def test_parse_parameters_wavelength_dependent_excess_length_scalar(caplog):
-    """Test that excess length triggers warning and uses first value."""
-    with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
-        parsed = parse_parameters({"wavelength": 0.5, "snr": [10, 20, 30]})
-
-    assert any(
-        "snr has length 3 but the expected input size is 1; leaving it unchanged so it can be aligned/regridded when ingested"
-        in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
-
-    np.testing.assert_array_equal(parsed["snr"], np.array([10, 20, 30]))
+    """Test that excess length triggers error for single wavelength."""
+    with pytest.raises(
+        ValueError, match="snr has length 3 but the expected input size is 1"
+    ):
+        parse_parameters({"wavelength": 0.5, "snr": [10, 20, 30]})
 
 
 def test_parse_parameters_wavelength_dependent_excess_length_quantity(caplog):
     """Test that excess length triggers warning and uses first value."""
-    with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
-        parsed = parse_parameters(
-            {"wavelength": 0.5, "DC": [10, 20, 30] * DARK_CURRENT}
-        )
 
-    assert any(
-        "DC has length 3 but the expected input size is 1; leaving it unchanged so it can be aligned/regridded when ingested"
-        in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
-    np.testing.assert_array_equal(parsed["DC"].value, np.array([10, 20, 30]))
-    assert parsed["DC"].unit == DARK_CURRENT
-    assert isinstance(parsed["DC"], u.Quantity)
+    with pytest.raises(
+        ValueError, match="DC has length 3 but the expected input size is 1."
+    ):
+        parse_parameters({"wavelength": 0.5, "DC": [10, 20, 30] * DARK_CURRENT})
 
 
 def test_parse_parameters_wavelength_dependent_with_quantity():
@@ -709,6 +678,7 @@ def test_parse_parameters_target_params():
         "Fp_min/Fs",
         "separation",
         "semimajor_axis",
+        "npix_multiplier",
     ]
 
     for param in target_params:
@@ -1550,3 +1520,62 @@ def test_get_observatory_config_missing_component():
 
     with pytest.raises(ValueError, match="Detector type not specified"):
         get_observatory_config(parameters)
+
+
+def test_parsed_flag_prevents_reprocessing():
+    """Test that _parsed flag prevents reprocessing of already-parsed parameters."""
+
+    # Create a minimal set of parameters
+    raw_params = {
+        "wavelength": [1.0, 2.0, 3.0],
+        "snr": [10.0, 15.0, 20.0],
+        "distance": 10.0,
+    }
+
+    # Parse once
+    parsed_once = parse_parameters(raw_params)
+
+    # Verify _parsed flag is set
+    assert "_parsed" in parsed_once
+    assert parsed_once["_parsed"] is True
+
+    # Store a reference to verify identity
+    parsed_once_id = id(parsed_once)
+
+    # Parse again - should return immediately without reprocessing
+    parsed_twice = parse_parameters(parsed_once)
+
+    # Should return the same object (not a copy)
+    assert id(parsed_twice) == parsed_once_id
+    assert parsed_twice is parsed_once
+
+    # Verify all original parsed values are unchanged
+    assert parsed_twice["nlambda"] == 3
+    assert "_parsed" in parsed_twice
+
+
+def test_parsed_flag_not_present_initially():
+    """Test that _parsed flag is not present in raw parameters."""
+
+    raw_params = {"wavelength": [1.0], "distance": 10.0}
+
+    # Verify _parsed is not in raw params
+    assert "_parsed" not in raw_params
+
+    # Parse
+    parsed = parse_parameters(raw_params)
+
+    # Now it should be present
+    assert "_parsed" in parsed
+    assert parsed["_parsed"] is True
+
+
+def test_parsed_flag_set_after_single_parse():
+    """Test that _parsed flag is set after a single parsing operation."""
+
+    raw_params = {"wavelength": 1.5, "snr": 25.0, "distance": 5.0}
+
+    parsed = parse_parameters(raw_params)
+
+    # Check the flag exists and is True
+    assert parsed.get("_parsed") is True

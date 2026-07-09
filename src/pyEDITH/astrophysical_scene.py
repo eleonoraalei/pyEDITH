@@ -714,13 +714,13 @@ class AstrophysicalScene:
         # set the exozodi PPF
         if "ez_PPF" in parameters.keys():
             # It has already been parsed to be of length nlambda
-            self.ez_PPF = parameters["ez_PPF"]
+            self.ez_PPF = parameters["ez_PPF"] * DIMENSIONLESS
 
         else:
             logger.warning(
                 "ez_PPF not set. Assuming EZ subtraction to Poisson limit (ez_PPF = inf)"
             )
-            self.ez_PPF = np.inf * np.ones_like(self.Fp_over_Fs)
+            self.ez_PPF = np.inf * np.ones_like(self.Fp_over_Fs) * DIMENSIONLESS
 
     def calculate_zodi_exozodi(self, parameters: dict) -> None:
         """

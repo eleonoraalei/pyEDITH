@@ -116,7 +116,7 @@ def mock_observatory():
     observatory.detector.pixscale_mas = 100 * u.mas
     observatory.detector.QE = np.array([0.8, 0.8, 0.8]) * QUANTUM_EFFICIENCY
     observatory.detector.dQE = np.array([1.0, 1.0, 1.0]) * DIMENSIONLESS
-    observatory.detector.npix_multiplier = [1.0, 1.0, 1.0]
+    observatory.detector.npix_multiplier = 1.0 * DIMENSIONLESS
     observatory.detector.DC = [1e-3, 1e-3, 1e-3] * u.electron / u.s / u.pix
     observatory.detector.RN = [3, 3, 3] * u.electron / u.pix
     observatory.detector.tread = [100, 100, 100] * u.s

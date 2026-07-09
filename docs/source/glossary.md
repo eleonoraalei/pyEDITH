@@ -28,7 +28,7 @@
 | temperature             | Temperature                  | Scalar                   | Temperature of the warm optics                    |     |
 | T_contamination                 | Dimensionless                | Scalar                   | Effective throughput factor for contamination     |     |
 | pixscale_mas            | Milliarcsecond               | Scalar                   | Detector pixel scale                              |     |
-| npix_multiplier         | Dimensionless                | [nlambda]                | Number of detector pixels per image plane "pixel" |     |
+| npix_multiplier         | Dimensionless                | Scalar                | Number of detector pixels per image plane "pixel" |     |
 | DC                      | Electron / (Pixel * Second)  | [nlambda]                | Dark current                                      |     |
 | RN                      | Electron / (Pixel * Read)    | [nlambda]                | Read noise                                        |     |
 | tread                   | Second                       | [nlambda]                | Read time                                         |     |
@@ -124,7 +124,7 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | Variable Name   | Length    | Unit                        | Meaning                                           | User Editable |
 | --------------- | --------- | --------------------------- | ------------------------------------------------- | ------------- |
 | pixscale_mas    | Scalar    | Milliarcsecond              | Detector pixel scale                              | Yes           |
-| npix_multiplier | [nlambda] | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes (Toymodel only)           |
+| npix_multiplier | Scalar | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes (Toymodel only)           |
 | DC              | [nlambda] | Electron / (Pixel * Second) | Dark current                                      | Yes (Toymodel only)                 |
 | RN              | [nlambda] | Electron / (Pixel * Read)   | Read noise                                        |  Yes (Toymodel only)                |
 | tread           | [nlambda] | Second                      | Read time                                         |  Yes (Toymodel only)                 |

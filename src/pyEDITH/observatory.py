@@ -404,6 +404,15 @@ class Observatory(ABC):  # abstract class
             # may also move to elsewhere in code.
             ifs_eff = u.Quantity(parameters.get("IFS_eff", 1.0), unit=DIMENSIONLESS)
 
+            # Rebin to proper wavelength grid
+            ifs_eff = utils.regrid_to_grid(
+                ifs_eff,
+                from_wavelength=parameters["wavelength"],
+                to_wavelength=mediator.get_observation_parameter("wavelength"),
+                name="ifs_eff",
+                interpolation="1d",
+            )
+
             self.optics_throughput *= ifs_eff
 
         # if optics_throughput is a number and wavelength>1, make it an array of length nlambda

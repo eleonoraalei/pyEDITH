@@ -234,23 +234,23 @@ def normalize_list_shapes(parameters, key, default_len):
     else:
         # Case 3: default_len == 1
         # A scalar or single-element value becomes a length-1 array. A multi-element
-        # value is preserved (grid-agnostic) so it can be regridded downstream,
-        # unless strict mode collapses it to the first element as before.
+        # value throws an error.
         if isinstance(value, u.Quantity):
             if value.size > 1:
-                logger.warning(
-                    f"{key} has length {len(value)} but the expected input size is {default_len}; "
-                    f"leaving it unchanged so it can be aligned/regridded when ingested."
+                raise ValueError(
+                    f"{key} has length {value.size} but the expected input size is {default_len}. "
                 )
-                return u.Quantity(np.array(value.value, dtype=np.float64), value.unit)
             else:
-                return u.Quantity([value.value], value.unit)
-        elif isinstance(value, (list, np.ndarray)) and len(value) > 1:
-            logger.warning(
-                f"{key} has length {len(value)} but the expected input size is {default_len}; "
-                f"leaving it unchanged so it can be aligned/regridded when ingested."
-            )
-            return to_float_array(value)
+                # Handle both scalar Quantity and single-element Quantity array
+                scalar_value = value.value if value.isscalar else value.value.flat[0]
+                return u.Quantity([scalar_value], value.unit)
+        elif isinstance(value, (list, np.ndarray, tuple)):
+            if len(value) > 1:
+                raise ValueError(
+                    f"{key} has length {len(value)} but the expected input size is {default_len}. "
+                )
+            else:
+                return to_float_array(value)
         else:
             return to_float_array([value])
 
@@ -289,7 +289,9 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
     The function assumes one target (ntargs = 1) for now.
     nmeananom and norbits are defaulted to 1.
     """
-
+    # LEGACY: Protect in case we already passed parsed parameters
+    if "_parsed" in parameters.keys():
+        return parameters
     parsed_params = {}
 
     # NLAMBDA
@@ -321,7 +323,6 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "snr",
         "T_optical",
         "epswarmTrcold",
-        "npix_multiplier",
         "DC",
         "RN",
         "tread",
@@ -337,6 +338,7 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "F0",  # for validation purposes, the calculation of F0 is different in AYO
         "det_npix_input",  # for validation purposes
         "telescope_optical_throughput",
+        "coronagraph_optical_throughput",
     ]
 
     parsed_params.update(
@@ -358,6 +360,7 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "delta_mag_min",  # used to be [ntargs]
         "Fp_min/Fs",
         "semimajor_axis",
+        "npix_multiplier",  # user to be [nlambda]
         "separation",  # used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1
     ]
 
@@ -471,6 +474,7 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         for key in required_keys:
             parsed_params[key] = normalize_list_shapes(parameters, key, lengths[0])
 
+    parsed_params["_parsed"] = True
     return parsed_params
 
 

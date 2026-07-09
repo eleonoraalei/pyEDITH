@@ -111,7 +111,7 @@ def mock_observatory():
     observatory.detector.path = None
     observatory.detector.keyword = "ToyModel"
     observatory.detector.pixscale_mas = 6.55224925 * u.mas
-    observatory.detector.npix_multiplier = u.Quantity([1.0], DIMENSIONLESS)
+    observatory.detector.npix_multiplier = u.Quantity(1.0, DIMENSIONLESS)
     observatory.detector.DC = u.Quantity([3.0e-05], DARK_CURRENT)
     observatory.detector.RN = u.Quantity([0.0], READ_NOISE)
     observatory.detector.tread = u.Quantity([1000.0], READ_TIME)

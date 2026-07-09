@@ -250,7 +250,7 @@ def test_toy_model_detector_load_configuration_imager_user_params(
     detector.load_configuration(parameters, mediator)
 
     assert detector.pixscale_mas == 10 * MAS
-    assert np.all(detector.npix_multiplier == [2] * DIMENSIONLESS)
+    assert detector.npix_multiplier == 2 * DIMENSIONLESS
     assert np.all(detector.DC == [4e-5] * DARK_CURRENT)
     assert np.all(detector.RN == [1.0] * READ_NOISE)
     assert np.all(detector.tread == [1100] * READ_TIME)
@@ -267,7 +267,7 @@ def test_toy_model_detector_load_configuration_imager_defaults():
     detector.load_configuration({"wavelength": 0.5}, mediator)
 
     assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
-    assert np.all(detector.npix_multiplier == [1] * DIMENSIONLESS)
+    assert detector.npix_multiplier == 1 * DIMENSIONLESS
     assert np.all(detector.DC == [3e-5] * DARK_CURRENT)
     assert np.all(detector.RN == [0.0] * READ_NOISE)
     assert np.all(detector.tread == [1000] * READ_TIME)
@@ -291,7 +291,7 @@ def test_toy_model_detector_load_configuration_ifs_user_params(
     detector.load_configuration(ifs_toy_detector_parameters, mediator)
 
     assert detector.pixscale_mas == 10 * MAS
-    assert np.all(detector.npix_multiplier == [2, 2, 2] * DIMENSIONLESS)
+    assert detector.npix_multiplier == 2 * DIMENSIONLESS
     assert np.all(detector.DC == [4e-5, 4e-5, 4e-5] * DARK_CURRENT)
     assert np.all(detector.RN == [1.0, 1.0, 1.0] * READ_NOISE)
     assert np.all(detector.tread == [1100, 1100, 1100] * READ_TIME)
@@ -308,7 +308,7 @@ def test_toy_model_detector_load_configuration_ifs_defaults():
     detector.load_configuration({"wavelength": [0.5, 0.7, 1.2]}, mediator)
 
     assert np.isclose(detector.pixscale_mas, 6.4457752 * MAS)
-    assert np.all(detector.npix_multiplier == [1, 1, 1] * DIMENSIONLESS)
+    assert detector.npix_multiplier == 1 * DIMENSIONLESS
     assert np.all(detector.DC == [3e-5, 3e-5, 3e-5] * DARK_CURRENT)
     assert np.all(detector.RN == [0.0, 0.0, 0.0] * READ_NOISE)
     assert np.all(detector.tread == [1000, 1000, 1000] * READ_TIME)
@@ -341,7 +341,7 @@ def test_eac_detector_load_configuration_imager_basic(
     detector.load_configuration(parameters, mediator)
 
     assert detector.pixscale_mas is not None
-    assert np.all(detector.npix_multiplier == 1 * DIMENSIONLESS)
+    assert detector.npix_multiplier == 1 * DIMENSIONLESS
 
     assert detector.DC.unit == DARK_CURRENT
     assert detector.RN.unit == READ_NOISE
@@ -385,7 +385,7 @@ def test_eac_detector_load_configuration_ifs_basic(
     detector.load_configuration(parameters, mediator)
 
     assert detector.pixscale_mas is not None
-    assert np.all(detector.npix_multiplier == 1 * DIMENSIONLESS)
+    assert detector.npix_multiplier == 1 * DIMENSIONLESS
     assert detector.DC.unit == DARK_CURRENT
     assert detector.RN.unit == READ_NOISE
     assert detector.tread.unit == READ_TIME

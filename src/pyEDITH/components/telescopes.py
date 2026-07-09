@@ -157,6 +157,7 @@ class ToyModelTelescope(Telescope):
         array_params = [
             "telescope_optical_throughput",
         ]
+
         utils.convert_to_numpy_array(self, array_params)
 
         # Derived parameters

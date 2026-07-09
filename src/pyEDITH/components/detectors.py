@@ -17,7 +17,7 @@ class Detector(ABC):
     ----------
     pixscale_mas : float
         Detector pixel scale in milliarcseconds.
-    npix_multiplier : ndarray
+    npix_multiplier : scalar
         Number of detector pixels per image plane "pixel".
     DC : ndarray
         Dark current in counts per pixel per second.
@@ -108,7 +108,7 @@ class ToyModelDetector(Detector):
     LOCKED_KEYS: set = set()
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
-        "npix_multiplier": [1]
+        "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
         "DC": [3e-5] * DARK_CURRENT,  # Dark current (counts pix^-1 s^-1, nlambd array)
         "RN": [0.0] * READ_NOISE,  # Read noise (counts pix^-1 read^-1, nlambd array)
@@ -224,7 +224,7 @@ class EACDetector(Detector):
 
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
-        "npix_multiplier": [1]
+        "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
         "DC": None,  # Dark current (counts pix^-1 s^-1, nlambd array)
         "RN": None,  # Read noise (counts pix^-1 read^-1, nlambd array)

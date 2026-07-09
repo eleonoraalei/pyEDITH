@@ -58,7 +58,7 @@ nchannels = 1             ; number of parallel detection channels (channels eval
 PSF_trunc_ratio = 0.3
 
 ;--- (OVERRIDING DEFAULT) DETECTOR PARAMETERS ---
-npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# nlambd array, 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
+npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
 DC = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
 RN = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
 tread = 1000.         ;   read time (seconds) (must have same length as lambda)
@@ -84,7 +84,7 @@ secondary_bandwidth = 0.2           ;   fractional bandwidth of coronagraph (uni
 secondary_core_throughput = 1.22E-01    ;   core throughput of coronagraph (uniform over dark hole, unitless) 
 
 ;--- (OVERRIDING DEFAULT) DETECTOR PARAMETERS ---
-secondary_npix_multiplier = 1       ;   number of detector pixels per image plane "pixel"# nlambd array, 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
+secondary_npix_multiplier = 1       ;   number of detector pixels per image plane "pixel", 1 for detections or spectra w/ ERD, ~6*(140/SR) for spectra with IFS
 secondary_DC = 3e-5       ;   dark current (counts pix^-1 s^-1) (must have same length as lambda)
 secondary_RN = 0.0          ;   read noise (counts pix^-1 read^-1) (must have same length as lambda)
 secondary_tread = 1000.        ;   read time (seconds) (must have same length as lambda)
