@@ -360,7 +360,6 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "delta_mag_min",  # used to be [ntargs]
         "Fp_min/Fs",
         "semimajor_axis",
-        "npix_multiplier",  # user to be [nlambda]
         "separation",  # used to be ARRAYS OF LENGTH  nmeananom x norbits x ntargs (but nmeananom and norbits are defaulted to 1
     ]
 
@@ -387,15 +386,37 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "T_contamination",
         "CRb_multiplier",
         "t_photon_count_input",  # only for ETC validation
+        "npix_multiplier",
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):
-        parsed_params[key] = float(parameters[key])
+        value = parameters[key]
+        # Handle npix_multiplier deprecation: was array, now scalar
+        if (
+            key == "npix_multiplier"
+            and hasattr(value, "__len__")
+            and not isinstance(value, str)
+        ):
+            import warnings
+
+            warnings.warn(
+                "Passing 'npix_multiplier' as an array is deprecated and will be removed in a future version. "
+                "Please provide it as a scalar value instead. Using the first element for now.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if isinstance(value, np.ndarray):
+                parsed_params[key] = float(value.flat[0])
+            else:
+                parsed_params[key] = float(value[0])
+        else:
+            parsed_params[key] = float(parameters[key])
 
     # ---- INTEGERS ---
-    if "nrolls" in parameters.keys():
-        parsed_params["nrolls"] = int(parameters["nrolls"])
+    integer_params = ["nrolls", "nchannels"]
 
+    for key in list(set(integer_params) & set(parameters.keys())):
+        parsed_params[key] = int(parameters[key])
     # ----- BOOLEANS ---
     for key in ["az_avg", "regrid_wavelength"]:
         if key in parameters.keys():
