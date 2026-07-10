@@ -3,14 +3,14 @@
 </p>
 
 <p align="center">
-  <a href="https://app.codecov.io/gh/HWO-Project/pyEDITH">
-    <img src="https://img.shields.io/codecov/c/github/HWO-Project/pyEDITH?style=for-the-badge&logo=codecov" alt="Codecov">
+  <a href="https://app.codecov.io/gh/HabitableWorldsObservatory/pyEDITH">
+    <img src="https://img.shields.io/codecov/c/github/HabitableWorldsObservatory/pyEDITH?style=for-the-badge&logo=codecov" alt="Codecov">
   </a>
   <a href="https://pyedith.readthedocs.io/en/latest/">
     <img src="https://readthedocs.org/projects/pyedith/badge/?version=latest&style=for-the-badge" alt="Documentation Status">
   </a>
-  <a href="https://github.com/HWO-Project/pyEDITH/actions/workflows/run_and_test.yml/">
-    <img src="https://img.shields.io/github/actions/workflow/status/HWO-Project/pyEDITH/run_and_test.yml?branch=main&logo=github&style=for-the-badge" alt="CI">
+  <a href="https://github.com/HabitableWorldsObservatory/pyEDITH/actions/workflows/run_and_test.yml/">
+    <img src="https://img.shields.io/github/actions/workflow/status/HabitableWorldsObservatory/pyEDITH/run_and_test.yml?branch=main&logo=github&style=for-the-badge" alt="CI">
   </a>
 <a href="https://zenodo.org/records/17917471"><img src="https://img.shields.io/badge/DOI-doi.org%2Fzenodo.17917471-blue?style=for-the-badge" alt="DOI"></a>
 </p>
@@ -38,7 +38,7 @@ pip install pyEDITH
 Or, if preferred, clone the pyEDITH repository and install locally:
 
 ```
-git clone https://github.com/HWO-Project/pyEDITH.git
+git clone https://github.com/HabitableWorldsObservatory/pyEDITH.git
 cd pyEDITH
 pip install -e .
 ```
