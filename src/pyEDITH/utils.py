@@ -137,6 +137,7 @@ def fill_parameters(
     parameters: dict,
     default_parameters: dict,
     locked_keys: set = None,
+    allow_override: set = None,
 ) -> None:
     """
     Populate class object attributes with user parameters or default values.
@@ -148,44 +149,73 @@ def fill_parameters(
     parameters : dict
         Dictionary of user-provided parameter values.
     default_parameters : dict
-        Dictionary of default (or, for YIP mode, YIP-loaded) parameter values.
+        Dictionary of default (or, for YIP/EAC mode, model-loaded) parameter values.
     locked_keys : set, optional
-        Keys that must NOT be overridden by the user. For these keys the value
-        staged in ``default_parameters`` is always used (e.g. values loaded
-        from a YIP), regardless of what the user supplied. If the user does
-        supply a locked key a warning is emitted so the override is transparent.
+        Keys that must NOT be overridden by the user by default. For these keys
+        the value staged in ``default_parameters`` is always used (e.g. values
+        loaded from a YIP or EAC YAML), regardless of what the user supplied,
+        UNLESS the key is also present in ``allow_override``.
+    allow_override : set, optional
+        Keys that are normally locked but that the user has explicitly and
+        intentionally requested to override (e.g. via parameters["overrides"]).
+        Has no effect on keys that are not in ``locked_keys`` -- those are
+        already user-editable. Any name in ``allow_override`` that does not
+        correspond to a key in ``default_parameters`` raises a ValueError,
+        to catch typos rather than silently ignoring them.
     """
     if locked_keys is None:
         locked_keys = set()
+    if allow_override is None:
+        allow_override = set()
+
+    unknown_overrides = allow_override - set(default_parameters.keys())
+    if unknown_overrides:
+        raise ValueError(
+            f"'overrides' contains unrecognized parameter name(s): "
+            f"{unknown_overrides}"
+        )
+
+    def _coerce(user_value, default_value):
+        """Match user_value's type/units to default_value's, where applicable."""
+        if isinstance(default_value, u.Quantity):
+            if isinstance(user_value, u.Quantity):
+                return user_value.to(default_value.unit)
+            return u.Quantity(user_value, default_value.unit)
+        return user_value
+
     for key, default_value in default_parameters.items():
         is_locked = key in locked_keys
-        if key in parameters and is_locked:
-            # User tried to set a value that is owned by the model (e.g. YIP).
+        is_overridden = key in allow_override
+        if key in parameters and is_locked and not is_overridden:
+            # User tried to set a value that is owned by the model (e.g. YIP/EAC)
+            # and did not explicitly request an override.
             logger.warning(
                 f"Parameter '{key}' is locked in this mode and "
                 f"cannot be user-overridden; using the model-provided value "
                 f"instead of the supplied value {parameters[key]!r}."
             )
-
             setattr(class_obj, key, default_value)
 
+        elif key in parameters and is_locked and is_overridden:
+            # User explicitly requested to override a normally-locked value.
+            final_value = _coerce(parameters[key], default_value)
+            setattr(class_obj, key, final_value)
+            logger.warning(
+                f"Parameter '{key}' is normally locked in this mode, but was "
+                f"explicitly overridden per user request (via 'overrides'). "
+                f"Model-provided value was {default_value!r}; using "
+                f"user-supplied value: {final_value!r}."
+            )
+
         elif key in parameters and not is_locked:
-            # User provided a value AND it is allowed to be overridden.
-            user_value = parameters[key]
-            if isinstance(default_value, u.Quantity):
-                if isinstance(user_value, u.Quantity):
-
-                    final_value = user_value.to(default_value.unit)
-                else:
-
-                    final_value = u.Quantity(user_value, default_value.unit)
-                setattr(class_obj, key, final_value)
-            else:
-                setattr(class_obj, key, user_value)
-                final_value = user_value
+            # User provided a value and it is allowed to be overridden.
+            final_value = _coerce(parameters[key], default_value)
+            setattr(class_obj, key, final_value)
             logger.debug(f"Parameter '{key}' set to user-provided value: {final_value}")
+
         else:
-            # Use default / model-provided value (also the path for locked keys).
+            # Use default / model-provided value (also the path for locked
+            # keys the user didn't touch at all).
             setattr(class_obj, key, default_value)
             logger.debug(f"Parameter '{key}' set to default value: {default_value}")
 

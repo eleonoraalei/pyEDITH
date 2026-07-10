@@ -1224,3 +1224,371 @@ def test_fill_parameters_all_locked_keys(test_object, caplog):
     # Should have warnings for both
     assert "param1" in caplog.text
     assert "param2" in caplog.text
+
+
+# ============================================================================
+# Tests for fill_parameters - Override functionality
+# ============================================================================
+
+
+def test_fill_parameters_override_locked_key(test_object, caplog):
+    """Test that locked keys can be overridden when explicitly allowed."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Locked parameter should now use user value
+    assert test_object.locked_param == 999
+    # Warning should indicate explicit override
+    assert "locked_param" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_override_locked_quantity(test_object, caplog):
+    """Test that locked Quantity parameters can be overridden."""
+    parameters = {
+        "locked_distance": 100 * u.m,
+    }
+    default_parameters = {
+        "locked_distance": 10 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    assert test_object.locked_distance == 100 * u.m
+    assert "locked_distance" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_override_with_unit_conversion(test_object, caplog):
+    """Test that overridden Quantity is converted to default units."""
+    parameters = {
+        "locked_distance": 5.0 * u.pc,
+    }
+    default_parameters = {
+        "locked_distance": 10.0 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should be converted to meters (the default unit)
+    assert isinstance(test_object.locked_distance, u.Quantity)
+    assert test_object.locked_distance.unit == u.m
+    assert np.isclose(test_object.locked_distance.value, 1.54285714e17, rtol=1e-4)
+
+
+def test_fill_parameters_override_without_unit(test_object, caplog):
+    """Test that overridden unitless value gets default units."""
+    parameters = {
+        "locked_length": 100.0,
+    }
+    default_parameters = {
+        "locked_length": 1.0 * u.m,
+    }
+    locked_keys = {"locked_length"}
+    allow_override = {"locked_length"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    assert isinstance(test_object.locked_length, u.Quantity)
+    assert test_object.locked_length.unit == u.m
+    assert test_object.locked_length.value == 100.0
+
+
+def test_fill_parameters_override_unrecognized_parameter():
+    """Test that unknown override keys raise ValueError."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+        "param2": 20,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"param1", "nonexistent_param"}
+
+    with pytest.raises(ValueError, match="unrecognized parameter name"):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+
+def test_fill_parameters_override_multiple_unrecognized():
+    """Test that multiple unknown override keys are reported."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"nonexistent1", "nonexistent2"}
+
+    with pytest.raises(ValueError) as excinfo:
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Both names should appear in the error message
+    assert "nonexistent1" in str(excinfo.value)
+    assert "nonexistent2" in str(excinfo.value)
+
+
+def test_fill_parameters_override_non_locked_key(test_object, caplog):
+    """Test that override of non-locked key has no special effect."""
+    parameters = {
+        "unlocked_param": 100,
+    }
+    default_parameters = {
+        "unlocked_param": 10,
+    }
+    locked_keys = set()
+    allow_override = {"unlocked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should use user value (not locked anyway)
+    assert test_object.unlocked_param == 100
+    # Should not log override warning since it wasn't locked
+    assert "explicitly overridden" not in caplog.text
+
+
+def test_fill_parameters_override_mixed_locked_unlocked(test_object, caplog):
+    """Test overriding some locked parameters but not others."""
+    parameters = {
+        "locked_param1": 100,
+        "locked_param2": 200,
+        "unlocked_param": 300,
+    }
+    default_parameters = {
+        "locked_param1": 10,
+        "locked_param2": 20,
+        "unlocked_param": 30,
+    }
+    locked_keys = {"locked_param1", "locked_param2"}
+    allow_override = {"locked_param1"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # First locked param should use user value (explicitly overridden)
+    assert test_object.locked_param1 == 100
+    # Second locked param should use default (not overridden)
+    assert test_object.locked_param2 == 20
+    # Unlocked param should use user value
+    assert test_object.unlocked_param == 300
+
+    # Check log messages
+    assert "locked_param1" in caplog.text
+    assert "explicitly overridden" in caplog.text
+    assert "locked_param2" in caplog.text
+    assert "locked in this mode" in caplog.text
+
+
+def test_fill_parameters_override_empty_set(test_object):
+    """Test that empty allow_override set behaves correctly."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = set()
+
+    fill_parameters(
+        test_object, parameters, default_parameters, locked_keys, allow_override
+    )
+
+    # Should use default (not overridden)
+    assert test_object.locked_param == 42
+
+
+def test_fill_parameters_override_none_value(test_object, caplog):
+    """Test that None for allow_override is handled correctly."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override=None,
+        )
+
+    # Should use default (not overridden)
+    assert test_object.locked_param == 42
+    # Should have standard locked warning
+    assert "locked_param" in caplog.text
+    assert "locked in this mode" in caplog.text
+
+
+def test_fill_parameters_override_without_user_parameter(test_object, caplog):
+    """Test override specification when user didn't provide the parameter."""
+    parameters = {}
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should use default (user didn't override it)
+    assert test_object.locked_param == 42
+    # Should not log any override warning
+    assert "explicitly overridden" not in caplog.text
+
+
+def test_fill_parameters_override_all_locked_keys(test_object, caplog):
+    """Test overriding all locked parameters."""
+    parameters = {
+        "locked_param1": 100,
+        "locked_param2": 200,
+        "locked_param3": 300,
+    }
+    default_parameters = {
+        "locked_param1": 10,
+        "locked_param2": 20,
+        "locked_param3": 30,
+    }
+    locked_keys = {"locked_param1", "locked_param2", "locked_param3"}
+    allow_override = {"locked_param1", "locked_param2", "locked_param3"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # All should use user values
+    assert test_object.locked_param1 == 100
+    assert test_object.locked_param2 == 200
+    assert test_object.locked_param3 == 300
+
+    # All should have override warnings
+    assert caplog.text.count("explicitly overridden") == 3
+
+
+def test_fill_parameters_override_logs_both_values(test_object, caplog):
+    """Test that override warning includes both model and user values."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Warning should mention both values
+    assert "42" in caplog.text
+    assert "999" in caplog.text
+    assert "Model-provided value" in caplog.text
+    assert "user-supplied value" in caplog.text
+
+
+def test_fill_parameters_override_quantity_logs_units(test_object, caplog):
+    """Test that override warning for Quantity shows units."""
+    parameters = {
+        "locked_distance": 100 * u.m,
+    }
+    default_parameters = {
+        "locked_distance": 10 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Warning should mention units
+    assert "10.0 m" in caplog.text or "10. m" in caplog.text
+    assert "100.0 m" in caplog.text or "100. m" in caplog.text
+
+
+# ============================================================================
+# Tests for fill_parameters - Edge cases with overrides
+# ============================================================================
+
+
+def test_fill_parameters_override_superset_of_locked():
+    """Test that allow_override can be a superset of locked_keys."""
+    test_object = type("TestObject", (), {})()
+    parameters = {
+        "locked_param": 100,
+        "unlocked_param": 200,
+    }
+    default_parameters = {
+        "locked_param": 10,
+        "unlocked_param": 20,
+    }
+    locked_keys = {"locked_param"}
+    # Override set includes both locked and unlocked
+    allow_override = {"locked_param", "unlocked_param"}
+
+    fill_parameters(
+        test_object, parameters, default_parameters, locked_keys, allow_override
+    )
+
+    # Both should use user values
+    assert test_object.locked_param == 100
+    assert test_object.unlocked_param == 200
+
+
+def test_fill_parameters_override_disjoint_sets():
+    """Test error when allow_override contains keys not in defaults."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"completely_different_param"}
+
+    with pytest.raises(ValueError, match="unrecognized parameter name"):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )

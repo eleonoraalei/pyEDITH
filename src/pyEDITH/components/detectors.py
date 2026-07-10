@@ -373,9 +373,16 @@ class EACDetector(Detector):
             )
             * CLOCK_INDUCED_CHARGE
         )
-
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(
+            self,
+            parameters,
+            self.DEFAULT_CONFIG,
+            self.LOCKED_KEYS,
+            allow_override=set(
+                set(parameters.get("overrides", [])) & self.LOCKED_KEYS
+            ),  # finds the keys that should be locked but that the user wants to override
+        )
 
         # USED ONLY TO VALIDATE ETCs
         if "t_photon_count_input" in parameters.keys():

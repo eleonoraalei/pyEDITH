@@ -1579,3 +1579,78 @@ def test_parsed_flag_set_after_single_parse():
 
     # Check the flag exists and is True
     assert parsed.get("_parsed") is True
+
+
+# ============================================================================
+# Tests for parse_parameters - overrides parameter
+# ============================================================================
+
+
+def test_parse_parameters_overrides_string():
+    """Test parsing overrides parameter as a comma-separated string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC,RN,QE"})
+
+    assert "overrides" in parsed
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_string_with_spaces():
+    """Test parsing overrides parameter with spaces around commas."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC, RN, QE"})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_string_single_value():
+    """Test parsing overrides parameter with single value string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC"})
+
+    assert parsed["overrides"] == ["DC"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_list():
+    """Test parsing overrides parameter as a list."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ["DC", "RN", "QE"]})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_tuple():
+    """Test parsing overrides parameter as a tuple."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ("DC", "RN")})
+
+    assert parsed["overrides"] == ["DC", "RN"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_empty_string():
+    """Test parsing overrides parameter as an empty string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ""})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_empty_list():
+    """Test parsing overrides parameter as an empty list."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": []})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_not_present():
+    """Test that absence of overrides parameter doesn't create key."""
+    parsed = parse_parameters({"wavelength": 0.5})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_string_extra_whitespace():
+    """Test parsing overrides with extra whitespace."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "  DC  ,  RN  ,  QE  "})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)

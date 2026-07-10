@@ -474,6 +474,21 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         for key in required_keys:
             parsed_params[key] = normalize_list_shapes(parameters, key, lengths[0])
 
+    # ADVANCED FLAG: dictionary of values to be overwritten (despite being locked)
+    if "overrides" in parameters.keys():
+        overrides_value = parameters["overrides"]
+        if isinstance(overrides_value, str):
+            overrides_list = [item.strip() for item in overrides_value.split(",")]
+            # Filter out empty strings
+            overrides_list = [item for item in overrides_list if item]
+            if overrides_list:
+                parsed_params["overrides"] = overrides_list
+        else:
+            overrides_list = list(overrides_value)
+            if overrides_list:
+                parsed_params["overrides"] = overrides_list
+
+    # Update _parsed key
     parsed_params["_parsed"] = True
     return parsed_params
 

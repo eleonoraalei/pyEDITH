@@ -706,8 +706,10 @@ class CoronagraphYIP(Coronagraph):
             self.DEFAULT_CONFIG["Istar"] / self.DEFAULT_CONFIG["noisefloor_PPF"]
         )
 
-        # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES ****
-        # Load parameters, use defaults if not provided. Yippy parameters are locked
+        # ***** REPLACE PARAMETERS WITH USER-SPECIFIED ONES (no override allowed) ****
         utils.fill_parameters(
-            self, parameters, self.DEFAULT_CONFIG, locked_keys=self.LOCKED_KEYS
+            self,
+            parameters,
+            self.DEFAULT_CONFIG,
+            locked_keys=self.LOCKED_KEYS,
         )

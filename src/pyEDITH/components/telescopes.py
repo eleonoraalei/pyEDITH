@@ -289,7 +289,15 @@ class EACTelescope(Telescope):
         # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG, self.LOCKED_KEYS)
+        utils.fill_parameters(
+            self,
+            parameters,
+            self.DEFAULT_CONFIG,
+            self.LOCKED_KEYS,
+            allow_override=set(
+                set(parameters.get("overrides", [])) & self.LOCKED_KEYS
+            ),  # finds the keys that should be locked but that the user wants to override
+        )
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar
