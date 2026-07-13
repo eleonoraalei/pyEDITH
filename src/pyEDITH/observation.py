@@ -2,6 +2,7 @@ import numpy as np
 from .units import *
 from . import utils
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 
@@ -22,13 +23,11 @@ class Observation:
     nlambd : int
         Number of wavelength points.
     SNR : np.ndarray
-        Signal-to-noise ratio array.
-    tp : ndarray
-        Exposure time of every planet (nmeananom x norbits x ntargs array).
+        Desired bulk SNR.
     exptime : ndarray
-        Exposure time for each target and wavelength.
+        Exposure time per single wavelength datapoint.
     fullsnr : ndarray
-        Signal-to-noise ratio for each target and wavelength.
+        Signal-to-noise ratio per single wavelength datapoint.
     td_limit : float
         Limit placed on exposure times.
 
@@ -53,6 +52,20 @@ class Observation:
         aperture settings. For IFS mode, it can calculate or regrid the wavelength
         grid based on specified parameters.
 
+        Grid model
+        ----------
+        This method is the place where the *resolved* wavelength grid is defined,
+        and it is designed to be safely re-callable (e.g. inside a loop that
+        rebins the grid between iterations). To make that safe:
+
+        * ``parameters["wavelength"]`` is stored verbatim as
+            ``self._input_wavelength`` -- the pristine, pre-regrid source grid.
+            This is the single source of truth used as ``from_wavelength`` and is
+            NEVER overwritten with a regridded array.
+        * Per-wavelength inputs (currently ``snr``) are parsed with ``parse_parameters``
+          and then aligned onto the current resolved grid via ``regrid_to_grid``,
+          always regridding FROM the input wavelength.
+
         Parameters
         ----------
         parameters : dict
@@ -66,9 +79,15 @@ class Observation:
             If required parameters are missing or if regridding is requested without
             necessary parameters
         """
+        parameters = parse_input.parse_parameters(parameters)
         self.observing_mode = parameters["observing_mode"]
-        if self.observing_mode not in ["IMAGER", "IFS"]:
-            raise KeyError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
+
+        # ------------------------------------------------------------------
+        # Pristine source grid: the single source of truth for from_wavelength.
+        # Store it once, before any rebinning, and never overwrite it with a
+        # regridded array. Everything per-wavelength is regridded FROM this.
+        # ------------------------------------------------------------------
+        self._input_wavelength = np.asarray(parameters["wavelength"], dtype=np.float64)
 
         # -------- INPUTS ---------
         # Observational parameters
@@ -76,6 +95,9 @@ class Observation:
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
             )  # wavelength # nlambd array #unit: micron
+            # IMAGER has no meaningful bin widths for regridding; broadcast-only
+            self.delta_wavelength = None
+
         elif (
             parameters["observing_mode"] == "IFS"
             and bool(parameters["regrid_wavelength"]) is False
@@ -102,21 +124,9 @@ class Observation:
             and bool(parameters["regrid_wavelength"]) is True
         ):
             logger.info("Calculating a new wavelength grid and re-gridding spectra...")
-            if "spectral_resolution" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify new resolution for each spectral channel: parameters['spectral_resolution']."
-                )
-            if "lam_low" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_low']."
-                )
-            if "lam_high" not in parameters.keys():
-                raise KeyError(
-                    "regrid_wavelength is True; you must specify the wavelength boundaries between spectral channels: parameters['lam_high']."
-                )
 
             new_lam, new_dlam = utils.regrid_wavelengths(
-                parameters["wavelength"],
+                self._input_wavelength,
                 parameters["spectral_resolution"],
                 parameters["lam_low"],
                 parameters["lam_high"],
@@ -126,11 +136,32 @@ class Observation:
             )  # wavelength # nlambd array #unit: micron
             self.delta_wavelength = new_dlam * WAVELENGTH
 
-        self.SNR = parameters["snr"] * DIMENSIONLESS  # signal to noise # nlambd array
+        # ------------------------------------------------------------------
+        # Length of the current resolved grid. Any per-wavelength parameter is
+        # aligned against this via regrid_to_grid.
+        # ------------------------------------------------------------------
+        self.nlambd = len(self.wavelength)
+
+        # Target bin widths (as plain floats) for the regrid branch, if defined.
+        to_delta = (
+            None
+            if self.delta_wavelength is None
+            else np.asarray(self.delta_wavelength.value, dtype=np.float64)
+        )
+
+        # ------------------------------------------------------------------
+        # SNR: align onto the current resolved grid.
+        # ------------------------------------------------------------------
+        self.SNR = utils.regrid_to_grid(
+            parameters["snr"] * DIMENSIONLESS,
+            from_wavelength=self._input_wavelength,
+            to_wavelength=self.wavelength.value,
+            to_delta_wavelength=to_delta,
+            name="snr",
+            interpolation="1d",
+        )  # signal to noise # nlambd array
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
-
-        self.nlambd = len(self.wavelength)
 
     def set_output_arrays(self):
         """
@@ -142,10 +173,6 @@ class Observation:
         """
 
         # Initialize some arrays needed for outputs...
-        self.tp = 0.0 * TIME  # exposure time of every planet
-        # (nmeananom x norbits x ntargs array), used in c function
-        # [NOTE: nmeananom = nphases in C code]
-        # NOTE: ntargs fixed to 1.
         self.exptime = np.full((self.nlambd), 0.0) * TIME
 
         # only used for snr calculation

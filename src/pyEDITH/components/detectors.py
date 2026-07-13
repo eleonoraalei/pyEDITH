@@ -3,6 +3,7 @@ import numpy as np
 from .. import utils
 import astropy.units as u
 from ..units import *
+from pyEDITH import parse_input
 
 
 class Detector(ABC):
@@ -16,7 +17,7 @@ class Detector(ABC):
     ----------
     pixscale_mas : float
         Detector pixel scale in milliarcseconds.
-    npix_multiplier : ndarray
+    npix_multiplier : scalar
         Number of detector pixels per image plane "pixel".
     DC : ndarray
         Dark current in counts per pixel per second.
@@ -26,11 +27,15 @@ class Detector(ABC):
         Read time in seconds.
     CIC : ndarray
         Clock-induced charge in counts per pixel per photon count.
-    dQE: ndarray
-        Quantum efficiency of detector
     QE: ndarray
+        Quantum efficiency of detector
+    dQE: ndarray
         Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     """
+
+    # Keys that a user is NOT allowed to override for this detector mode.
+    # Subclasses override this. An empty set means "everything is user-editable".
+    LOCKED_KEYS: set = set()
 
     @abstractmethod
     def load_configuration(self):
@@ -99,9 +104,11 @@ class ToyModelDetector(Detector):
         Keyword for configuration selection (not used in toy model)
     """
 
+    # In toy-model mode EVERY parameter is user-editable, so nothing is locked.
+    LOCKED_KEYS: set = set()
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
-        "npix_multiplier": [1]
+        "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
         "DC": [3e-5] * DARK_CURRENT,  # Dark current (counts pix^-1 s^-1, nlambd array)
         "RN": [0.0] * READ_NOISE,  # Read noise (counts pix^-1 read^-1, nlambd array)
@@ -145,8 +152,10 @@ class ToyModelDetector(Detector):
         mediator : ObservatoryMediator
             Mediator object providing access to telescope and observation parameters
         """
+        parameters = parse_input.parse_parameters(parameters)
 
-        # Calculate default detector pixel scale based on telescope
+        # Calculate default detector pixel scale based on telescope diameter
+        # Uses 0.5 * lambda/D at reference wavelength of 0.5 microns
         self.DEFAULT_CONFIG["pixscale_mas"] = (
             0.5
             * lambda_d_to_arcsec(
@@ -156,11 +165,8 @@ class ToyModelDetector(Detector):
             )
         ).to(MAS)
 
-        # Convert to arrays if lambda > 1:
-
-        # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
-
+        # For IFS, the default config won't work. It needs to be propagated at every wavelength.
+        # Normalize list shapes just in case.
         array_params = [
             "npix_multiplier",
             "DC",
@@ -170,23 +176,19 @@ class ToyModelDetector(Detector):
             "QE",
             "dQE",
         ]
-
-        for param in array_params:
-
-            if (
-                len(getattr(self, param)) == 1
-                and len(mediator.get_observation_parameter("wavelength").value) > 1
-            ):
-                setattr(
-                    self,
-                    param,
-                    getattr(self, param)[0]
-                    * np.ones_like(
-                        mediator.get_observation_parameter("wavelength").value
-                    ),
+        self.DEFAULT_CONFIG.update(
+            {
+                key: parse_input.normalize_list_shapes(
+                    self.DEFAULT_CONFIG,
+                    key,
+                    mediator.get_observation_parameter("nlambda"),
                 )
+                for key in array_params
+            }
+        )
 
-        # # Convert to numpy array when appropriate
+        # Load parameters from user input, falling back to defaults if not provided
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG, self.LOCKED_KEYS)
         utils.convert_to_numpy_array(self, array_params)
 
 
@@ -206,9 +208,23 @@ class EACDetector(Detector):
         Keyword for configuration selection (not used in EAC detector)
     """
 
+    # In EAC mode these quantities are OWNED by the YAML files and must stay
+    # consistent with the loaded package. The user is NOT allowed to override
+    # them; if they try, fill_parameters will warn and keep the YAML value.
+    # Anything not listed here  remains user-editable.
+    LOCKED_KEYS: set = {
+        "npix_multiplier",
+        "DC",
+        "RN",
+        "tread",
+        "CIC",
+        "QE",
+        "dQE",
+    }
+
     DEFAULT_CONFIG = {
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
-        "npix_multiplier": [1]
+        "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
         "DC": None,  # Dark current (counts pix^-1 s^-1, nlambd array)
         "RN": None,  # Read noise (counts pix^-1 read^-1, nlambd array)
@@ -259,19 +275,17 @@ class EACDetector(Detector):
         AssertionError
             If the QE array contains NaN values after processing
         """
-        # Check on possible modes
-        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
-            raise KeyError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
+        parameters = parse_input.parse_parameters(parameters)
 
         from eacy import load_detector
 
         # ****** Update Default Config when necessary ******
 
-        detector_params = load_detector(parameters["observing_mode"]).__dict__
+        raw_detector_params = load_detector(
+            mediator.get_observation_parameter("observing_mode")
+        ).__dict__
 
-        if parameters["observing_mode"] == "IMAGER":
+        if mediator.get_observation_parameter("observing_mode") == "IMAGER":
             wavelength_range = [
                 mediator.get_observation_parameter("wavelength")
                 * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
@@ -280,13 +294,15 @@ class EACDetector(Detector):
             ]
 
             detector_params = utils.average_over_bandpass(
-                detector_params, wavelength_range
-            )
-        elif parameters["observing_mode"] == "IFS":
-            detector_params = utils.interpolate_over_bandpass(
-                detector_params, mediator.get_observation_parameter("wavelength")
+                raw_detector_params, wavelength_range
             )
 
+        elif mediator.get_observation_parameter("observing_mode") == "IFS":
+            detector_params = utils.interpolate_over_bandpass(
+                raw_detector_params, mediator.get_observation_parameter("wavelength")
+            )
+
+        # scalar values projected to an array of length nlambda
         dc_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
         dc_arr[mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH] = (
             detector_params["dc_vis"]
@@ -298,18 +314,6 @@ class EACDetector(Detector):
             dc_arr * DARK_CURRENT
         )  # Dark current (counts pix^-1 s^-1, nlambd array)
 
-        # self.DEFAULT_CONFIG["DC"] = (
-        #     np.array(
-        #         [
-        #             (
-        #                 float(detector_params["dc_vis"])
-        #                 if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #                 else float(detector_params["dc_nir"])
-        #             )
-        #         ]
-        #     )
-        #     * DARK_CURRENT
-        # )
         # Dark current (counts pix^-1 s^-1, nlambd array)
 
         rn_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
@@ -320,27 +324,18 @@ class EACDetector(Detector):
             detector_params["rn_nir"]
         )
         self.DEFAULT_CONFIG["RN"] = rn_arr * READ_NOISE
-        # self.DEFAULT_CONFIG["RN"] = [
-        #     (
-        #         detector_params["rn_vis"]
-        #         if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #         else detector_params["rn_nir"]
-        #     )
-        # ] * READ_NOISE
 
+        # array values binned at wavelength points must just be stacked
+        # combine the vis and nir qe arrays into a single array.
+        qe_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
         if parameters["observing_mode"] == "IMAGER":
-            qe_arr = [
-                (
-                    detector_params["qe_vis"]
-                    if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-                    else detector_params["qe_nir"]
-                )
-            ]
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
+            ] = detector_params["qe_vis"]
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
+            ] = detector_params["qe_nir"]
         elif parameters["observing_mode"] == "IFS":
-            # combine the vis and nir qe arrays into a single array.
-            qe_arr = np.empty_like(
-                mediator.get_observation_parameter("wavelength").value
-            )
             qe_arr[
                 mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
             ] = detector_params["qe_vis"][
@@ -358,17 +353,10 @@ class EACDetector(Detector):
             assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
 
         self.DEFAULT_CONFIG["QE"] = qe_arr * QUANTUM_EFFICIENCY
-        # self.DEFAULT_CONFIG["QE"] = [
-        #     (
-        #         detector_params["qe_vis"]
-        #         if mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
-        #         else detector_params["qe_nir"]
-        #     )
-        # ] * QUANTUM_EFFICIENCY
 
         dQE_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
 
-        # for now, hardcoded to 0.75
+        # for now, hardcoded to 0.75 TODO change
         dQE_arr.fill(0.75)
         self.DEFAULT_CONFIG["dQE"] = dQE_arr * DIMENSIONLESS
         # self.DEFAULT_CONFIG["dQE"] = [
@@ -386,6 +374,7 @@ class EACDetector(Detector):
         ).to(MAS)
 
         # fill in tread and CIC to match the length of the wavelength array
+        # TODO read from YAML files
         self.DEFAULT_CONFIG["tread"] = (
             np.full_like(
                 mediator.get_observation_parameter("wavelength").value,
@@ -402,34 +391,16 @@ class EACDetector(Detector):
             )
             * CLOCK_INDUCED_CHARGE
         )
-
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
-
-        # ***** Convert to numpy array when appropriate *****
-        array_params = [
-            "npix_multiplier",
-            "DC",
-            "RN",
-            "tread",
-            "CIC",
-            "QE",
-            "dQE",
-        ]
-        utils.convert_to_numpy_array(self, array_params)
-
-        # Ensure npix_multiplier has the same length as wavelength (the other ones are taken care of by EACy)
-        if len(self.npix_multiplier) != len(
-            mediator.get_observation_parameter("wavelength")
-        ):
-            self.npix_multiplier = (
-                np.full_like(
-                    mediator.get_observation_parameter("wavelength").value,
-                    self.npix_multiplier[0],
-                    dtype=np.float64,
-                )
-                * DIMENSIONLESS
-            )
+        utils.fill_parameters(
+            self,
+            parameters,
+            self.DEFAULT_CONFIG,
+            self.LOCKED_KEYS,
+            allow_override=set(
+                set(parameters.get("overrides", [])) & self.LOCKED_KEYS
+            ),  # finds the keys that should be locked but that the user wants to override
+        )
 
         # USED ONLY TO VALIDATE ETCs
         if "t_photon_count_input" in parameters.keys():

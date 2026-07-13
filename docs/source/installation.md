@@ -27,7 +27,7 @@ pip install pyedith
 Alternatively, you can clone the pyEDITH repository and install it:
 
 ```
-git clone https://github.com/HWO-Project/pyEDITH.git
+git clone https://github.com/HabitableWorldsObservatory/pyEDITH.git
 cd pyEDITH
 pip install -e .
 ```

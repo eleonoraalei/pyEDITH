@@ -63,7 +63,7 @@ html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_theme_options = {
     "show_toc_level": 2,
-    "repository_url": "https://github.com/HWO-Project/pyEDITH",
+    "repository_url": "https://github.com/HabitableWorldsObservatory/pyEDITH",
     "path_to_docs": "docs/source",
     "use_issues_button": True,
     "use_repository_button": True,

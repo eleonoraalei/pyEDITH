@@ -196,7 +196,7 @@ def test_parse_input_file_secondary_flag_no_secondary_vars(
 def test_parse_input_file_ifs_missing_keys(ifs_input_file_missing_keys):
     """Test that IFS mode with missing required keys raises ValueError."""
     with pytest.raises(
-        ValueError,
+        KeyError,
         match="Required parameters 'wavelength', 'Fstar_10pc', and 'Fp/Fs' are not provided",
     ):
         parse_input_file(ifs_input_file_missing_keys, secondary_flag=False)
@@ -292,6 +292,209 @@ def test_parse_input_file_with_valid_spectrum_file(valid_spectrum_file):
 
 
 # ============================================================================
+# Tests for normalize_list_shapes
+# ============================================================================
+
+
+def test_normalize_list_shapes_scalar_single_wavelength():
+    """Test scalar value with single wavelength (default_len=1)."""
+    parameters = {"snr": 10.0}
+    result = normalize_list_shapes(parameters, "snr", default_len=1)
+
+    np.testing.assert_array_equal(result, np.array([10.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_scalar_multiple_wavelengths(caplog):
+    """Test scalar value broadcast to multiple wavelengths (default_len>1)."""
+    parameters = {"snr": 10.0}
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 10.0, 10.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+    assert any(
+        "snr should be a list of length 3" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
+def test_normalize_list_shapes_single_element_list_broadcast(caplog):
+    """Test single-element list broadcast to multiple wavelengths."""
+    parameters = {"snr": [10.0]}
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 10.0, 10.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+    assert any(
+        "snr should be a list of length 3" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
+def test_normalize_list_shapes_matching_length_list():
+    """Test list with correct length passes through."""
+    parameters = {"snr": [10.0, 20.0, 30.0]}
+    result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 20.0, 30.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_mismatched_length_error():
+    """Test list with wrong length raises ValueError."""
+    parameters = {"snr": [10.0, 20.0]}
+
+    with pytest.raises(
+        ValueError, match="snr should be a list of length 3, but it has length 2"
+    ):
+        normalize_list_shapes(parameters, "snr", default_len=3)
+
+
+def test_normalize_list_shapes_quantity_scalar_single_wavelength():
+    """Test Quantity scalar with single wavelength."""
+    parameters = {"DC": 10.0 * DARK_CURRENT}
+    result = normalize_list_shapes(parameters, "DC", default_len=1)
+
+    assert isinstance(result, u.Quantity)
+    np.testing.assert_array_equal(result.value, np.array([10.0]))
+    assert result.unit == DARK_CURRENT
+
+
+def test_normalize_list_shapes_quantity_scalar_broadcast(caplog):
+    """Test Quantity scalar broadcast to multiple wavelengths."""
+    parameters = {"DC": 10.0 * DARK_CURRENT}
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        result = normalize_list_shapes(parameters, "DC", default_len=3)
+
+    assert isinstance(result, u.Quantity)
+    np.testing.assert_array_equal(result.value, np.array([10.0, 10.0, 10.0]))
+    assert result.unit == DARK_CURRENT
+    assert any(
+        "DC should be a list of length 3" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
+def test_normalize_list_shapes_quantity_single_element_broadcast(caplog):
+    """Test single-element Quantity array broadcast to multiple wavelengths."""
+    parameters = {"DC": u.Quantity([10.0], DARK_CURRENT)}
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        result = normalize_list_shapes(parameters, "DC", default_len=3)
+
+    assert isinstance(result, u.Quantity)
+    np.testing.assert_array_equal(result.value, np.array([10.0, 10.0, 10.0]))
+    assert result.unit == DARK_CURRENT
+    assert any(
+        "DC should be a list of length 3" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
+def test_normalize_list_shapes_quantity_matching_length():
+    """Test Quantity array with correct length passes through."""
+    parameters = {"DC": u.Quantity([10.0, 20.0, 30.0], DARK_CURRENT)}
+    result = normalize_list_shapes(parameters, "DC", default_len=3)
+
+    assert isinstance(result, u.Quantity)
+    np.testing.assert_array_equal(result.value, np.array([10.0, 20.0, 30.0]))
+    assert result.unit == DARK_CURRENT
+
+
+def test_normalize_list_shapes_quantity_mismatched_length():
+    """Test Quantity array with wrong length raises ValueError."""
+    parameters = {"DC": u.Quantity([10.0, 20.0], DARK_CURRENT)}
+
+    with pytest.raises(
+        ValueError, match="DC should be a list of length 3, but it has length 2"
+    ):
+        normalize_list_shapes(parameters, "DC", default_len=3)
+
+
+def test_normalize_list_shapes_excess_length_single_wavelength(caplog):
+    """Test multi-element array preserved when default_len=1 for downstream regridding."""
+    parameters = {"snr": [10.0, 20.0, 30.0]}
+
+    with pytest.raises(
+        ValueError, match="snr has length 3 but the expected input size is 1"
+    ):
+        normalize_list_shapes(parameters, "snr", default_len=1)
+
+
+def test_normalize_list_shapes_excess_length_quantity_single_wavelength(caplog):
+    """Test multi-element Quantity preserved when default_len=1 for downstream regridding."""
+    parameters = {"DC": u.Quantity([10.0, 20.0, 30.0], DARK_CURRENT)}
+
+    with pytest.raises(
+        ValueError, match="DC has length 3 but the expected input size is 1"
+    ):
+        normalize_list_shapes(parameters, "DC", default_len=1)
+
+
+def test_normalize_list_shapes_numpy_array():
+    """Test that numpy arrays are properly converted."""
+    parameters = {"snr": np.array([10.0, 20.0, 30.0])}
+    result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 20.0, 30.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_tuple_input():
+    """Test that tuples are properly converted to arrays."""
+    parameters = {"snr": (10.0, 20.0, 30.0)}
+    result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 20.0, 30.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_integer_values():
+    """Test that integer values are converted to float64."""
+    parameters = {"snr": [10, 20, 30]}
+    result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 20.0, 30.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_mixed_numeric_types():
+    """Test that mixed int/float values are converted to float64."""
+    parameters = {"snr": [10, 20.5, 30]}
+    result = normalize_list_shapes(parameters, "snr", default_len=3)
+
+    np.testing.assert_array_equal(result, np.array([10.0, 20.5, 30.0]))
+    assert isinstance(result, np.ndarray)
+    assert result.dtype == np.float64
+
+
+def test_normalize_list_shapes_preserves_quantity_unit():
+    """Test that Quantity units are preserved through conversion."""
+    parameters = {"wavelength": u.Quantity([0.5, 0.6, 0.7], u.um)}
+    result = normalize_list_shapes(parameters, "wavelength", default_len=3)
+
+    assert isinstance(result, u.Quantity)
+    np.testing.assert_array_equal(result.value, np.array([0.5, 0.6, 0.7]))
+    assert result.unit == u.um
+
+
+# ============================================================================
 # Tests for parse_parameters - Wavelength handling
 # ============================================================================
 
@@ -339,14 +542,12 @@ def test_parse_parameters_wavelength_dependent_single():
         "snr",
         "T_optical",
         "epswarmTrcold",
-        "npix_multiplier",
         "DC",
         "RN",
         "tread",
         "CIC",
         "QE",
         "dQE",
-        "IFS_eff",
         "mag",
         "Fstar_10pc",
         "Fp/Fs",
@@ -417,34 +618,20 @@ def test_parse_parameters_wavelength_dependent_mismatched_length():
 
 
 def test_parse_parameters_wavelength_dependent_excess_length_scalar(caplog):
-    """Test that excess length triggers warning and uses first value."""
-    with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
-        parsed = parse_parameters({"wavelength": 0.5, "snr": [10, 20, 30]})
-
-    assert any(
-        "snr should be a list of length 1 but you assigned multiple values"
-        in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
-    assert parsed["snr"] == np.array([10])
+    """Test that excess length triggers error for single wavelength."""
+    with pytest.raises(
+        ValueError, match="snr has length 3 but the expected input size is 1"
+    ):
+        parse_parameters({"wavelength": 0.5, "snr": [10, 20, 30]})
 
 
 def test_parse_parameters_wavelength_dependent_excess_length_quantity(caplog):
     """Test that excess length triggers warning and uses first value."""
-    with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
-        parsed = parse_parameters(
-            {"wavelength": 0.5, "DC": [10, 20, 30] * DARK_CURRENT}
-        )
 
-    assert any(
-        "DC should be a list of length 1 but you assigned multiple values"
-        in record.message
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
-    assert parsed["DC"] == np.array([10]) * DARK_CURRENT
-    assert isinstance(parsed["DC"], u.Quantity)
+    with pytest.raises(
+        ValueError, match="DC has length 3 but the expected input size is 1."
+    ):
+        parse_parameters({"wavelength": 0.5, "DC": [10, 20, 30] * DARK_CURRENT})
 
 
 def test_parse_parameters_wavelength_dependent_with_quantity():
@@ -464,16 +651,7 @@ def test_parse_parameters_wavelength_dependent_with_quantity():
 # ============================================================================
 
 
-def test_parse_parameters_nlambda_provided():
-    """Test parsing with nlambda provided instead of wavelength."""
-    parsed = parse_parameters({"snr": 1.5}, nlambda=3)
-
-    assert parsed["nlambda"] == 3
-    assert np.all(parsed["snr"] == np.array([1.5, 1.5, 1.5]))
-    assert isinstance(parsed["snr"], np.ndarray)
-
-
-def test_parse_parameters_nlambda_not_provided():
+def test_parse_parameters_wavelength_not_provided():
     """Test that missing both wavelength and nlambda raises ValueError."""
     with pytest.raises(
         ValueError, match="pyEDITH does not have access to wavelength here"
@@ -500,6 +678,7 @@ def test_parse_parameters_target_params():
         "Fp_min/Fs",
         "separation",
         "semimajor_axis",
+        "npix_multiplier",
     ]
 
     for param in target_params:
@@ -522,12 +701,9 @@ def test_parse_parameters_scalar_params():
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",
-        "minimum_IWA",
-        "maximum_OWA",
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
-        "ez_PPF",
         "bandwidth",
         "Tcore",
         "TLyot",
@@ -569,7 +745,6 @@ def test_parse_parameters_observatory_specs():
         "telescope_type",
         "coronagraph_type",
         "detector_type",
-        "observing_mode",
     ]
 
     for spec in observatory_specs:
@@ -577,45 +752,627 @@ def test_parse_parameters_observatory_specs():
 
         assert parsed[spec] == "TestSpec"
         assert isinstance(parsed[spec], str)
+    parsed = parse_parameters({"wavelength": 0.5, "observing_mode": "IMAGER"})
+
+    assert parsed["observing_mode"] == "IMAGER"
+    assert isinstance(parsed["observing_mode"], str)
+
+
+# ============================================================================
+# Tests for parse_parameters - Boolean parameters
+# ============================================================================
+
+
+def test_parse_parameters_boolean_true():
+    """Test parsing boolean parameter as True."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": True,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_false():
+    """Test parsing boolean parameter as False."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": False,
+        }
+    )
+    assert parsed["az_avg"] is False
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_true():
+    """Test parsing boolean from 'true' string (case-insensitive)."""
+    for true_string in ["true", "True", "TRUE"]:
+        parsed = parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": true_string,
+            }
+        )
+        assert parsed["az_avg"] is True
+        assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_false():
+    """Test parsing boolean from 'false' string (case-insensitive)."""
+    for false_string in ["false", "False", "FALSE"]:
+        parsed = parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": false_string,
+            }
+        )
+        assert parsed["az_avg"] is False
+        assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_one():
+    """Test parsing boolean from '1' string."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": "1",
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_zero():
+    """Test parsing boolean from '0' string."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": "0",
+        }
+    )
+    assert parsed["az_avg"] is False
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_yes():
+    """Test parsing boolean from 'yes' string (case-insensitive)."""
+    for yes_string in ["yes", "Yes", "YES"]:
+        parsed = parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": yes_string,
+            }
+        )
+        assert parsed["az_avg"] is True
+        assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_string_no():
+    """Test parsing boolean from 'no' string (case-insensitive)."""
+    for no_string in ["no", "No", "NO"]:
+        parsed = parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": no_string,
+            }
+        )
+        assert parsed["az_avg"] is False
+        assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_int_one():
+    """Test parsing boolean from integer 1."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": 1,
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_int_zero():
+    """Test parsing boolean from integer 0."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": 0,
+        }
+    )
+    assert parsed["az_avg"] is False
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_float_one():
+    """Test parsing boolean from float 1.0."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": 1.0,
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_float_zero():
+    """Test parsing boolean from float 0.0."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": 0.0,
+        }
+    )
+    assert parsed["az_avg"] is False
+    assert isinstance(parsed["az_avg"], bool)
+
+
+def test_parse_parameters_boolean_invalid_string():
+    """Test that invalid boolean string raises ValueError with helpful message."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid value 'maybe' for parameter 'az_avg'\. "
+        r"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
+        r"\(case-insensitive\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": "maybe",
+            }
+        )
+
+
+def test_parse_parameters_boolean_invalid_numeric():
+    """Test that invalid numeric boolean value raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid numeric value '2' for parameter 'az_avg'\. "
+        r"Expected 0 or 1 for boolean parameters\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": 2,
+            }
+        )
+
+
+def test_parse_parameters_boolean_invalid_numeric_float():
+    """Test that invalid float boolean value raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid numeric value '0\.5' for parameter 'az_avg'\. "
+        r"Expected 0 or 1 for boolean parameters\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": 0.5,
+            }
+        )
+
+
+def test_parse_parameters_boolean_invalid_type():
+    """Test that invalid type for boolean raises TypeError."""
+    with pytest.raises(
+        TypeError,
+        match=r"Invalid type list for parameter 'az_avg'\. "
+        r"Expected boolean, string, or numeric \(0/1\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": [True],
+            }
+        )
+
+
+def test_parse_parameters_boolean_invalid_type_dict():
+    """Test that dict type for boolean raises TypeError."""
+    with pytest.raises(
+        TypeError,
+        match=r"Invalid type dict for parameter 'az_avg'\. "
+        r"Expected boolean, string, or numeric \(0/1\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": {"value": True},
+            }
+        )
+
+
+def test_parse_parameters_boolean_both_params():
+    """Test parsing both boolean parameters (az_avg and regrid_wavelength)."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": True,
+            "regrid_wavelength": "yes",
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert parsed["regrid_wavelength"] is True
+    assert isinstance(parsed["az_avg"], bool)
+    assert isinstance(parsed["regrid_wavelength"], bool)
+
+
+def test_parse_parameters_boolean_mixed_formats():
+    """Test parsing booleans with different format inputs."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "az_avg": "TRUE",
+            "regrid_wavelength": 0,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
+    assert parsed["az_avg"] is True
+    assert parsed["regrid_wavelength"] is False
+
+
+def test_parse_parameters_regrid_wavelength_invalid_string_value():
+    """Test that invalid string for regrid_wavelength raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid value 'invalid' for parameter 'regrid_wavelength'\. "
+        r"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
+        r"\(case-insensitive\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": "invalid",
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_invalid_numeric():
+    """Test that invalid numeric for regrid_wavelength raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid numeric value '-1' for parameter 'regrid_wavelength'\. "
+        r"Expected 0 or 1 for boolean parameters\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": -1,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_boolean_empty_string():
+    """Test that empty string for boolean raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid value '' for parameter 'az_avg'\. "
+        r"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
+        r"\(case-insensitive\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": "",
+            }
+        )
+
+
+def test_parse_parameters_boolean_whitespace_string():
+    """Test that whitespace-only string for boolean raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid value '   ' for parameter 'az_avg'\. "
+        r"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
+        r"\(case-insensitive\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": "   ",
+            }
+        )
+
+
+def test_parse_parameters_boolean_none_type():
+    """Test that None type for boolean raises TypeError."""
+    with pytest.raises(
+        TypeError,
+        match=r"Invalid type NoneType for parameter 'az_avg'\. "
+        r"Expected boolean, string, or numeric \(0/1\)\.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "az_avg": None,
+            }
+        )
 
 
 def test_parse_parameters_regrid_wavelength_bool():
     """Test parsing regrid_wavelength as boolean."""
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": True})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is True
     assert isinstance(parsed["regrid_wavelength"], bool)
 
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": False})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": False,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is False
     assert isinstance(parsed["regrid_wavelength"], bool)
-
-
-def test_parse_parameters_regrid_wavelength_string():
-    """Test parsing regrid_wavelength from string."""
-    # Test true-like strings
-    for true_string in ["true", "True", "TRUE", "1", "yes", "Yes", "YES"]:
-        parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": true_string})
-        assert parsed["regrid_wavelength"] is True
-        assert isinstance(parsed["regrid_wavelength"], bool)
-
-    # Test false-like strings
-    for false_string in ["false", "False", "FALSE", "0", "no", "No", "NO"]:
-        parsed = parse_parameters(
-            {"wavelength": 0.5, "regrid_wavelength": false_string}
-        )
-        assert parsed["regrid_wavelength"] is False
-        assert isinstance(parsed["regrid_wavelength"], bool)
 
 
 def test_parse_parameters_regrid_wavelength_int():
     """Test parsing regrid_wavelength from integer."""
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": 1})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": 1,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is True
     assert isinstance(parsed["regrid_wavelength"], bool)
 
-    parsed = parse_parameters({"wavelength": 0.5, "regrid_wavelength": 0})
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": 0,
+            "spectral_resolution": [100],
+            "lam_low": [0.4],
+            "lam_high": [1.0],
+        }
+    )
     assert parsed["regrid_wavelength"] is False
     assert isinstance(parsed["regrid_wavelength"], bool)
+
+
+def test_parse_parameters_regrid_wavelength_missing_lam_low():
+    """Test that regrid_wavelength=True with missing lam_low raises ValueError."""
+    with pytest.raises(
+        KeyError,
+        match="regrid_wavelength is True, but 'lam_low' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_missing_lam_high():
+    """Test that regrid_wavelength=True with missing lam_high raises ValueError."""
+    with pytest.raises(
+        KeyError,
+        match="regrid_wavelength is True, but 'lam_high' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_missing_all_required():
+    """Test that regrid_wavelength=True with all required parameters missing raises ValueError."""
+    with pytest.raises(
+        KeyError,
+        match="regrid_wavelength is True, but 'spectral_resolution' is missing. "
+        "Required parameters: spectral_resolution, lam_low, lam_high",
+    ):
+        parse_parameters({"wavelength": 0.5, "regrid_wavelength": True})
+
+
+def test_parse_parameters_regrid_wavelength_spectral_resolution_not_array():
+    """Test that regrid_wavelength=True with scalar spectral_resolution raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'spectral_resolution' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": 100,  # scalar instead of array
+                "lam_low": [0.4],
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_lam_low_not_array():
+    """Test that regrid_wavelength=True with scalar lam_low raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_low' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": 0.4,  # scalar instead of array
+                "lam_high": [1.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_lam_high_not_array():
+    """Test that regrid_wavelength=True with scalar lam_high raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but 'lam_high' is not an array. "
+        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4],
+                "lam_high": 1.0,  # scalar instead of array
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_mismatched_lengths_two_params():
+    """Test that regrid_wavelength=True with two parameters of different lengths raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
+        ".*spectral_resolution.*2.*lam_low.*2.*lam_high.*3.* All must have the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100, 200],
+                "lam_low": [0.4, 0.5],
+                "lam_high": [1.0, 1.5, 2.0],  # different length
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_mismatched_lengths_all_different():
+    """Test that regrid_wavelength=True with all parameters of different lengths raises ValueError."""
+    with pytest.raises(
+        ValueError,
+        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
+        ".*spectral_resolution.*1.*lam_low.*2.*lam_high.*3.* All must have the same length.",
+    ):
+        parse_parameters(
+            {
+                "wavelength": 0.5,
+                "regrid_wavelength": True,
+                "spectral_resolution": [100],
+                "lam_low": [0.4, 0.5],
+                "lam_high": [1.0, 1.5, 2.0],
+            }
+        )
+
+
+def test_parse_parameters_regrid_wavelength_valid_lists():
+    """Test that regrid_wavelength=True with valid lists succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100, 200],
+            "lam_low": [0.4, 0.5],
+            "lam_high": [1.0, 1.5],
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
+    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
+    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
+
+
+def test_parse_parameters_regrid_wavelength_valid_numpy_arrays():
+    """Test that regrid_wavelength=True with numpy arrays succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": np.array([100, 200]),
+            "lam_low": np.array([0.4, 0.5]),
+            "lam_high": np.array([1.0, 1.5]),
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
+    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
+    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
+
+
+def test_parse_parameters_regrid_wavelength_valid_quantities():
+    """Test that regrid_wavelength=True with Quantity arrays succeeds."""
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": True,
+            "spectral_resolution": [100, 200] * u.dimensionless_unscaled,
+            "lam_low": [0.4, 0.5] * u.um,
+            "lam_high": [1.0, 1.5] * u.um,
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is True
+    assert isinstance(parsed["spectral_resolution"], u.Quantity)
+    assert isinstance(parsed["lam_low"], u.Quantity)
+    assert isinstance(parsed["lam_high"], u.Quantity)
+
+
+def test_parse_parameters_regrid_wavelength_false_no_validation():
+    """Test that regrid_wavelength=False skips validation of required parameters."""
+    # Should not raise even though required parameters are missing
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+            "regrid_wavelength": False,
+        }
+    )
+
+    assert parsed["regrid_wavelength"] is False
+
+
+def test_parse_parameters_regrid_wavelength_absent_no_validation():
+    """Test that absence of regrid_wavelength skips validation of required parameters."""
+    # Should not raise even though required parameters are missing
+    parsed = parse_parameters(
+        {
+            "wavelength": 0.5,
+        }
+    )
+
+    assert "regrid_wavelength" not in parsed
 
 
 # ============================================================================
@@ -763,3 +1520,218 @@ def test_get_observatory_config_missing_component():
 
     with pytest.raises(ValueError, match="Detector type not specified"):
         get_observatory_config(parameters)
+
+
+def test_parsed_flag_prevents_reprocessing():
+    """Test that _parsed flag prevents reprocessing of already-parsed parameters."""
+
+    # Create a minimal set of parameters
+    raw_params = {
+        "wavelength": [1.0, 2.0, 3.0],
+        "snr": [10.0, 15.0, 20.0],
+        "distance": 10.0,
+    }
+
+    # Parse once
+    parsed_once = parse_parameters(raw_params)
+
+    # Verify _parsed flag is set
+    assert "_parsed" in parsed_once
+    assert parsed_once["_parsed"] is True
+
+    # Store a reference to verify identity
+    parsed_once_id = id(parsed_once)
+
+    # Parse again - should return immediately without reprocessing
+    parsed_twice = parse_parameters(parsed_once)
+
+    # Should return the same object (not a copy)
+    assert id(parsed_twice) == parsed_once_id
+    assert parsed_twice is parsed_once
+
+    # Verify all original parsed values are unchanged
+    assert parsed_twice["nlambda"] == 3
+    assert "_parsed" in parsed_twice
+
+
+def test_parsed_flag_not_present_initially():
+    """Test that _parsed flag is not present in raw parameters."""
+
+    raw_params = {"wavelength": [1.0], "distance": 10.0}
+
+    # Verify _parsed is not in raw params
+    assert "_parsed" not in raw_params
+
+    # Parse
+    parsed = parse_parameters(raw_params)
+
+    # Now it should be present
+    assert "_parsed" in parsed
+    assert parsed["_parsed"] is True
+
+
+def test_parsed_flag_set_after_single_parse():
+    """Test that _parsed flag is set after a single parsing operation."""
+
+    raw_params = {"wavelength": 1.5, "snr": 25.0, "distance": 5.0}
+
+    parsed = parse_parameters(raw_params)
+
+    # Check the flag exists and is True
+    assert parsed.get("_parsed") is True
+
+
+# ============================================================================
+# Tests for parse_parameters - overrides parameter
+# ============================================================================
+
+
+def test_parse_parameters_overrides_string():
+    """Test parsing overrides parameter as a comma-separated string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC,RN,QE"})
+
+    assert "overrides" in parsed
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_string_with_spaces():
+    """Test parsing overrides parameter with spaces around commas."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC, RN, QE"})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_string_single_value():
+    """Test parsing overrides parameter with single value string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "DC"})
+
+    assert parsed["overrides"] == ["DC"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_list():
+    """Test parsing overrides parameter as a list."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ["DC", "RN", "QE"]})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_tuple():
+    """Test parsing overrides parameter as a tuple."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ("DC", "RN")})
+
+    assert parsed["overrides"] == ["DC", "RN"]
+    assert isinstance(parsed["overrides"], list)
+
+
+def test_parse_parameters_overrides_empty_string():
+    """Test parsing overrides parameter as an empty string."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": ""})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_empty_list():
+    """Test parsing overrides parameter as an empty list."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": []})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_not_present():
+    """Test that absence of overrides parameter doesn't create key."""
+    parsed = parse_parameters({"wavelength": 0.5})
+
+    assert "overrides" not in parsed
+
+
+def test_parse_parameters_overrides_string_extra_whitespace():
+    """Test parsing overrides with extra whitespace."""
+    parsed = parse_parameters({"wavelength": 0.5, "overrides": "  DC  ,  RN  ,  QE  "})
+
+    assert parsed["overrides"] == ["DC", "RN", "QE"]
+    assert isinstance(parsed["overrides"], list)
+
+
+# ============================================================================
+# Tests for parse_parameters - npix_multiplier deprecation
+# ============================================================================
+
+
+def test_parse_parameters_npix_multiplier_scalar():
+    """Test that scalar npix_multiplier works without warnings."""
+    parameters = {"wavelength": [1.0], "npix_multiplier": 2.5}
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # Turn warnings into errors
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 2.5
+    assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_npix_multiplier_list_raises_deprecation_warning():
+    """Test that list npix_multiplier raises DeprecationWarning and uses first element."""
+    parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": [2.5, 3.0]}
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Passing 'npix_multiplier' as an array is deprecated",
+    ):
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 2.5
+    assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_npix_multiplier_numpy_array_raises_deprecation_warning():
+    """Test that numpy array npix_multiplier raises DeprecationWarning and uses first element."""
+    parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": np.array([2.5, 3.0])}
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="Passing 'npix_multiplier' as an array is deprecated",
+    ):
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 2.5
+    assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_npix_multiplier_single_element_array():
+    """Test that single-element array npix_multiplier raises warning and uses first element."""
+    parameters = {"wavelength": [1.0], "npix_multiplier": [2.5]}
+
+    with pytest.warns(DeprecationWarning):
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 2.5
+    assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_npix_multiplier_string_converts_to_float():
+    """Test that string npix_multiplier is converted to float without warning."""
+    parameters = {"wavelength": [1.0], "npix_multiplier": "2.5"}
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 2.5
+    assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_npix_multiplier_integer_array():
+    """Test that integer arrays are also deprecated and converted to float."""
+    parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": [3, 4]}
+
+    with pytest.warns(DeprecationWarning):
+        parsed = parse_parameters(parameters)
+
+    assert parsed["npix_multiplier"] == 3.0
+    assert isinstance(parsed["npix_multiplier"], float)

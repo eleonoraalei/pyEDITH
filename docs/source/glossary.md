@@ -17,8 +17,7 @@
 | npsfratios              | Integer                      | Scalar                   | Number of PSF ratios                              |     |
 | nrolls                  | Integer                      | Scalar                   | Number of roll angles                             |     |
 | nchannels               | Integer                      | Scalar                   | Number of channels                                |     |
-| minimum_IWA             | λ/D                          | Scalar                   | Minimum Inner Working Angle                       |     |
-| maximum_OWA             | λ/D                          | Scalar                   | Maximum Outer Working Angle                       |     |
+
 | coronagraph_optical_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
 | diameter                | Length                       | Scalar                   | Circumscribed diameter of telescope aperture      |     |
 | Area                    | Length²                      | Scalar                   | Effective collecting area of telescope            |     |
@@ -29,7 +28,7 @@
 | temperature             | Temperature                  | Scalar                   | Temperature of the warm optics                    |     |
 | T_contamination                 | Dimensionless                | Scalar                   | Effective throughput factor for contamination     |     |
 | pixscale_mas            | Milliarcsecond               | Scalar                   | Detector pixel scale                              |     |
-| npix_multiplier         | Dimensionless                | [nlambda]                | Number of detector pixels per image plane "pixel" |     |
+| npix_multiplier         | Dimensionless                | Scalar                | Number of detector pixels per image plane "pixel" |     |
 | DC                      | Electron / (Pixel * Second)  | [nlambda]                | Dark current                                      |     |
 | RN                      | Electron / (Pixel * Read)    | [nlambda]                | Read noise                                        |     |
 | tread                   | Second                       | [nlambda]                | Read time                                         |     |
@@ -91,8 +90,6 @@
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
 | nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |
-| minimum_IWA                     | Scalar                   | λ/D           | Minimum Inner Working Angle                                  | Yes           |
-| maximum_OWA                     | Scalar                   | λ/D           | Maximum Outer Working Angle                                  | Yes           |
 | coronagraph_optical_throughput          | [nlambda]                | Dimensionless | Throughput for all coronagraph optics                        | Yes           |
 | coronagraph_spectral_resolution | Scalar                   | Dimensionless | Spectral resolution of the coronagraph                       | Yes           |
 | contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes           |
@@ -127,13 +124,13 @@ where `omega_lod` is the solid angle of the photometric aperture.
 | Variable Name   | Length    | Unit                        | Meaning                                           | User Editable |
 | --------------- | --------- | --------------------------- | ------------------------------------------------- | ------------- |
 | pixscale_mas    | Scalar    | Milliarcsecond              | Detector pixel scale                              | Yes           |
-| npix_multiplier | [nlambda] | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes           |
-| DC              | [nlambda] | Electron / (Pixel * Second) | Dark current                                      | Yes           |
-| RN              | [nlambda] | Electron / (Pixel * Read)   | Read noise                                        | Yes           |
-| tread           | [nlambda] | Second                      | Read time                                         | Yes           |
-| CIC             | [nlambda] | Electron / (Pixel * Photon) | Clock-induced charge                              | Yes           |
-| QE              | [nlambda] | Electron / Photon           | Quantum efficiency of detector                    | Yes           |
-| dQE             | [nlambda] | Dimensionless               | Effective QE due to degradation                   | Yes           |
+| npix_multiplier | Scalar | Dimensionless               | Number of detector pixels per image plane "pixel" | Yes (Toymodel only)           |
+| DC              | [nlambda] | Electron / (Pixel * Second) | Dark current                                      | Yes (Toymodel only)                 |
+| RN              | [nlambda] | Electron / (Pixel * Read)   | Read noise                                        |  Yes (Toymodel only)                |
+| tread           | [nlambda] | Second                      | Read time                                         |  Yes (Toymodel only)                 |
+| CIC             | [nlambda] | Electron / (Pixel * Photon) | Clock-induced charge                              |  Yes (Toymodel only)                 |
+| QE              | [nlambda] | Electron / Photon           | Quantum efficiency of detector                    |  Yes (Toymodel only)                 |
+| dQE             | [nlambda] | Dimensionless               | Effective QE due to degradation                   |  Yes (Toymodel only)                |
 
 
 ## Within `observation.py`

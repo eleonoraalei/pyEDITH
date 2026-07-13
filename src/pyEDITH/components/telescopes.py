@@ -3,6 +3,7 @@ import numpy as np
 from .. import utils
 import astropy.units as u
 from ..units import *
+from pyEDITH import parse_input
 
 
 class Telescope(ABC):
@@ -29,6 +30,10 @@ class Telescope(ABC):
     T_contamination : float
         Effective throughput factor to budget for contamination.
     """
+
+    # Keys that a user is NOT allowed to override for this telescope mode.
+    # Subclasses override this. An empty set means "everything is user-editable".
+    LOCKED_KEYS: set = set()
 
     @abstractmethod
     def load_configuration(self):
@@ -97,6 +102,9 @@ class ToyModelTelescope(Telescope):
         Keyword for configuration selection (not used in toy model)
     """
 
+    # In toy-model mode EVERY parameter is user-editable, so nothing is locked.
+    LOCKED_KEYS: set = set()
+
     DEFAULT_CONFIG = {
         "diameter": 7.87 * LENGTH,  # circumscribed diameter of aperture (m, scalar)
         "unobscured_area": (1.0 - 0.121),  # unobscured area (percentage,scalar)
@@ -140,14 +148,16 @@ class ToyModelTelescope(Telescope):
         mediator : ObservatoryMediator
             Mediator object providing access to other simulation components
         """
+        parameters = parse_input.parse_parameters(parameters)
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG, self.LOCKED_KEYS)
 
         # Convert to numpy array when appropriate
         array_params = [
             "telescope_optical_throughput",
         ]
+
         utils.convert_to_numpy_array(self, array_params)
 
         # Derived parameters
@@ -170,6 +180,18 @@ class EACTelescope(Telescope):
     keyword : str
         Keyword identifying the specific telescope model to load from EACy files
     """
+
+    # In EAC mode these quantities are OWNED by the YAML files and must stay
+    # consistent with the loaded package. The user is NOT allowed to override
+    # them; if they try, fill_parameters will warn and keep the YAML value.
+    # Anything not listed here  remains user-editable.
+    LOCKED_KEYS: set = {
+        "diameter",
+        "unobscured_area",
+        "T_contamination",
+        "temperature",
+        "telescope_optical_throughput",
+    }
 
     DEFAULT_CONFIG = {
         "diameter": None,  # circumscribed diameter of aperture (m, scalar)
@@ -224,12 +246,7 @@ class EACTelescope(Telescope):
         KeyError
             If the observing mode is not 'IMAGER' or 'IFS'
         """
-
-        # Check on possible modes
-        if parameters["observing_mode"] not in ["IFS", "IMAGER"]:
-            raise KeyError(
-                f"Unsupported observing mode: {parameters['observing_mode']}"
-            )
+        parameters = parse_input.parse_parameters(parameters)
 
         from eacy import load_telescope
 
@@ -237,8 +254,7 @@ class EACTelescope(Telescope):
 
         # Load parameters from YAML files
         telescope_params = load_telescope(self.keyword).__dict__
-
-        if parameters["observing_mode"] == "IMAGER":
+        if mediator.get_observation_parameter("observing_mode") == "IMAGER":
             wavelength_range = [
                 mediator.get_observation_parameter("wavelength")
                 * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
@@ -250,7 +266,7 @@ class EACTelescope(Telescope):
                 telescope_params, wavelength_range
             )
 
-        elif parameters["observing_mode"] == "IFS":
+        elif mediator.get_observation_parameter("observing_mode") == "IFS":
             # interpolate telescope throughput onto native wavelength grid
             telescope_params = utils.interpolate_over_bandpass(
                 telescope_params, mediator.get_observation_parameter("wavelength")
@@ -273,7 +289,15 @@ class EACTelescope(Telescope):
         # the coronagraph module needs the telescope module to be initialized first to get the telescope diameter
 
         # Load parameters, use defaults if not provided
-        utils.fill_parameters(self, parameters, self.DEFAULT_CONFIG)
+        utils.fill_parameters(
+            self,
+            parameters,
+            self.DEFAULT_CONFIG,
+            self.LOCKED_KEYS,
+            allow_override=set(
+                set(parameters.get("overrides", [])) & self.LOCKED_KEYS
+            ),  # finds the keys that should be locked but that the user wants to override
+        )
 
         # Derived parameters
         # effective collecting area of telescope (m^2) # scalar

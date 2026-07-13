@@ -63,7 +63,7 @@ class MockDetector(Detector):
     def load_configuration(self, parameters, mediator):
         self.path = None
         self.pixscale_mas = 6.55224925 * u.mas
-        self.npix_multiplier = u.Quantity([1.0], DIMENSIONLESS)
+        self.npix_multiplier = u.Quantity(1.0, DIMENSIONLESS)
         self.DC = u.Quantity([3.0e-05], DARK_CURRENT)
         self.RN = u.Quantity([0.0], READ_NOISE)
         self.tread = u.Quantity([1000.0], READ_TIME)
@@ -78,8 +78,6 @@ class MockCoronagraph(Coronagraph):
     def load_configuration(self, parameters, mediator):
         self.path = None
         self.pixscale = 30.0 * LAMBDA_D
-        self.minimum_IWA = 1.0 * LAMBDA_D
-        self.maximum_OWA = 60.0 * LAMBDA_D
         self.contrast = 1.05e-13 * DIMENSIONLESS
         self.noisefloor_factor = 0.03 * DIMENSIONLESS
         self.bandwidth = 0.2
@@ -168,7 +166,7 @@ def mock_observatory():
 
 
 @pytest.fixture
-def mock_observation():
+def mock_observation_imager():
     """Fixture providing a mock observation."""
     obs = Observation()
     obs.observing_mode = "IMAGER"
@@ -180,6 +178,21 @@ def mock_observation():
     obs.tp = 0.0 * u.s
     obs.exptime = u.Quantity([0.0], u.s)
     obs.fullsnr = u.Quantity([0.0], DIMENSIONLESS)
+    return obs
+
+
+@pytest.fixture
+def mock_observation_ifs():
+    """Fixture providing a mock observation."""
+    obs = Observation()
+    obs.observing_mode = "IFS"
+    obs.td_limit = 1.0e20 * u.s
+    obs.wavelength = u.Quantity([0.5, 0.6], u.micron)
+    obs.SNR = u.Quantity([7, 7], DIMENSIONLESS)
+    obs.CRb_multiplier = 2
+    obs.nlambd = 2
+    obs.exptime = u.Quantity([0.0, 0.0], u.s)
+    obs.fullsnr = u.Quantity([0.0, 0.0], DIMENSIONLESS)
     return obs
 
 
@@ -666,12 +679,12 @@ def test_observatory_validate_configuration_incorrect_units(
 
 
 def test_calculate_optics_throughput_with_t_optical(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test calculation of optics throughput with explicit T_optical parameter."""
-    parameters = {"T_optical": [0.8], "observing_mode": "IMAGER"}
+    parameters = {"T_optical": 0.8, "observing_mode": "IMAGER", "wavelength": 0.5}
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     configured_mock_observatory.calculate_optics_throughput(parameters, mediator)
@@ -680,26 +693,38 @@ def test_calculate_optics_throughput_with_t_optical(
 
 
 def test_calculate_optics_throughput_ifs_mode(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_ifs, mock_scene
 ):
     """Test calculation of optics throughput in IFS mode with IFS efficiency."""
-    parameters = {"T_optical": [0.8], "observing_mode": "IFS", "IFS_eff": [0.9]}
+    parameters = {
+        "T_optical": [0.8, 0.84],
+        "observing_mode": "IFS",
+        "IFS_eff": [0.9, 0.92],
+        "wavelength": [0.5, 0.6],
+    }
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_ifs, mock_scene
     )
 
     configured_mock_observatory.calculate_optics_throughput(parameters, mediator)
 
-    assert configured_mock_observatory.optics_throughput.value == [0.8 * 0.9]
+    assert np.allclose(
+        configured_mock_observatory.optics_throughput.value,
+        [
+            0.8 * 0.9,
+            0.84 * 0.92,
+        ],
+        rtol=1e-5,
+    )
 
 
 def test_calculate_optics_throughput_from_components(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test calculation of optics throughput from component throughputs."""
-    parameters = {"observing_mode": "IMAGER"}
+    parameters = {"observing_mode": "IMAGER", "wavelength": 0.5}
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     configured_mock_observatory.calculate_optics_throughput(parameters, mediator)
@@ -719,12 +744,12 @@ def test_calculate_optics_throughput_from_components(
 
 
 def test_calculate_warmemissivity_coldtransmission_explicit(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test calculation with explicit epswarmTrcold parameter."""
-    parameters = {"epswarmTrcold": 0.3}
+    parameters = {"epswarmTrcold": 0.3, "wavelength": 0.5}
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     configured_mock_observatory.calculate_warmemissivity_coldtransmission(
@@ -735,13 +760,13 @@ def test_calculate_warmemissivity_coldtransmission_explicit(
 
 
 def test_calculate_warmemissivity_coldtransmission_calculated(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test calculation derived from optics throughput."""
-    parameters = {}
+    parameters = {"wavelength": 0.5}
     configured_mock_observatory.optics_throughput = [0.8] * DIMENSIONLESS
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     configured_mock_observatory.calculate_warmemissivity_coldtransmission(
@@ -775,11 +800,13 @@ def test_calculate_total_throughput(mock_observatory):
 # ============================================================================
 
 
-def test_observatory_load_configuration(mock_observatory, mock_observation, mock_scene):
+def test_observatory_load_configuration(
+    mock_observatory, mock_observation_imager, mock_scene
+):
     """Test loading complete observatory configuration."""
-    parameters = {"observing_mode": "IMAGER", "T_optical": [0.8]}
+    parameters = {"observing_mode": "IMAGER", "T_optical": 0.8, "wavelength": 0.5}
 
-    mock_observatory.load_configuration(parameters, mock_observation, mock_scene)
+    mock_observatory.load_configuration(parameters, mock_observation_imager, mock_scene)
 
     assert mock_observatory.observing_mode == "IMAGER"
     assert mock_observatory.optics_throughput.value == [0.8]
@@ -793,11 +820,11 @@ def test_observatory_load_configuration(mock_observatory, mock_observation, mock
 
 
 def test_observatory_mediator_get_telescope_parameter(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting telescope parameter through mediator."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_telescope_parameter("diameter")
@@ -806,11 +833,11 @@ def test_observatory_mediator_get_telescope_parameter(
 
 
 def test_observatory_mediator_get_telescope_parameter_nonexistent(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting non-existent telescope parameter returns None."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_telescope_parameter("nonexistent")
@@ -824,11 +851,11 @@ def test_observatory_mediator_get_telescope_parameter_nonexistent(
 
 
 def test_observatory_mediator_get_coronagraph_parameter(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting coronagraph parameter through mediator."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_coronagraph_parameter("contrast")
@@ -842,11 +869,11 @@ def test_observatory_mediator_get_coronagraph_parameter(
 
 
 def test_observatory_mediator_get_detector_parameter(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting detector parameter through mediator."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_detector_parameter("pixscale_mas")
@@ -860,16 +887,16 @@ def test_observatory_mediator_get_detector_parameter(
 
 
 def test_observatory_mediator_get_observation_parameter(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting observation parameter through mediator."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_observation_parameter("wavelength")
 
-    assert result == mock_observation.wavelength
+    assert result == mock_observation_imager.wavelength
 
 
 # ============================================================================
@@ -878,11 +905,11 @@ def test_observatory_mediator_get_observation_parameter(
 
 
 def test_observatory_mediator_get_scene_parameter(
-    configured_mock_observatory, mock_observation, mock_scene
+    configured_mock_observatory, mock_observation_imager, mock_scene
 ):
     """Test getting scene parameter through mediator."""
     mediator = ObservatoryMediator(
-        configured_mock_observatory, mock_observation, mock_scene
+        configured_mock_observatory, mock_observation_imager, mock_scene
     )
 
     result = mediator.get_scene_parameter("vmag")

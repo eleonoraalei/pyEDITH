@@ -44,12 +44,11 @@ def parse_input_file(
     Raises
     ------
     KeyError
-        If secondary flag is True but no secondary variables are found in the input file,
-        or if IMAGER mode is specified with multiple wavelengths
+        If some parameters are missing
     FileNotFoundError
         If a specified spectrum file cannot be found
     ValueError
-        If required parameters are missing or if there are issues with the spectrum file
+        If there are issues with the spectrum file
 
     """
 
@@ -154,7 +153,7 @@ def parse_input_file(
             variables["nlambda"] = len(spectrum_df["wavelength"].tolist())
 
         else:
-            raise ValueError(
+            raise KeyError(
                 "Required parameters 'wavelength', 'Fstar_10pc', and 'Fp/Fs' are not provided. Please write them explicitly or provide a spectrum_file path."
             )
 
@@ -165,6 +164,95 @@ def parse_input_file(
             "In IMAGER mode you can only use one wavelength at a time. If you are simulating photometry, please run every single wavelength separately. If you want to model a spectrum, please use IFS mode."
         )
     return variables, secondary_variables
+
+
+def normalize_list_shapes(parameters, key, default_len):
+    """
+    Normalize the *shape* of a user-supplied parameter without binding it to a
+    wavelength grid that may later change.
+
+    Parsing here is deliberately grid-agnostic: we handle scalar broadcasting
+    and preserve ``astropy.Quantity`` units, but we do NOT reject an array whose
+    length happens to differ from ``default_len``. The final alignment onto the
+    (possibly rebinned) resolved grid is deferred to ingestion time.
+
+    Parameters
+    ----------
+    key : str
+        Name of the parameter to look up in ``parameters``.
+    default_len : int
+        The expected length based on the *current* input grid. Used only for
+        scalar broadcasting and (optionally) strict validation.
+
+    """
+
+    value = parameters[key]
+
+    # Function to convert to float array, preserving Quantity if present
+    def to_float_array(v):
+        if isinstance(v, u.Quantity):
+            return u.Quantity(np.array(v.value, dtype=np.float64), v.unit)
+        else:
+            return np.array(v, dtype=np.float64)
+
+    if default_len > 1:
+        # Case 1 & 1a: default_len > 1 but value is a pure scalar or single-element array
+        if (
+            np.isscalar(value)
+            or (isinstance(value, u.Quantity) and value.isscalar)
+            or (isinstance(value, (list, np.ndarray, tuple)) and len(value) == 1)
+        ):
+            logger.warning(
+                f"{key} should be a list of length {default_len}. "
+                "pyEDITH will create one assuming the input value for all the elements of the list."
+            )
+            if isinstance(value, u.Quantity):
+                # If it's a single-element quantity array/list, treat it as a scalar
+                if not value.isscalar and value.size == 1:
+                    value = value[0]
+                return u.Quantity(np.full(default_len, value.value), value.unit)
+            else:
+                # If it's a single-element list, array, or scalar
+                if (isinstance(value, (list, np.ndarray, tuple))) and len(value) == 1:
+                    value = value[0]
+                return np.full(default_len, value, dtype=np.float64)
+
+        # Case 2: default_len > 1 and value has length > 1 but != default_len
+        # This is an error: the user provided a multi-element array that doesn't match
+        elif (
+            isinstance(value, (list, np.ndarray, u.Quantity))
+            and len(value) > 1
+            and len(value) != default_len
+        ):
+            raise ValueError(
+                f"{key} should be a list of length {default_len}, but it has length {len(value)}."
+            )
+
+        # If value is already correct length, just convert to float array
+        return to_float_array(value)
+
+    else:
+        # Case 3: default_len == 1
+        # A scalar or single-element value becomes a length-1 array. A multi-element
+        # value throws an error.
+        if isinstance(value, u.Quantity):
+            if value.size > 1:
+                raise ValueError(
+                    f"{key} has length {value.size} but the expected input size is {default_len}. "
+                )
+            else:
+                # Handle both scalar Quantity and single-element Quantity array
+                scalar_value = value.value if value.isscalar else value.value.flat[0]
+                return u.Quantity([scalar_value], value.unit)
+        elif isinstance(value, (list, np.ndarray, tuple)):
+            if len(value) > 1:
+                raise ValueError(
+                    f"{key} has length {len(value)} but the expected input size is {default_len}. "
+                )
+            else:
+                return to_float_array(value)
+        else:
+            return to_float_array([value])
 
 
 def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
@@ -201,58 +289,9 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
     The function assumes one target (ntargs = 1) for now.
     nmeananom and norbits are defaulted to 1.
     """
-
-    def parse_list_param(key, default_len):
-        value = parameters[key]
-
-        # Function to convert to float array, preserving Quantity if present
-        def to_float_array(v):
-            if isinstance(v, u.Quantity):
-                return u.Quantity(np.array(v.value, dtype=np.float64), v.unit)
-            else:
-                return np.array(v, dtype=np.float64)
-
-        if default_len > 1:
-            # Case 1 & 1a: default_len > 1 but value is a pure scalar (including Quantity scalar)
-            if np.isscalar(value) or (isinstance(value, u.Quantity) and value.isscalar):
-                logger.warning(
-                    f"{key} should be a list of length {default_len}. pyEDITH will create one assuming the input value for all the elements of the list."
-                )
-                if isinstance(value, u.Quantity):
-                    return u.Quantity(np.full(default_len, value.value), value.unit)
-                else:
-                    return np.full(default_len, value)
-
-            # Case 2: default_len > 1 but value has a length > 1 and != default_len
-            elif (
-                isinstance(value, (list, np.ndarray, u.Quantity))
-                and len(value) != default_len
-            ):
-                raise ValueError(
-                    f"{key} should be a list of length {default_len}, but it has length {len(value)}."
-                )
-
-            # If value is already correct length, just convert to float array
-            return to_float_array(value)
-
-        else:
-            # Case 3: default_len == 1, return a single element array
-            if isinstance(value, u.Quantity):
-                if value.size > 1:
-                    logger.warning(
-                        f"{key} should be a list of length 1 but you assigned multiple values. pyEDITH will create a list assuming only the first input value."
-                    )
-                    return u.Quantity([value[0].value], value.unit)
-                else:
-                    return u.Quantity([value.value], value.unit)
-            elif isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                logger.warning(
-                    f"{key} should be a list of length 1 but you assigned multiple values. pyEDITH will create a list assuming only the first input value."
-                )
-                return to_float_array([value[0]])
-            else:
-                return to_float_array([value])
-
+    # LEGACY: Protect in case we already passed parsed parameters
+    if "_parsed" in parameters.keys():
+        return parameters
     parsed_params = {}
 
     # NLAMBDA
@@ -265,15 +304,14 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
 
         else:
             parsed_params["nlambda"] = len(parameters["wavelength"])
-        parsed_params["wavelength"] = parse_list_param(
-            "wavelength", parsed_params["nlambda"]
+
+        parsed_params["wavelength"] = normalize_list_shapes(
+            parameters, "wavelength", parsed_params["nlambda"]
         )
 
-    elif nlambda is not None:
-        parsed_params["nlambda"] = nlambda
     else:
         raise ValueError(
-            "pyEDITH does not have access to wavelength here, you should provide nlambda as an argument to this function."
+            "pyEDITH does not have access to wavelength here, please review your input."
         )
 
     # Use the determined or provided nlambda for array standardization
@@ -285,7 +323,6 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "snr",
         "T_optical",
         "epswarmTrcold",
-        "npix_multiplier",
         "DC",
         "RN",
         "tread",
@@ -296,14 +333,17 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "mag",  # used to be [ntargs x nlambda], now just [nlambda]
         "Fstar_10pc",
         "Fp/Fs",
+        "ez_PPF",
         "delta_mag",  # used to be [nmeananom x norbits x ntargs]
         "F0",  # for validation purposes, the calculation of F0 is different in AYO
         "det_npix_input",  # for validation purposes
+        "telescope_optical_throughput",
+        "coronagraph_optical_throughput",
     ]
 
     parsed_params.update(
         {
-            key: parse_list_param(key, nlambda)
+            key: normalize_list_shapes(parameters, key, nlambda)
             for key in list(set(wavelength_params) & set(parameters.keys()))
         }
     )
@@ -333,27 +373,81 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         "diameter",
         "toverhead_fixed",
         "toverhead_multi",
-        "minimum_IWA",
-        "maximum_OWA",
+        "pixscale",  # pixel scale of the coronagraph
+        "pixscale_mas",  # pixel scale of the detector
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
-        "ez_PPF",
         "bandwidth",
         "Tcore",
         "TLyot",
+        "unobscured_area",
         "temperature",
         "T_contamination",
         "CRb_multiplier",
         "t_photon_count_input",  # only for ETC validation
+        "npix_multiplier",
     ]
 
     for key in list(set(scalar_params) & set(parameters.keys())):
-        parsed_params[key] = float(parameters[key])
+        value = parameters[key]
+        # Handle npix_multiplier deprecation: was array, now scalar
+        if (
+            key == "npix_multiplier"
+            and hasattr(value, "__len__")
+            and not isinstance(value, str)
+        ):
+            import warnings
+
+            warnings.warn(
+                "Passing 'npix_multiplier' as an array is deprecated and will be removed in a future version. "
+                "Please provide it as a scalar value instead. Using the first element for now.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if isinstance(value, np.ndarray):
+                parsed_params[key] = float(value.flat[0])
+            else:
+                parsed_params[key] = float(value[0])
+        else:
+            parsed_params[key] = float(parameters[key])
 
     # ---- INTEGERS ---
-    if "nrolls" in parameters.keys():
-        parsed_params["nrolls"] = int(parameters["nrolls"])
+    integer_params = ["nrolls", "nchannels"]
+
+    for key in list(set(integer_params) & set(parameters.keys())):
+        parsed_params[key] = int(parameters[key])
+    # ----- BOOLEANS ---
+    for key in ["az_avg", "regrid_wavelength"]:
+        if key in parameters.keys():
+            value = parameters[key]
+            if isinstance(value, str):
+                value_lower = value.lower()
+                if value_lower in ("true", "1", "yes"):
+                    parsed_params[key] = True
+                elif value_lower in ("false", "0", "no"):
+                    parsed_params[key] = False
+                else:
+                    raise ValueError(
+                        f"Invalid value '{value}' for parameter '{key}'. "
+                        f"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
+                        f"(case-insensitive)."
+                    )
+            elif isinstance(value, bool):
+                parsed_params[key] = value
+            elif isinstance(value, (int, float)):
+                if value in (0, 1, 0.0, 1.0):
+                    parsed_params[key] = bool(value)
+                else:
+                    raise ValueError(
+                        f"Invalid numeric value '{value}' for parameter '{key}'. "
+                        f"Expected 0 or 1 for boolean parameters."
+                    )
+            else:
+                raise TypeError(
+                    f"Invalid type {type(value).__name__} for parameter '{key}'. "
+                    f"Expected boolean, string, or numeric (0/1)."
+                )
 
     # ----- OBSERVATORY SPECS ---
     for key in [
@@ -366,15 +460,57 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
 
         if key in parameters.keys():
             parsed_params[key] = parameters[key]
+            if key == "observing_mode" and parameters[key] not in ["IMAGER", "IFS"]:
+                raise KeyError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
-    # Handle boolean parameter
-    if "regrid_wavelength" in parameters.keys():
-        value = parameters["regrid_wavelength"]
-        if isinstance(value, str):
-            parsed_params["regrid_wavelength"] = value.lower() in ("true", "1", "yes")
+    # --- REQUIRED PARAMETERS IN SPECIFIC MODES ---
+    if parsed_params.get("regrid_wavelength", False):
+        required_keys = ["spectral_resolution", "lam_low", "lam_high"]
+        for key in required_keys:
+            if key not in parameters:
+                raise KeyError(
+                    f"regrid_wavelength is True, but '{key}' is missing. "
+                    f"Required parameters: {', '.join(required_keys)}"
+                )
+
+        # Check that all required parameters are arrays/lists
+        lengths = []
+        for key in required_keys:
+            val = parameters[key]
+            if not isinstance(val, (list, np.ndarray, u.Quantity)):
+                raise ValueError(
+                    f"regrid_wavelength is True, but '{key}' is not an array. "
+                    f"All of {', '.join(required_keys)} must be arrays of the same length."
+                )
+            lengths.append(len(val))
+
+        # Check that all arrays have the same length
+        if len(set(lengths)) != 1:
+            raise ValueError(
+                f"regrid_wavelength is True, but {', '.join(required_keys)} have different lengths: "
+                f"{dict(zip(required_keys, lengths))}. All must have the same length."
+            )
+
+        # Add to parsed_params
+        for key in required_keys:
+            parsed_params[key] = normalize_list_shapes(parameters, key, lengths[0])
+
+    # ADVANCED FLAG: dictionary of values to be overwritten (despite being locked)
+    if "overrides" in parameters.keys():
+        overrides_value = parameters["overrides"]
+        if isinstance(overrides_value, str):
+            overrides_list = [item.strip() for item in overrides_value.split(",")]
+            # Filter out empty strings
+            overrides_list = [item for item in overrides_list if item]
+            if overrides_list:
+                parsed_params["overrides"] = overrides_list
         else:
-            parsed_params["regrid_wavelength"] = bool(value)
+            overrides_list = list(overrides_value)
+            if overrides_list:
+                parsed_params["overrides"] = overrides_list
 
+    # Update _parsed key
+    parsed_params["_parsed"] = True
     return parsed_params
 
 

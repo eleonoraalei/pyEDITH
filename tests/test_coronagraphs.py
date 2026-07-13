@@ -83,6 +83,77 @@ def mock_telescope():
     return mock
 
 
+@pytest.fixture
+def imager_toymodel_basic_params():
+    """Fixture providing IMAGER observation parameters for the ToyModel."""
+    return {
+        "pixscale": 0.3,
+        "contrast": 1e-10,
+        "noisefloor_factor": 0.05,
+        "bandwidth": 0.1,
+        "photometric_aperture_radius": 0.6,
+        "Tcore": 0.3,
+        "TLyot": 0.7,
+        "nrolls": 1,
+        "nchannels": 1,
+        "wavelength": 0.7,
+    }
+
+
+@pytest.fixture
+def ifs_toymodel_basic_params():
+    """Fixture providing IFS observation parameters for the Toy Model coronagraph."""
+    return {
+        "pixscale": 0.3,
+        "contrast": 1e-10,
+        "noisefloor_factor": 0.05,
+        "bandwidth": 0.1,
+        "photometric_aperture_radius": 0.6,
+        "Tcore": 0.3,
+        "TLyot": 0.7,
+        "nrolls": 1,
+        "nchannels": 1,
+        "wavelength": [0.5, 0.6, 0.7],
+    }
+
+
+@pytest.fixture
+def imager_yipcoronagraph_basic_params():
+    """Fixture providing IMAGER observation parameters for the YIP coronagraph."""
+    return {
+        "observing_mode": "IMAGER",
+        "bandwidth": 0.1,
+        "psf_trunc_ratio": 0.3,
+        "nchannels": 1,
+        "az_avg": True,
+        "wavelength": 0.7,
+    }
+
+
+@pytest.fixture
+def ifs_yipcoronagraph_basic_params():
+    """Fixture providing IFS mode observation parameters."""
+    return {
+        "observing_mode": "IFS",
+        "bandwidth": 0.1,
+        "psf_trunc_ratio": 0.3,
+        "nchannels": 1,
+        "az_avg": True,
+        "wavelength": [0.5, 0.6, 0.7],
+    }
+
+
+@pytest.fixture
+def single_wavelength_params():
+    """Fixture providing single wavelength observation parameters."""
+    return {
+        "wavelength": [0.5],
+        "snr": [7.0],
+        "CRb_multiplier": 2.0,
+        "observing_mode": "IMAGER",
+    }
+
+
 # ============================================================================
 # Tests for generate_radii
 # ============================================================================
@@ -117,349 +188,105 @@ def test_generate_radii_default_square():
 
 
 def test_toy_model_coronagraph_init():
-    """Test ToyModelCoronagraph initializes with None values."""
+    """Test ToyModelCoronagraph initializes with None values and Locked Keys are empty."""
     coronagraph = ToyModelCoronagraph()
 
     assert coronagraph.path is None
 
+    assert coronagraph.LOCKED_KEYS == set()
+
 
 # ============================================================================
-# Tests for ToyModelCoronagraph.load_configuration
+# Tests for ToyModelCoronagraph.load_configuration (IMAGER mode)
 # ============================================================================
 
 
-def test_toy_model_load_configuration_basic_parameters(caplog):
+def test_toy_model_load_configuration_basic_parameters(
+    caplog, imager_toymodel_basic_params
+):
     """Test that basic parameters are loaded correctly."""
     with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
         coronagraph = ToyModelCoronagraph()
-        parameters = {
-            "pixscale": 0.3,
-            "minimum_IWA": 2.5,
-            "maximum_OWA": 90.0,
-            "contrast": 1e-10,
-            "noisefloor_factor": 0.05,
-            "bandwidth": 0.1,
-            "photometric_aperture_radius": 0.6,
-            "Tcore": 0.3,
-            "TLyot": 0.7 * DIMENSIONLESS,
-            "nrolls": 2,
-            "nchannels": 1,
-        }
+        parameters = imager_toymodel_basic_params.copy()
         mediator = MockMediator_IMAGER()
 
         coronagraph.load_configuration(parameters, mediator)
 
         assert coronagraph.pixscale == 0.3 * LAMBDA_D
-        assert coronagraph.minimum_IWA == 2.5 * LAMBDA_D
-        assert coronagraph.maximum_OWA == 90.0 * LAMBDA_D
         assert coronagraph.contrast == 1e-10 * DIMENSIONLESS
         assert coronagraph.noisefloor_factor == 0.05 * DIMENSIONLESS
         assert coronagraph.bandwidth == 0.1
         assert coronagraph.photometric_aperture_radius == 0.6 * LAMBDA_D
         assert coronagraph.Tcore == 0.3 * DIMENSIONLESS
         assert coronagraph.TLyot == 0.7 * DIMENSIONLESS
-        assert coronagraph.nrolls == 2
+        assert coronagraph.nrolls == 1
         assert coronagraph.nchannels == 1
+        assert coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
+        assert coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
+        assert hasattr(coronagraph, "npsfratios")
+        assert hasattr(coronagraph, "npix")
+        assert hasattr(coronagraph, "xcenter")
+        assert hasattr(coronagraph, "ycenter")
+        assert hasattr(coronagraph, "r")
+        assert hasattr(coronagraph, "omega_lod")
+        assert hasattr(coronagraph, "skytrans")
+        assert hasattr(coronagraph, "photometric_aperture_radius")
+        assert hasattr(coronagraph, "photometric_aperture_throughput")
+        assert hasattr(coronagraph, "PSFpeak")
+        assert hasattr(coronagraph, "Istar")
+        assert hasattr(coronagraph, "noisefloor")
+        assert coronagraph.npix == 400
+        assert coronagraph.xcenter == 200 * PIXEL
+        assert coronagraph.ycenter == 200 * PIXEL
+        assert coronagraph.r.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.isclose(coronagraph.r[0, 0], 84.641)
+        assert coronagraph.omega_lod.shape == (
+            coronagraph.npix,
+            coronagraph.npix,
+            coronagraph.npsfratios,
+        )
+        assert np.all(
+            coronagraph.omega_lod
+            == np.pi * parameters["photometric_aperture_radius"] ** 2 * LAMBDA_D**2
+        )
+        assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.all(coronagraph.skytrans == 0.7 * DIMENSIONLESS)
+        assert coronagraph.photometric_aperture_throughput.shape == (
+            coronagraph.npix,
+            coronagraph.npix,
+            coronagraph.npsfratios,
+        )
+        assert np.all(
+            (coronagraph.photometric_aperture_throughput == 0.3 * DIMENSIONLESS)
+            | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
+        )
+        assert np.isclose(coronagraph.PSFpeak, 0.025 * 0.7 * DIMENSIONLESS)
+        assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.allclose(coronagraph.Istar.value, 1e-10 * 0.025 * 0.7, rtol=1e-6)
+        assert coronagraph.Istar.unit == DIMENSIONLESS
+        assert any(
+            "Calculating noisefloor by multiplying noisefloor_factor=0.05, contrast=1e-10, PSFpeak="
+            + str(0.025 * 0.7)
+            in record.message
+            for record in caplog.records
+        )
+
+        assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.allclose(
+            coronagraph.noisefloor.value, 0.05 * 1e-10 * 0.025 * 0.7, rtol=1e-6
+        )
+        assert coronagraph.noisefloor.unit == DIMENSIONLESS
 
 
-def test_toy_model_load_configuration_default_values():
-    """Test that default values are used when not provided."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
-    assert coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
-
-
-def test_toy_model_load_configuration_calculated_attributes():
-    """Test that derived attributes are calculated correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7 * DIMENSIONLESS,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert hasattr(coronagraph, "npsfratios")
-    assert hasattr(coronagraph, "npix")
-    assert hasattr(coronagraph, "xcenter")
-    assert hasattr(coronagraph, "ycenter")
-    assert hasattr(coronagraph, "r")
-    assert hasattr(coronagraph, "omega_lod")
-    assert hasattr(coronagraph, "skytrans")
-    assert hasattr(coronagraph, "photometric_aperture_radius")
-    assert hasattr(coronagraph, "photometric_aperture_throughput")
-    assert hasattr(coronagraph, "PSFpeak")
-    assert hasattr(coronagraph, "Istar")
-    assert hasattr(coronagraph, "noisefloor")
-
-
-def test_toy_model_load_configuration_pixel_grid():
-    """Test that pixel grid parameters are calculated correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7 * DIMENSIONLESS,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.npix == 400
-    assert coronagraph.xcenter == 200 * PIXEL
-    assert coronagraph.ycenter == 200 * PIXEL
-
-
-def test_toy_model_load_configuration_radial_grid():
-    """Test that radial separation grid is calculated correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.r.shape == (coronagraph.npix, coronagraph.npix)
-    assert np.isclose(coronagraph.r[0, 0], 84.641)
-
-
-def test_toy_model_load_configuration_omega_lod():
-    """Test that omega_lod is calculated with correct shape and values."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
-    assert np.all(
-        coronagraph.omega_lod
-        == np.pi * parameters["photometric_aperture_radius"] ** 2 * LAMBDA_D**2
-    )
-
-
-def test_toy_model_load_configuration_skytrans():
-    """Test that sky transmission is set correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
-    assert np.all(coronagraph.skytrans == 0.7 * DIMENSIONLESS)
-
-
-def test_toy_model_load_configuration_photometric_aperture_throughput():
-    """Test that photometric aperture throughput respects IWA and OWA."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.photometric_aperture_throughput.shape == (
-        coronagraph.npix,
-        coronagraph.npix,
-        1,
-    )
-    assert np.all(
-        (coronagraph.photometric_aperture_throughput == 0.3 * DIMENSIONLESS)
-        | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r < coronagraph.minimum_IWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r > coronagraph.maximum_OWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
-
-
-def test_toy_model_load_configuration_psf_peak():
-    """Test that PSF peak is calculated correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert np.isclose(coronagraph.PSFpeak, 0.025 * 0.7 * DIMENSIONLESS)
-
-
-def test_toy_model_load_configuration_istar():
-    """Test that stellar intensity is calculated correctly."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
-    assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
-    assert np.allclose(coronagraph.Istar.value, 1e-10 * 0.025 * 0.7, rtol=1e-6)
-    assert coronagraph.Istar.unit == DIMENSIONLESS
-
-
-def test_toy_model_load_configuration_noisefloor_with_factor(caplog):
-    """Test noisefloor calculation using noisefloor_factor."""
-    coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "noisefloor_factor": 0.05,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.6,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
-    mediator = MockMediator_IMAGER()
-
-    with caplog.at_level(logging.INFO, logger="pyEDITH"):
-        coronagraph.load_configuration(parameters, mediator)
-
-    assert any(
-        "Calculating noisefloor by multiplying noisefloor_factor=0.05, contrast=1e-10, PSFpeak="
-        + str(0.025 * 0.7)
-        in record.message
-        for record in caplog.records
-    )
-
-    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-    assert np.allclose(
-        coronagraph.noisefloor.value, 0.05 * 1e-10 * 0.025 * 0.7, rtol=1e-6
-    )
-    assert coronagraph.noisefloor.unit == DIMENSIONLESS
-
-
-def test_toy_model_load_configuration_noisefloor_ppf_raises_error():
+def test_toy_model_load_configuration_noisefloor_ppf_raises_error(
+    imager_toymodel_basic_params,
+):
     """Test that providing noisefloor_PPF raises appropriate error."""
     coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "bandwidth": 0.1,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-        "noisefloor_PPF": 30,
-    }
+    parameters = imager_toymodel_basic_params.copy()
+
+    del parameters["noisefloor_factor"]
+    parameters["noisefloor_PPF"] = 30
     mediator = MockMediator_IMAGER()
 
     with pytest.raises(
@@ -469,21 +296,223 @@ def test_toy_model_load_configuration_noisefloor_ppf_raises_error():
         coronagraph.load_configuration(parameters, mediator)
 
 
-def test_toy_model_load_configuration_default_noisefloor_factor(caplog):
+def test_toy_model_load_configuration_default_noisefloor_factor(
+    caplog, imager_toymodel_basic_params
+):
     """Test that default noisefloor_factor is used when not provided."""
     coronagraph = ToyModelCoronagraph()
-    parameters = {
-        "pixscale": 0.3,
-        "minimum_IWA": 2.5,
-        "maximum_OWA": 90.0,
-        "contrast": 1e-10,
-        "bandwidth": 0.1,
-        "Tcore": 0.3,
-        "TLyot": 0.7,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
+    parameters = imager_toymodel_basic_params.copy()
+
+    del parameters["noisefloor_factor"]
     mediator = MockMediator_IMAGER()
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="pyEDITH"):
+        coronagraph.load_configuration(parameters, mediator)
+
+    assert any(
+        "noisefloor_factor value not provided. Using the default value: 0.03"
+        in record.message
+        for record in caplog.records
+    )
+    assert any(
+        "Calculating noisefloor by multiplying noisefloor_factor=0.03, contrast=1e-10, PSFpeak="
+        + str(0.025 * 0.7)
+        in record.message
+        for record in caplog.records
+    )
+
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+
+
+# ============================================================================
+# Tests for ToyModelCoronagraph.load_configuration (IFS mode)
+# ============================================================================
+
+
+def test_toy_model_load_configuration_ifs_basic_parameters(
+    caplog, ifs_toymodel_basic_params
+):
+    """Test that basic parameters are loaded correctly in IFS mode.
+
+    This is the IFS analogue of
+    ``test_toy_model_load_configuration_basic_parameters``. The key point is
+    that IFS mode does NOT change the shape of the geometry arrays: per-position
+    quantities keep their trailing ``npsfratios`` axis, and the 2D products keep
+    their ``(npix, npix)`` shape. The number of wavelengths only affects the
+    spectral iteration, not these arrays.
+    """
+    with caplog.at_level(logging.DEBUG, logger="pyEDITH"):
+        coronagraph = ToyModelCoronagraph()
+        parameters = ifs_toymodel_basic_params.copy()
+        mediator = MockMediator_IFS()
+
+        coronagraph.load_configuration(parameters, mediator)
+
+        # --- Scalar parameters ---
+        assert coronagraph.pixscale == 0.3 * LAMBDA_D
+        assert coronagraph.contrast == 1e-10 * DIMENSIONLESS
+        assert coronagraph.noisefloor_factor == 0.05 * DIMENSIONLESS
+        assert coronagraph.bandwidth == 0.1
+        assert coronagraph.photometric_aperture_radius == 0.6 * LAMBDA_D
+        assert coronagraph.Tcore == 0.3 * DIMENSIONLESS
+        assert coronagraph.TLyot == 0.7 * DIMENSIONLESS
+        assert coronagraph.nrolls == 1
+        assert coronagraph.nchannels == 1
+        assert coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
+        assert coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
+
+        # --- Attributes exist ---
+        assert hasattr(coronagraph, "npsfratios")
+        assert hasattr(coronagraph, "npix")
+        assert hasattr(coronagraph, "xcenter")
+        assert hasattr(coronagraph, "ycenter")
+        assert hasattr(coronagraph, "r")
+        assert hasattr(coronagraph, "omega_lod")
+        assert hasattr(coronagraph, "skytrans")
+        assert hasattr(coronagraph, "photometric_aperture_radius")
+        assert hasattr(coronagraph, "photometric_aperture_throughput")
+        assert hasattr(coronagraph, "PSFpeak")
+        assert hasattr(coronagraph, "Istar")
+        assert hasattr(coronagraph, "noisefloor")
+
+        # --- Grid geometry (independent of number of wavelengths) ---
+        assert coronagraph.npix == 400
+        assert coronagraph.xcenter == 200 * PIXEL
+        assert coronagraph.ycenter == 200 * PIXEL
+        assert coronagraph.r.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.isclose(coronagraph.r[0, 0], 84.641)
+
+        # --- Per-position arrays carry a trailing axis of length npsfratios ---
+        # IFS does NOT change this shape (it is not sized by nwave).
+        npsfratios = coronagraph.npsfratios
+        assert coronagraph.omega_lod.shape == (
+            coronagraph.npix,
+            coronagraph.npix,
+            npsfratios,
+        )
+        assert np.all(
+            coronagraph.omega_lod
+            == np.pi * parameters["photometric_aperture_radius"] ** 2 * LAMBDA_D**2
+        )
+
+        assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.all(coronagraph.skytrans == 0.7 * DIMENSIONLESS)
+
+        assert coronagraph.photometric_aperture_throughput.shape == (
+            coronagraph.npix,
+            coronagraph.npix,
+            npsfratios,
+        )
+        assert np.all(
+            (coronagraph.photometric_aperture_throughput == 0.3 * DIMENSIONLESS)
+            | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
+        )
+
+        # --- PSF peak / stellar intensity / noisefloor (2D, wavelength-agnostic) ---
+        assert np.isclose(coronagraph.PSFpeak, 0.025 * 0.7 * DIMENSIONLESS)
+
+        assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.allclose(coronagraph.Istar.value, 1e-10 * 0.025 * 0.7, rtol=1e-6)
+        assert coronagraph.Istar.unit == DIMENSIONLESS
+
+        assert any(
+            "Calculating noisefloor by multiplying noisefloor_factor=0.05, contrast=1e-10, PSFpeak="
+            + str(0.025 * 0.7)
+            in record.message
+            for record in caplog.records
+        )
+
+        assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+        assert np.allclose(
+            coronagraph.noisefloor.value, 0.05 * 1e-10 * 0.025 * 0.7, rtol=1e-6
+        )
+        assert coronagraph.noisefloor.unit == DIMENSIONLESS
+
+
+def test_toy_model_load_configuration_ifs_array_shapes_match_npsfratios(
+    ifs_toymodel_basic_params,
+):
+    """Test that IFS mode sizes per-position arrays by npsfratios, not nwave.
+
+    This guards the primary shape contract: even though the mediator provides
+    three wavelengths, the geometry arrays (``omega_lod``,
+    ``photometric_aperture_throughput``) carry a trailing axis of length
+    ``npsfratios`` and are therefore identical in shape to IMAGER mode. The
+    trailing axis must NOT equal the number of wavelengths (unless they happen
+    to coincide, which we explicitly rule out here since nwave==3).
+    """
+    mediator = MockMediator_IFS()
+    nwave = len(mediator.get_observation_parameter("wavelength"))
+    assert nwave == 3  # guard against fixture drift
+
+    coronagraph = ToyModelCoronagraph()
+    parameters = ifs_toymodel_basic_params.copy()
+
+    coronagraph.load_configuration(parameters, mediator)
+
+    npsfratios = coronagraph.npsfratios
+
+    # Per-position arrays are sized by npsfratios (see original implementation).
+    assert coronagraph.omega_lod.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        npsfratios,
+    )
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        npsfratios,
+    )
+
+    # The trailing (npsfratios) axis is NOT the wavelength axis.
+    assert coronagraph.omega_lod.shape[-1] == npsfratios
+    assert coronagraph.photometric_aperture_throughput.shape[-1] == npsfratios
+
+    # Sanity check against the IMAGER path: the 2D (non-spectral) products keep
+    # their shape regardless of the number of wavelengths.
+    assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
+
+
+def test_toy_model_load_configuration_ifs_noisefloor_ppf_raises_error(
+    ifs_toymodel_basic_params,
+):
+    """Test that noisefloor_PPF is rejected in IFS mode too.
+
+    The ToyModel does not implement the PPF noise-floor path in either mode, so
+    supplying ``noisefloor_PPF`` must raise regardless of observing_mode. This
+    is the IFS counterpart of
+    ``test_toy_model_load_configuration_noisefloor_ppf_raises_error``.
+    """
+    coronagraph = ToyModelCoronagraph()
+    parameters = ifs_toymodel_basic_params.copy()
+
+    del parameters["noisefloor_factor"]
+    parameters["noisefloor_PPF"] = 30
+    mediator = MockMediator_IFS()
+
+    with pytest.raises(
+        KeyError,
+        match="Noisefloor_PPF mode not implemented in ToyModel coronagraph",
+    ):
+        coronagraph.load_configuration(parameters, mediator)
+
+
+def test_toy_model_load_configuration_ifs_default_noisefloor_factor(
+    caplog, ifs_toymodel_basic_params
+):
+    """Test that default noisefloor_factor is used when not provided in IFS mode.
+
+    IFS counterpart of
+    ``test_toy_model_load_configuration_default_noisefloor_factor``.
+    """
+    coronagraph = ToyModelCoronagraph()
+    parameters = ifs_toymodel_basic_params.copy()
+
+    del parameters["noisefloor_factor"]
+    mediator = MockMediator_IFS()
 
     caplog.clear()
     with caplog.at_level(logging.INFO, logger="pyEDITH"):
@@ -515,6 +544,20 @@ def test_coronagraph_yip_init_with_path():
 
     assert coronagraph.path == "test_path"
     assert coronagraph.yippy_coro is None
+    assert coronagraph.LOCKED_KEYS == {
+        "pixscale",
+        "npix",
+        "xcenter",
+        "ycenter",
+        "skytrans",
+        "r",
+        "npsfratios",
+        "nrolls",
+        "omega_lod",
+        "photometric_aperture_throughput",
+        "Istar",
+        "noisefloor",
+    }
 
 
 def test_coronagraph_yip_init_with_yippy_coro(yippy_coronagraph):
@@ -548,98 +591,128 @@ def test_coronagraph_yip_init_not_both_path_and_yippy(yippy_coronagraph):
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
+def test_coronagraph_yip_warns_when_user_overrides_locked_key(
+    mock_load_telescope,
+    mock_load_instrument,
+    caplog,
+    yippy_coronagraph,
+    mock_instrument,
+    mock_telescope,
+    imager_yipcoronagraph_basic_params,
+):
+    """
+    A user-supplied value for a LOCKED (YIP-owned) key must:
+      1. emit a warning that names the locked key, and
+      2. be ignored in favour of the YIP/model value.
+
+    We use ``nrolls`` here: the user asks for 2, but the YIP forces 1.
+    ``nrolls`` is in ``CoronagraphYIP.LOCKED_KEYS``, so the override is
+    rejected with a warning.
+    """
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+
+    # Sanity check that the key we are testing really is locked, so this test
+    # stays meaningful if LOCKED_KEYS is ever refactored.
+    assert "nrolls" in CoronagraphYIP.LOCKED_KEYS
+
+    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
+    parameters = imager_yipcoronagraph_basic_params.copy()
+    parameters["nrolls"] = 2  # <-- attempt to override a locked key
+
+    mediator = MockMediator_IMAGER()
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        coronagraph.load_configuration(parameters, mediator)
+
+    # 1) The locked value from the YIP wins, not the user's 2.
+    assert coronagraph.nrolls == 1
+
+    # 2) A warning was emitted that mentions the locked key and that it is locked.
+    locked_warnings = [
+        rec.message
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING and "nrolls" in rec.message
+    ]
+    assert len(locked_warnings) == 1, (
+        f"Expected exactly one lock warning for 'nrolls', " f"got: {locked_warnings}"
+    )
+    assert "locked" in locked_warnings[0].lower()
+    # The rejected user value should be surfaced in the message for transparency.
+    assert "2" in locked_warnings[0]
+
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
+def test_coronagraph_yip_no_warning_when_user_sets_unlocked_key(
+    mock_load_telescope,
+    mock_load_instrument,
+    caplog,
+    yippy_coronagraph,
+    mock_instrument,
+    mock_telescope,
+    imager_yipcoronagraph_basic_params,
+):
+    """
+    The opposite case: a user-supplied value for an UNLOCKED key (``bandwidth``)
+    must be applied and must NOT trigger a lock warning.
+    """
+    mock_load_instrument.return_value = mock_instrument
+    mock_load_telescope.return_value = mock_telescope
+
+    assert "bandwidth" not in CoronagraphYIP.LOCKED_KEYS
+
+    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
+    parameters = imager_yipcoronagraph_basic_params.copy()
+
+    mediator = MockMediator_IMAGER()
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        coronagraph.load_configuration(parameters, mediator)
+
+    # User value is applied.
+    assert coronagraph.bandwidth == 0.1
+
+    # No "locked" warning about bandwidth.
+    bandwidth_lock_warnings = [
+        rec.message
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING
+        and "bandwidth" in rec.message
+        and "locked" in rec.message.lower()
+    ]
+    assert bandwidth_lock_warnings == []
+
+
+@patch("eacy.load_instrument")
+@patch("eacy.load_telescope")
 def test_coronagraph_yip_load_configuration_imager_basic_parameters(
     mock_load_telescope,
     mock_load_instrument,
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that basic YIP parameters are loaded correctly in IMAGER mode."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+
     mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
 
     assert coronagraph.pixscale == yippy_coronagraph.header.pixscale.value * LAMBDA_D
-    assert coronagraph.minimum_IWA == 2.0 * LAMBDA_D
-    assert coronagraph.maximum_OWA == 90.0 * LAMBDA_D
     assert coronagraph.bandwidth == 0.1
-    assert coronagraph.nrolls == 2
+    assert coronagraph.nrolls == 1
     assert coronagraph.nchannels == 1
     assert coronagraph.az_avg == True
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_pixel_grid(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that pixel grid parameters are loaded from YIP."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert coronagraph.npix == yippy_coronagraph.header.naxis1
     assert coronagraph.xcenter == yippy_coronagraph.header.xcenter * PIXEL
     assert coronagraph.ycenter == yippy_coronagraph.header.ycenter * PIXEL
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_has_required_attributes(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that all required attributes are created in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
 
     assert hasattr(coronagraph, "npix")
     assert hasattr(coronagraph, "xcenter")
@@ -651,34 +724,6 @@ def test_coronagraph_yip_load_configuration_imager_has_required_attributes(
     assert hasattr(coronagraph, "Istar")
     assert hasattr(coronagraph, "noisefloor")
 
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_array_shapes(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that arrays have correct shapes in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert coronagraph.r.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
     assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
@@ -689,128 +734,13 @@ def test_coronagraph_yip_load_configuration_imager_array_shapes(
     )
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_non_zero_values(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that arrays contain non-zero values where expected."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert not np.all(coronagraph.omega_lod == 0)
     assert not np.all(coronagraph.skytrans == 0)
     assert not np.all(coronagraph.photometric_aperture_throughput == 0)
     assert not np.all(coronagraph.Istar == 0)
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_correct_units(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that arrays have correct units in IMAGER mode."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert coronagraph.omega_lod.unit == LAMBDA_D**2
     assert coronagraph.noisefloor.unit == DIMENSIONLESS
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_skytrans_from_yip(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that sky transmission matches YIP values."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert np.all(coronagraph.skytrans == yippy_coronagraph.sky_trans() * DIMENSIONLESS)
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_imager_optical_throughput(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that coronagraph optical throughput is loaded correctly."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
 
     assert len(coronagraph.coronagraph_optical_throughput) == 1
     assert np.isclose(coronagraph.coronagraph_optical_throughput.value, 0.394770896)
@@ -825,21 +755,15 @@ def test_coronagraph_yip_load_configuration_imager_default_noisefloor_ppf(
     mock_instrument,
     mock_telescope,
     caplog,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that default noisefloor_PPF is used when not provided."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+
     mediator = MockMediator_IMAGER()
 
     with caplog.at_level(logging.WARNING, logger="pyEDITH"):
@@ -869,22 +793,15 @@ def test_coronagraph_yip_load_configuration_imager_custom_noisefloor_ppf(
     mock_instrument,
     mock_telescope,
     caplog,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that custom noisefloor_PPF is used correctly."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-        "noisefloor_PPF": 35,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+    parameters["noisefloor_PPF"] = 35
     mediator = MockMediator_IMAGER()
 
     caplog.clear()
@@ -915,22 +832,15 @@ def test_coronagraph_yip_load_configuration_imager_noisefloor_factor_raises_erro
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that noisefloor_factor raises appropriate error in YIP mode."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-        "noisefloor_factor": 1e-10,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+    parameters["noisefloor_factor"] = 1e-10
     mediator = MockMediator_IMAGER()
 
     with pytest.raises(
@@ -948,19 +858,15 @@ def test_coronagraph_yip_load_configuration_imager_missing_aperture_raises_error
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that missing both aperture parameters raises error."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+    del parameters["psf_trunc_ratio"]
     mediator = MockMediator_IMAGER()
 
     with pytest.raises(
@@ -978,31 +884,37 @@ def test_coronagraph_yip_load_configuration_imager_az_avg_false(
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
+    imager_yipcoronagraph_basic_params,
 ):
     """Test that az_avg=False uses full 2D stellar intensity map."""
+    from unittest.mock import MagicMock
+
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
+    # Wrap the methods as mocks while preserving their return values
+    original_stellar_intens = yippy_coronagraph.stellar_intens
+    original_core_mean = yippy_coronagraph.core_mean_intensity_map
+
+    yippy_coronagraph.stellar_intens = MagicMock(side_effect=original_stellar_intens)
+    yippy_coronagraph.core_mean_intensity_map = MagicMock(
+        side_effect=original_core_mean
+    )
+
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": False,
-    }
+    parameters = imager_yipcoronagraph_basic_params.copy()
+    parameters["az_avg"] = False
     mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
 
+    # Verify stellar_intens was called (else branch), not core_mean_intensity_map
+    yippy_coronagraph.stellar_intens.assert_called_once()
+    yippy_coronagraph.core_mean_intensity_map.assert_not_called()
+
     assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
     assert coronagraph.Istar.unit == DIMENSIONLESS
     assert not np.all(coronagraph.Istar == 0)
-
-    # Verify it's 2D (not azimuthally averaged)
-    # The stellar intensity should vary across the 2D map
     assert coronagraph.Istar.ndim == 2
 
 
@@ -1013,39 +925,61 @@ def test_coronagraph_yip_load_configuration_imager_az_avg_false(
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_ifs_optical_throughput(
+def test_coronagraph_yip_load_configuration_ifs_basic_parameters(
     mock_load_telescope,
     mock_load_instrument,
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
     caplog,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test that IFS mode correctly handles multiple wavelengths."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IFS",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "photometric_aperture_radius": 0.8,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
-    mediator_ifs = MockMediator_IFS()
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+    mediator = MockMediator_IFS()
 
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        coronagraph.load_configuration(parameters, mediator_ifs)
+    coronagraph.load_configuration(parameters, mediator)
 
-    assert any(
-        "Both 'photometric_aperture_radius' and 'psf_trunc_ratio' provided"
-        in record.message
-        for record in caplog.records
+    assert coronagraph.pixscale == yippy_coronagraph.header.pixscale.value * LAMBDA_D
+    assert coronagraph.bandwidth == 0.1
+    assert coronagraph.nrolls == 1
+    assert coronagraph.nchannels == 1
+    assert coronagraph.az_avg == True
+    assert coronagraph.npix == yippy_coronagraph.header.naxis1
+    assert coronagraph.xcenter == yippy_coronagraph.header.xcenter * PIXEL
+    assert coronagraph.ycenter == yippy_coronagraph.header.ycenter * PIXEL
+
+    assert hasattr(coronagraph, "npix")
+    assert hasattr(coronagraph, "xcenter")
+    assert hasattr(coronagraph, "ycenter")
+    assert hasattr(coronagraph, "r")
+    assert hasattr(coronagraph, "omega_lod")
+    assert hasattr(coronagraph, "skytrans")
+    assert hasattr(coronagraph, "photometric_aperture_throughput")
+    assert hasattr(coronagraph, "Istar")
+    assert hasattr(coronagraph, "noisefloor")
+
+    assert coronagraph.r.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
+    assert coronagraph.skytrans.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.photometric_aperture_throughput.shape == (
+        coronagraph.npix,
+        coronagraph.npix,
+        1,
     )
+    assert coronagraph.Istar.shape == (coronagraph.npix, coronagraph.npix)
+    assert coronagraph.noisefloor.shape == (coronagraph.npix, coronagraph.npix)
+    assert not np.all(coronagraph.omega_lod == 0)
+    assert not np.all(coronagraph.skytrans == 0)
+    assert not np.all(coronagraph.photometric_aperture_throughput == 0)
+    assert not np.all(coronagraph.Istar == 0)
+    assert coronagraph.omega_lod.unit == LAMBDA_D**2
+    assert coronagraph.noisefloor.unit == DIMENSIONLESS
+    assert np.all(coronagraph.skytrans == yippy_coronagraph.sky_trans() * DIMENSIONLESS)
 
     assert len(coronagraph.coronagraph_optical_throughput) == 3
     assert np.isclose(
@@ -1056,33 +990,32 @@ def test_coronagraph_yip_load_configuration_ifs_optical_throughput(
 
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-def test_coronagraph_yip_load_configuration_ifs_psf_trunc_ratio_warning(
+def test_coronagraph_yip_load_configuration_ifs_prioritize_psf_trunc_ratio(
     mock_load_telescope,
     mock_load_instrument,
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
     caplog,
+    ifs_yipcoronagraph_basic_params,
 ):
-    """Test warning when both aperture methods provided in IFS mode."""
+    """Test that IFS mode correctly handles multiple wavelengths."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IFS",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "photometric_aperture_radius": 0.8,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+    parameters["photometric_aperture_radius"] = 0.3
     mediator_ifs = MockMediator_IFS()
 
     with caplog.at_level(logging.INFO, logger="pyEDITH"):
         coronagraph.load_configuration(parameters, mediator_ifs)
+
+    assert any(
+        "Both 'photometric_aperture_radius' and 'psf_trunc_ratio' provided"
+        in record.message
+        for record in caplog.records
+    )
 
     assert any(
         "Using psf_trunc_ratio to calculate Omega..." in record.message
@@ -1090,35 +1023,26 @@ def test_coronagraph_yip_load_configuration_ifs_psf_trunc_ratio_warning(
     )
 
 
-# ============================================================================
-# Tests for CoronagraphYIP with photometric_aperture_radius
-# ============================================================================
-
-
 @patch("eacy.load_instrument")
 @patch("eacy.load_telescope")
-def test_coronagraph_yip_photometric_aperture_with_custom_tcore(
+def test_coronagraph_yip_photometric_aperture_tcore_calculations(
     mock_load_telescope,
     mock_load_instrument,
     yippy_coronagraph,
     mock_instrument,
     mock_telescope,
     caplog,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test photometric aperture calculation with user-defined Tcore."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.85,
-        "nrolls": 2,
-        "nchannels": 1,
-        "Tcore": 0.5 * DIMENSIONLESS,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+    del parameters["psf_trunc_ratio"]
+    parameters["photometric_aperture_radius"] = 0.3
+    parameters["Tcore"] = 0.5
     mediator = MockMediator_IMAGER()
 
     with caplog.at_level(logging.INFO, logger="pyEDITH"):
@@ -1131,89 +1055,22 @@ def test_coronagraph_yip_photometric_aperture_with_custom_tcore(
     assert any(
         "Using user-defined Tcore..." in record.message for record in caplog.records
     )
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_photometric_aperture_omega_calculation(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that omega_lod is calculated correctly with photometric aperture."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.85,
-        "nrolls": 2,
-        "nchannels": 1,
-        "Tcore": 0.5 * DIMENSIONLESS,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert coronagraph.omega_lod.shape == (coronagraph.npix, coronagraph.npix, 1)
     assert np.all(
         coronagraph.omega_lod
         == np.pi * parameters["photometric_aperture_radius"] ** 2 * LAMBDA_D**2
     )
-
-
-@patch("eacy.load_instrument")
-@patch("eacy.load_telescope")
-def test_coronagraph_yip_photometric_aperture_throughput_iwa_owa(
-    mock_load_telescope,
-    mock_load_instrument,
-    yippy_coronagraph,
-    mock_instrument,
-    mock_telescope,
-):
-    """Test that photometric aperture throughput respects IWA and OWA bounds."""
-    mock_load_instrument.return_value = mock_instrument
-    mock_load_telescope.return_value = mock_telescope
-
-    coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "photometric_aperture_radius": 0.85,
-        "nrolls": 2,
-        "nchannels": 1,
-        "Tcore": 0.5 * DIMENSIONLESS,
-    }
-    mediator = MockMediator_IMAGER()
-
-    coronagraph.load_configuration(parameters, mediator)
-
     assert coronagraph.photometric_aperture_throughput.shape == (
         coronagraph.npix,
         coronagraph.npix,
         1,
     )
     assert np.all(
-        (coronagraph.photometric_aperture_throughput == 0.5 * DIMENSIONLESS)
+        (
+            coronagraph.photometric_aperture_throughput
+            == parameters["Tcore"] * DIMENSIONLESS
+        )
         | (coronagraph.photometric_aperture_throughput == 0.0 * DIMENSIONLESS)
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r < coronagraph.minimum_IWA
-        ]
-        == 0.0 * DIMENSIONLESS
-    )
-    assert np.all(
-        coronagraph.photometric_aperture_throughput[
-            coronagraph.r > coronagraph.maximum_OWA
-        ]
-        == 0.0 * DIMENSIONLESS
     )
 
 
@@ -1226,20 +1083,16 @@ def test_coronagraph_yip_photometric_aperture_default_tcore(
     mock_instrument,
     mock_telescope,
     caplog,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test that default Tcore is used when not provided."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "photometric_aperture_radius": 0.85,
-        "bandwidth": 0.1,
-        "nrolls": 2,
-        "nchannels": 1,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+    del parameters["psf_trunc_ratio"]
+    parameters["photometric_aperture_radius"] = 0.3
     mediator = MockMediator_IMAGER()
 
     caplog.clear()
@@ -1282,21 +1135,15 @@ def test_coronagraph_yip_load_from_path(
     mock_instrument,
     mock_telescope,
     coronagraph_path,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test that CoronagraphYIP can be constructed from a path."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(path=coronagraph_path)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+
     mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
@@ -1305,9 +1152,9 @@ def test_coronagraph_yip_load_from_path(
     assert hasattr(coronagraph, "Istar")
 
 
-# ============================================================================
-# Tests for CoronagraphYIP with pre-constructed yippy_coro
-# ============================================================================
+# # ============================================================================
+# # Tests for CoronagraphYIP with pre-constructed yippy_coro
+# # ============================================================================
 
 
 @patch("eacy.load_instrument")
@@ -1318,21 +1165,14 @@ def test_coronagraph_yip_preconstruced_yippy_coro(
     mock_instrument,
     mock_telescope,
     yippy_coronagraph,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test that pre-constructed yippy_coro is used directly."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
     mediator = MockMediator_IMAGER()
 
     coronagraph.load_configuration(parameters, mediator)
@@ -1351,21 +1191,15 @@ def test_coronagraph_yip_preconstruced_yippy_trunc_ratio_mismatch_warning(
     mock_telescope,
     yippy_coronagraph,
     caplog,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test warning when yippy_coro psf_trunc_ratio differs from parameters."""
     mock_load_instrument.return_value = mock_instrument
     mock_load_telescope.return_value = mock_telescope
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.99,  # Different from yippy_coro
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
+
     mediator = MockMediator_IMAGER()
 
     caplog.clear()
@@ -1387,6 +1221,7 @@ def test_coronagraph_yip_nrolls_from_yippy_object(
     mock_telescope,
     yippy_coronagraph,
     monkeypatch,
+    ifs_yipcoronagraph_basic_params,
 ):
     """Test that nrolls is read from yippy object when available."""
     mock_load_instrument.return_value = mock_instrument
@@ -1395,15 +1230,7 @@ def test_coronagraph_yip_nrolls_from_yippy_object(
     monkeypatch.setattr(yippy_coronagraph, "nrolls", 4, raising=False)
 
     coronagraph = CoronagraphYIP(yippy_coro=yippy_coronagraph)
-    parameters = {
-        "observing_mode": "IMAGER",
-        "maximum_OWA": 90.0,
-        "bandwidth": 0.1,
-        "psf_trunc_ratio": 0.3,
-        "nrolls": 2,
-        "nchannels": 1,
-        "az_avg": True,
-    }
+    parameters = ifs_yipcoronagraph_basic_params.copy()
 
     coronagraph.load_configuration(parameters, MockMediator_IMAGER())
 
@@ -1415,223 +1242,87 @@ def test_coronagraph_yip_nrolls_from_yippy_object(
 # ============================================================================
 
 
-def test_validate_configuration_valid_setup():
+@pytest.fixture
+def valid_coronagraph():
+    """Fixture providing a coronagraph with valid configuration."""
+    coronagraph = ToyModelCoronagraph()
+    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
+    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
+    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
+    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
+    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
+    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
+    coronagraph.pixscale = 0.1 * LAMBDA_D
+    coronagraph.npix = 100
+    coronagraph.xcenter = 50 * PIXEL
+    coronagraph.ycenter = 50 * PIXEL
+    coronagraph.bandwidth = 0.1
+    coronagraph.npsfratios = 1
+    coronagraph.nrolls = 1
+    coronagraph.nchannels = 1
+    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
+    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
+    return coronagraph
+
+
+def test_validate_configuration_valid_setup(valid_coronagraph):
     """Test that validate_configuration passes with valid configuration."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
     # Should not raise any exception
-    coronagraph.validate_configuration()
+    valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_missing_istar():
+def test_validate_configuration_missing_istar(valid_coronagraph):
     """Test that missing Istar attribute raises AttributeError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    delattr(valid_coronagraph, "Istar")
     with pytest.raises(AttributeError, match="Coronagraph is missing attribute: Istar"):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_incorrect_npix_type():
+def test_validate_configuration_incorrect_npix_type(valid_coronagraph):
     """Test that non-integer npix raises TypeError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100.0  # Should be int
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    valid_coronagraph.npix = 100.0  # Should be int
     with pytest.raises(
         TypeError, match="Coronagraph attribute npix should be an integer"
     ):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_incorrect_bandwidth_type():
+def test_validate_configuration_incorrect_bandwidth_type(valid_coronagraph):
     """Test that non-float bandwidth raises TypeError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = "0.1"  # Should be float
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    valid_coronagraph.bandwidth = "0.1"  # Should be float
     with pytest.raises(
         TypeError, match="Coronagraph attribute bandwidth should be a float"
     ):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_incorrect_pixscale_units():
+def test_validate_configuration_incorrect_pixscale_units(valid_coronagraph):
     """Test that incorrect pixscale units raise ValueError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * u.m  # Incorrect unit
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    valid_coronagraph.pixscale = 0.1 * u.m  # Incorrect unit
     with pytest.raises(
         ValueError, match="Coronagraph attribute pixscale has incorrect units"
     ):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_pixscale_not_quantity():
+def test_validate_configuration_pixscale_not_quantity(valid_coronagraph):
     """Test that pixscale without units raises TypeError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1  # Missing unit
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    valid_coronagraph.pixscale = 0.1  # Missing unit
     with pytest.raises(
         TypeError, match="Coronagraph attribute pixscale should be a Quantity"
     ):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_with_psf_trunc_ratio():
+def test_validate_configuration_with_psf_trunc_ratio(valid_coronagraph):
     """Test that validation passes with psf_trunc_ratio instead of aperture radius."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-    coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-
+    # valid_coronagraph already has psf_trunc_ratio set
     # Should not raise
-    coronagraph.validate_configuration()
+    valid_coronagraph.validate_configuration()
 
 
-def test_validate_configuration_missing_both_aperture_params():
+def test_validate_configuration_missing_both_aperture_params(valid_coronagraph):
     """Test that missing both aperture parameters raises AttributeError."""
-    coronagraph = ToyModelCoronagraph()
-
-    coronagraph.Istar = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.noisefloor = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.photometric_aperture_throughput = np.ones((100, 100, 1)) * DIMENSIONLESS
-    coronagraph.omega_lod = np.ones((100, 100, 1)) * LAMBDA_D**2
-    coronagraph.skytrans = np.ones((100, 100)) * DIMENSIONLESS
-    coronagraph.pixscale = 0.1 * LAMBDA_D
-    coronagraph.npix = 100
-    coronagraph.xcenter = 50 * PIXEL
-    coronagraph.ycenter = 50 * PIXEL
-    coronagraph.bandwidth = 0.1
-    coronagraph.npsfratios = 1
-    coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
-    coronagraph.minimum_IWA = 2 * LAMBDA_D
-    coronagraph.maximum_OWA = 10 * LAMBDA_D
-    coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
-    coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
-
+    delattr(valid_coronagraph, "psf_trunc_ratio")
     with pytest.raises(AttributeError, match="photometric_aperture_radius"):
-        coronagraph.validate_configuration()
+        valid_coronagraph.validate_configuration()

@@ -30,7 +30,6 @@ from pyEDITH.components.telescopes import ToyModelTelescope
 from pyEDITH.components.coronagraphs import ToyModelCoronagraph
 from pyEDITH.components.detectors import ToyModelDetector
 
-
 # ============================================================================
 # Fixtures - Mock Objects
 # ============================================================================
@@ -47,8 +46,10 @@ def mock_observation():
     observation.CRb_multiplier = 2
     observation.nlambd = 1
     observation.tp = 0.0 * u.s
-    observation.exptime = u.Quantity([0.0], u.s)
-    observation.fullsnr = u.Quantity([0.0], DIMENSIONLESS)
+    # Initialize some arrays needed for outputs...
+    observation.exptime = np.full((observation.nlambd), 0.0) * TIME
+    observation.fullsnr = np.full((observation.nlambd), 0.0) * DIMENSIONLESS
+
     return observation
 
 
@@ -74,8 +75,8 @@ def mock_scene():
     scene.xp = 0.0628 * u.arcsec
     scene.yp = 0.0 * u.arcsec
     scene.M_V = 4.98869142 * u.mag
-    scene.Fzodi_list = (u.Quantity([6.11055505e-10], 1 / u.arcsec**2),)
-    scene.Fexozodi_list = (u.Quantity([2.97724302e-09], 1 / u.arcsec**2),)
+    scene.Fzodi_list = u.Quantity([6.11055505e-10], 1 / u.arcsec**2)
+    scene.Fexozodi_list = u.Quantity([2.97724302e-09], 1 / u.arcsec**2)
     scene.ez_PPF = u.Quantity([np.inf], DIMENSIONLESS)
     scene.Fbinary_list = u.Quantity([0], DIMENSIONLESS)
     return scene
@@ -110,7 +111,7 @@ def mock_observatory():
     observatory.detector.path = None
     observatory.detector.keyword = "ToyModel"
     observatory.detector.pixscale_mas = 6.55224925 * u.mas
-    observatory.detector.npix_multiplier = u.Quantity([1.0], DIMENSIONLESS)
+    observatory.detector.npix_multiplier = u.Quantity(1.0, DIMENSIONLESS)
     observatory.detector.DC = u.Quantity([3.0e-05], DARK_CURRENT)
     observatory.detector.RN = u.Quantity([0.0], READ_NOISE)
     observatory.detector.tread = u.Quantity([1000.0], READ_TIME)
@@ -123,8 +124,6 @@ def mock_observatory():
     observatory.coronagraph.path = None
     observatory.coronagraph.keyword = "ToyModel"
     observatory.coronagraph.pixscale = 30.0 * LAMBDA_D
-    observatory.coronagraph.minimum_IWA = 1.0 * LAMBDA_D
-    observatory.coronagraph.maximum_OWA = 60.0 * LAMBDA_D
     observatory.coronagraph.contrast = 1.05e-13 * DIMENSIONLESS
     observatory.coronagraph.noisefloor_factor = 0.03 * DIMENSIONLESS
     observatory.coronagraph.bandwidth = 0.2
@@ -431,9 +430,9 @@ def test_calculate_exposure_time_etc_validation(
             mock_observation, mock_scene, mock_observatory, ETC_validation=True
         )
 
-    assert np.isclose(mock_observation.validation_variables[0]["det_npix"].value, 100)
+    assert np.isclose(mock_observation.validation_variables["det_npix"].value, 100)
     assert np.isclose(
-        mock_observation.validation_variables[0]["t_photon_count"].value, 1.0
+        mock_observation.validation_variables["t_photon_count"].value, 1.0
     )
 
 
@@ -468,83 +467,6 @@ def test_calculate_exposure_time_verbose_output(
         assert args[2] == mock_observatory
 
 
-# ============================================================================
-# Tests for calculate_exposure_time_or_snr - Infinity cases
-# ============================================================================
-
-
-def test_calculate_exposure_time_planet_outside_owa(
-    mock_observation, mock_scene, mock_observatory, caplog
-):
-    """Test that planet outside OWA returns infinity."""
-    mock_observatory.coronagraph.maximum_OWA = 0.5 * LAMBDA_D
-
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        calculate_exposure_time_or_snr(mock_observation, mock_scene, mock_observatory)
-
-    assert np.isinf(mock_observation.exptime[0])
-    assert any(
-        "Planet outside OWA or inside IWA" in record.message
-        for record in caplog.records
-        if record.levelno == logging.ERROR
-    )
-
-
-def test_calculate_snr_planet_outside_owa(
-    mock_observation, mock_scene, mock_observatory, caplog
-):
-    """Test that planet outside OWA returns infinity in SNR mode."""
-    mock_observatory.coronagraph.maximum_OWA = 0.5 * LAMBDA_D
-
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        calculate_exposure_time_or_snr(
-            mock_observation, mock_scene, mock_observatory, mode="signal_to_noise"
-        )
-
-    assert np.isinf(mock_observation.fullsnr[0])
-    assert any(
-        "Planet outside OWA or inside IWA" in record.message
-        for record in caplog.records
-        if record.levelno == logging.ERROR
-    )
-
-
-def test_calculate_exposure_time_planet_inside_iwa(
-    mock_observation, mock_scene, mock_observatory, caplog
-):
-    """Test that planet inside IWA returns infinity."""
-    mock_observatory.coronagraph.minimum_IWA = 10.0 * LAMBDA_D
-
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        calculate_exposure_time_or_snr(mock_observation, mock_scene, mock_observatory)
-
-    assert np.isinf(mock_observation.exptime[0])
-    assert any(
-        "Planet outside OWA or inside IWA" in record.message
-        for record in caplog.records
-        if record.levelno == logging.ERROR
-    )
-
-
-def test_calculate_snr_planet_inside_iwa(
-    mock_observation, mock_scene, mock_observatory, caplog
-):
-    """Test that planet inside IWA returns infinity in SNR mode."""
-    mock_observatory.coronagraph.minimum_IWA = 10.0 * LAMBDA_D
-
-    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
-        calculate_exposure_time_or_snr(
-            mock_observation, mock_scene, mock_observatory, mode="signal_to_noise"
-        )
-
-    assert np.isinf(mock_observation.fullsnr[0])
-    assert any(
-        "Planet outside OWA or inside IWA" in record.message
-        for record in caplog.records
-        if record.levelno == logging.ERROR
-    )
-
-
 def test_calculate_exposure_time_photometric_aperture_too_small(
     mock_observation, mock_scene, mock_observatory, caplog
 ):
@@ -553,7 +475,7 @@ def test_calculate_exposure_time_photometric_aperture_too_small(
     mock_observatory.coronagraph.omega_lod = u.Quantity(
         np.zeros_like(original_omega_lod), LAMBDA_D**2
     )
-
+    mock_observation.obstime = 10 * u.hr
     with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         calculate_exposure_time_or_snr(mock_observation, mock_scene, mock_observatory)
 
@@ -569,6 +491,9 @@ def test_calculate_snr_photometric_aperture_too_small(
     mock_observation, mock_scene, mock_observatory, caplog
 ):
     """Test that insufficient photometric aperture returns infinity in SNR mode."""
+
+    mock_observation.obstime = 10 * u.hr
+
     original_omega_lod = mock_observatory.coronagraph.omega_lod.copy()
     mock_observatory.coronagraph.omega_lod = u.Quantity(
         np.zeros_like(original_omega_lod), LAMBDA_D**2
@@ -669,9 +594,7 @@ def test_calculate_exposure_time_bandwidth_restriction_warning(
         for record in caplog.records
         if record.levelno == logging.WARNING
     )
-    assert np.isclose(
-        mock_observation.validation_variables[0]["deltalambda_nm"].value, 50
-    )
+    assert np.isclose(mock_observation.validation_variables["deltalambda_nm"].value, 50)
 
 
 def test_calculate_exposure_time_ifs_mode(

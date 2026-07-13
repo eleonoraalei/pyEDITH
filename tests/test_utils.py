@@ -110,15 +110,13 @@ def mock_observatory():
     observatory.coronagraph.xcenter = 50 * u.pix
     observatory.coronagraph.ycenter = 50 * u.pix
     observatory.coronagraph.nchannels = 2
-    observatory.coronagraph.minimum_IWA = 2 * LAMBDA_D
-    observatory.coronagraph.maximum_OWA = 10 * LAMBDA_D
     observatory.coronagraph.npsfratios = 1
     observatory.coronagraph.nrolls = 1
 
     observatory.detector.pixscale_mas = 100 * u.mas
     observatory.detector.QE = np.array([0.8, 0.8, 0.8]) * QUANTUM_EFFICIENCY
     observatory.detector.dQE = np.array([1.0, 1.0, 1.0]) * DIMENSIONLESS
-    observatory.detector.npix_multiplier = [1.0, 1.0, 1.0]
+    observatory.detector.npix_multiplier = 1.0 * DIMENSIONLESS
     observatory.detector.DC = [1e-3, 1e-3, 1e-3] * u.electron / u.s / u.pix
     observatory.detector.RN = [3, 3, 3] * u.electron / u.pix
     observatory.detector.tread = [100, 100, 100] * u.s
@@ -541,20 +539,27 @@ def test_print_array_info_none_scalar_validation():
 # ============================================================================
 
 
-@pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_creates_files(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
-    """Test that print_all_variables creates output files with expected structure."""
+    """Test that print_all_variables creates both output files."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
 
-            assert os.path.exists(f"pyedith_{mode}.txt")
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
+
+            # A single call writes BOTH files via the internal `for mode` loop.
+            assert os.path.exists("pyedith_validation.txt")
+            assert os.path.exists("pyedith_full_info.txt")
 
         finally:
             os.chdir(original_dir)
@@ -562,16 +567,22 @@ def test_print_all_variables_creates_files(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_file_structure(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
     """Test that output file contains all expected sections."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -592,16 +603,22 @@ def test_print_all_variables_file_structure(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_includes_attributes(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
     """Test that output file includes specific object attributes."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -619,16 +636,23 @@ def test_print_all_variables_includes_attributes(
 
 @pytest.mark.parametrize("mode", ["validation", "full_info"])
 def test_print_all_variables_includes_calculated_vars(
-    mode, mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mode, mock_observation, mock_scene, mock_observatory
 ):
-    """Test that output file includes calculated variables."""
+    """Test that output file includes calculated variables read from
+    observation.validation_variables."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open(f"pyedith_{mode}.txt", "r") as file:
                 content = file.read()
@@ -644,16 +668,22 @@ def test_print_all_variables_includes_calculated_vars(
 
 
 def test_print_all_variables_mode_specific_output_full_info(
-    mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
     """Test that full_info mode includes shape and unit information."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open("pyedith_full_info.txt", "r") as file:
                 content = file.read()
@@ -666,16 +696,22 @@ def test_print_all_variables_mode_specific_output_full_info(
 
 
 def test_print_all_variables_mode_specific_output_validation(
-    mock_observation, mock_scene, mock_observatory, validation_kwargs
+    mock_observation, mock_scene, mock_observatory
 ):
     """Test that validation mode includes value information."""
     with tempfile.TemporaryDirectory() as tmpdirname:
         original_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
-            print_all_variables(
-                mock_observation, mock_scene, mock_observatory, **validation_kwargs
-            )
+            mock_observation.validation_variables = {
+                "deltalambda_nm": np.array([10.0]),
+                "lod": np.array([0.05]),
+                "CRp": np.array([1.0]),
+                "CRbs": np.array([0.5]),
+                "CRb": np.array([2.0]),
+            }
+
+            print_all_variables(mock_observation, mock_scene, mock_observatory)
 
             with open("pyedith_validation.txt", "r") as file:
                 content = file.read()
@@ -853,25 +889,13 @@ def test_regrid_wavelengths_single_resolution():
 def test_regrid_spec_gaussconv_basic():
     """Test Gaussian convolution regridding produces correct output length."""
     input_wls = np.linspace(0.4, 2.0, 100)
-    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
+    input_spec = np.random.rand(100)
     new_lam = np.linspace(0.5, 1.9, 50)
     new_dlam = np.gradient(new_lam)
 
     spec_regrid = regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam)
 
     assert len(spec_regrid) == len(new_lam)
-
-
-def test_regrid_spec_gaussconv_preserves_units():
-    """Test that Gaussian convolution regridding preserves units."""
-    input_wls = np.linspace(0.4, 2.0, 100)
-    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
-    new_lam = np.linspace(0.5, 1.9, 50)
-    new_dlam = np.gradient(new_lam)
-
-    spec_regrid = regrid_spec_gaussconv(input_wls, input_spec, new_lam, new_dlam)
-
-    assert spec_regrid.unit == input_spec.unit
 
 
 # ============================================================================
@@ -881,22 +905,690 @@ def test_regrid_spec_gaussconv_preserves_units():
 
 def test_regrid_spec_interp_basic():
     """Test interpolation regridding produces correct output length."""
-    input_wls = np.linspace(0.4, 2.0, 100) * WAVELENGTH
-    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
-    new_lam = np.linspace(0.5, 1.9, 50) * WAVELENGTH
+    input_wls = np.linspace(0.4, 2.0, 100)
+    input_spec = np.random.rand(100)
+    new_lam = np.linspace(0.5, 1.9, 50)
 
     spec_regrid = regrid_spec_interp(input_wls, input_spec, new_lam)
 
-    assert isinstance(spec_regrid, u.Quantity)
     assert len(spec_regrid) == len(new_lam)
 
 
-def test_regrid_spec_interp_preserves_units():
-    """Test that interpolation regridding preserves units."""
-    input_wls = np.linspace(0.4, 2.0, 100) * WAVELENGTH
-    input_spec = np.random.rand(100) * PHOTON_FLUX_DENSITY
-    new_lam = np.linspace(0.5, 1.9, 50) * WAVELENGTH
+# ============================================================================
+# Tests for regrid_to_grid
+# ============================================================================
 
-    spec_regrid = regrid_spec_interp(input_wls, input_spec, new_lam)
 
-    assert spec_regrid.unit == input_spec.unit
+def test_regrid_to_grid_broadcast_scalar():
+    """Test that a single value is broadcast to the entire grid."""
+    values = np.array([1.5])
+    from_wavelength = np.array([1.0])
+    to_wavelength = np.linspace(0.5, 2.0, 100)
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength)
+
+    assert len(result) == len(to_wavelength)
+    assert np.all(result == 1.5)
+
+
+def test_regrid_to_grid_passthrough():
+    """Test that values already on the target grid pass through unchanged."""
+    to_wavelength = np.linspace(0.5, 2.0, 50)
+    values = np.random.rand(50)
+    from_wavelength = to_wavelength.copy()
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength)
+
+    assert len(result) == len(to_wavelength)
+    np.testing.assert_array_equal(result, values)
+
+
+def test_regrid_to_grid_interpolation_1d():
+    """Test regridding using 1D interpolation."""
+    from_wavelength = np.linspace(0.4, 2.0, 100)
+    values = np.random.rand(100)
+    to_wavelength = np.linspace(0.5, 1.9, 50)
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength, interpolation="1d")
+
+    assert len(result) == len(to_wavelength)
+    assert result.dtype == np.float64
+
+
+def test_regrid_to_grid_interpolation_gaussian():
+    """Test regridding using Gaussian convolution."""
+    from_wavelength = np.linspace(0.4, 2.0, 100)
+    values = np.random.rand(100)
+    to_wavelength = np.linspace(0.5, 1.9, 50)
+    to_delta_wavelength = np.gradient(to_wavelength)
+
+    result = regrid_to_grid(
+        values,
+        from_wavelength,
+        to_wavelength,
+        to_delta_wavelength,
+        interpolation="Gaussian",
+    )
+
+    assert len(result) == len(to_wavelength)
+    assert result.dtype == np.float64
+
+
+def test_regrid_to_grid_gaussian_missing_delta_wavelength():
+    """Test that Gaussian interpolation raises error without delta_wavelength."""
+    from_wavelength = np.linspace(0.4, 2.0, 100)
+    values = np.random.rand(100)
+    to_wavelength = np.linspace(0.5, 1.9, 50)
+
+    with pytest.raises(ValueError, match="to_delta_wavelength.*not provided"):
+        regrid_to_grid(values, from_wavelength, to_wavelength, interpolation="Gaussian")
+
+
+def test_regrid_to_grid_invalid_interpolation():
+    """Test that invalid interpolation method raises error."""
+    values = np.array([1.0, 2.0, 3.0])
+    from_wavelength = np.array([0.5, 1.0, 1.5])
+    to_wavelength = np.linspace(0.5, 1.5, 10)
+
+    with pytest.raises(ValueError, match="Unknown interpolation type"):
+        regrid_to_grid(
+            values, from_wavelength, to_wavelength, interpolation="invalid_method"
+        )
+
+
+def test_regrid_to_grid_with_quantity():
+    """Test that astropy Quantity units are preserved."""
+    values = np.array([1.0, 2.0, 3.0]) * u.Jy
+    from_wavelength = np.array([0.5, 1.0, 1.5])
+    to_wavelength = np.linspace(0.5, 1.5, 10)
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength, interpolation="1d")
+
+    assert isinstance(result, u.Quantity)
+    assert result.unit == u.Jy
+    assert len(result) == len(to_wavelength)
+
+
+def test_regrid_to_grid_broadcast_quantity():
+    """Test that a single Quantity value is broadcast correctly."""
+    values = np.array([2.5]) * u.erg / u.s / u.cm**2
+    from_wavelength = np.array([1.0])
+    to_wavelength = np.linspace(0.5, 2.0, 50)
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength)
+
+    assert isinstance(result, u.Quantity)
+    assert result.unit == u.erg / u.s / u.cm**2
+    assert len(result) == len(to_wavelength)
+    assert np.all(result.value == 2.5)
+
+
+def test_regrid_to_grid_name_parameter():
+    """Test that custom name appears in log messages (requires log capture)."""
+    # This test ensures the name parameter is accepted
+    values = np.random.rand(10)
+    from_wavelength = np.linspace(0.5, 1.5, 10)
+    to_wavelength = np.linspace(0.5, 1.5, 20)
+
+    result = regrid_to_grid(
+        values, from_wavelength, to_wavelength, name="custom_flux", interpolation="1d"
+    )
+
+    assert len(result) == len(to_wavelength)
+
+
+def test_regrid_to_grid_dtype_conversion():
+    """Test that output is always float64."""
+    values = np.array([1, 2, 3], dtype=np.int32)
+    from_wavelength = np.array([0.5, 1.0, 1.5])
+    to_wavelength = np.linspace(0.5, 1.5, 10)
+
+    result = regrid_to_grid(values, from_wavelength, to_wavelength, interpolation="1d")
+
+    assert result.dtype == np.float64
+
+
+# ============================================================================
+# Tests for fill_parameters
+# ============================================================================
+
+
+def test_fill_parameters_basic_default_values(test_object):
+    """Test that default parameters are correctly assigned when no user params provided."""
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+        "param2": 20.5,
+        "param3": "test_string",
+    }
+
+    fill_parameters(test_object, parameters, default_parameters)
+
+    assert test_object.param1 == 10
+    assert test_object.param2 == 20.5
+    assert test_object.param3 == "test_string"
+
+
+def test_fill_parameters_user_override(test_object):
+    """Test that user-provided parameters override defaults."""
+    parameters = {
+        "param1": 100,
+        "param2": 200.5,
+    }
+    default_parameters = {
+        "param1": 10,
+        "param2": 20.5,
+        "param3": "default_string",
+    }
+
+    fill_parameters(test_object, parameters, default_parameters)
+
+    assert test_object.param1 == 100
+    assert test_object.param2 == 200.5
+    assert test_object.param3 == "default_string"
+
+
+def test_fill_parameters_locked_keys_prevent_override(test_object, caplog):
+    """Test that locked keys cannot be overridden by user parameters."""
+    parameters = {
+        "locked_param": 999,
+        "unlocked_param": 50,
+    }
+    default_parameters = {
+        "locked_param": 42,
+        "unlocked_param": 25,
+    }
+    locked_keys = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(test_object, parameters, default_parameters, locked_keys)
+
+    # Locked parameter should retain default value
+    assert test_object.locked_param == 42
+    # Unlocked parameter should use user value
+    assert test_object.unlocked_param == 50
+    # Warning should be logged
+    assert "locked_param" in caplog.text
+    assert "locked in this mode" in caplog.text
+
+
+def test_fill_parameters_quantity_unit_conversion(test_object):
+    """Test that Quantity parameters with matching units are converted correctly."""
+    parameters = {
+        "distance": 5.0 * u.pc,  # parsecs
+    }
+    default_parameters = {
+        "distance": 10.0 * u.m,  # meters (different unit)
+    }
+
+    fill_parameters(test_object, parameters, default_parameters)
+
+    # Should be converted to meters (the default unit)
+    assert isinstance(test_object.distance, u.Quantity)
+    assert test_object.distance.unit == u.m
+    # 5 pc = 1.54285714e+17 m
+    assert np.isclose(test_object.distance.value, 1.54285714e17, rtol=1e-4)
+
+
+def test_fill_parameters_quantity_without_units(test_object):
+    """Test that unitless user value gets assigned default units from Quantity default."""
+    parameters = {
+        "length": 100.0,  # No units
+    }
+    default_parameters = {
+        "length": 1.0 * u.m,  # Has units
+    }
+
+    fill_parameters(test_object, parameters, default_parameters)
+
+    assert isinstance(test_object.length, u.Quantity)
+    assert test_object.length.unit == u.m
+    assert test_object.length.value == 100.0
+
+
+def test_fill_parameters_quantity_user_override_with_units(test_object):
+    """Test that user Quantity with units correctly overrides default."""
+    parameters = {
+        "wavelength": 500 * u.nm,
+    }
+    default_parameters = {
+        "wavelength": 1.0 * u.um,  # Different value and unit
+    }
+
+    fill_parameters(test_object, parameters, default_parameters)
+
+    assert isinstance(test_object.wavelength, u.Quantity)
+    # Should be converted to microns (the default unit)
+    assert test_object.wavelength.unit == u.um
+    assert np.isclose(test_object.wavelength.value, 0.5)
+
+
+def test_fill_parameters_mixed_locked_and_unlocked_quantities(test_object, caplog):
+    """Test handling of both locked and unlocked Quantity parameters."""
+    parameters = {
+        "locked_distance": 100 * u.m,
+        "unlocked_distance": 200 * u.m,
+    }
+    default_parameters = {
+        "locked_distance": 10 * u.m,
+        "unlocked_distance": 20 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(test_object, parameters, default_parameters, locked_keys)
+
+    # Locked should use default
+    assert test_object.locked_distance == 10 * u.m
+    # Unlocked should use user value
+    assert test_object.unlocked_distance == 200 * u.m
+    # Warning should be logged only for locked parameter
+    assert "locked_distance" in caplog.text
+
+
+def test_fill_parameters_empty_locked_keys(test_object):
+    """Test that passing None for locked_keys works correctly."""
+    parameters = {
+        "param1": 100,
+    }
+    default_parameters = {
+        "param1": 10,
+        "param2": 20,
+    }
+
+    # Should not raise any errors with locked_keys=None (default)
+    fill_parameters(test_object, parameters, default_parameters, locked_keys=None)
+
+    assert test_object.param1 == 100
+    assert test_object.param2 == 20
+
+
+def test_fill_parameters_all_locked_keys(test_object, caplog):
+    """Test behavior when all parameters are locked."""
+    parameters = {
+        "param1": 999,
+        "param2": 888,
+    }
+    default_parameters = {
+        "param1": 10,
+        "param2": 20,
+    }
+    locked_keys = {"param1", "param2"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(test_object, parameters, default_parameters, locked_keys)
+
+    # All should use defaults
+    assert test_object.param1 == 10
+    assert test_object.param2 == 20
+    # Should have warnings for both
+    assert "param1" in caplog.text
+    assert "param2" in caplog.text
+
+
+# ============================================================================
+# Tests for fill_parameters - Override functionality
+# ============================================================================
+
+
+def test_fill_parameters_override_locked_key(test_object, caplog):
+    """Test that locked keys can be overridden when explicitly allowed."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Locked parameter should now use user value
+    assert test_object.locked_param == 999
+    # Warning should indicate explicit override
+    assert "locked_param" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_override_locked_quantity(test_object, caplog):
+    """Test that locked Quantity parameters can be overridden."""
+    parameters = {
+        "locked_distance": 100 * u.m,
+    }
+    default_parameters = {
+        "locked_distance": 10 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    assert test_object.locked_distance == 100 * u.m
+    assert "locked_distance" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_override_with_unit_conversion(test_object, caplog):
+    """Test that overridden Quantity is converted to default units."""
+    parameters = {
+        "locked_distance": 5.0 * u.pc,
+    }
+    default_parameters = {
+        "locked_distance": 10.0 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should be converted to meters (the default unit)
+    assert isinstance(test_object.locked_distance, u.Quantity)
+    assert test_object.locked_distance.unit == u.m
+    assert np.isclose(test_object.locked_distance.value, 1.54285714e17, rtol=1e-4)
+
+
+def test_fill_parameters_override_without_unit(test_object, caplog):
+    """Test that overridden unitless value gets default units."""
+    parameters = {
+        "locked_length": 100.0,
+    }
+    default_parameters = {
+        "locked_length": 1.0 * u.m,
+    }
+    locked_keys = {"locked_length"}
+    allow_override = {"locked_length"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    assert isinstance(test_object.locked_length, u.Quantity)
+    assert test_object.locked_length.unit == u.m
+    assert test_object.locked_length.value == 100.0
+
+
+def test_fill_parameters_override_unrecognized_parameter():
+    """Test that unknown override keys raise ValueError."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+        "param2": 20,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"param1", "nonexistent_param"}
+
+    with pytest.raises(ValueError, match="unrecognized parameter name"):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+
+def test_fill_parameters_override_multiple_unrecognized():
+    """Test that multiple unknown override keys are reported."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"nonexistent1", "nonexistent2"}
+
+    with pytest.raises(ValueError) as excinfo:
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Both names should appear in the error message
+    assert "nonexistent1" in str(excinfo.value)
+    assert "nonexistent2" in str(excinfo.value)
+
+
+def test_fill_parameters_override_non_locked_key(test_object, caplog):
+    """Test that override of non-locked key has no special effect."""
+    parameters = {
+        "unlocked_param": 100,
+    }
+    default_parameters = {
+        "unlocked_param": 10,
+    }
+    locked_keys = set()
+    allow_override = {"unlocked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should use user value (not locked anyway)
+    assert test_object.unlocked_param == 100
+    # Should not log override warning since it wasn't locked
+    assert "explicitly overridden" not in caplog.text
+
+
+def test_fill_parameters_override_mixed_locked_unlocked(test_object, caplog):
+    """Test overriding some locked parameters but not others."""
+    parameters = {
+        "locked_param1": 100,
+        "locked_param2": 200,
+        "unlocked_param": 300,
+    }
+    default_parameters = {
+        "locked_param1": 10,
+        "locked_param2": 20,
+        "unlocked_param": 30,
+    }
+    locked_keys = {"locked_param1", "locked_param2"}
+    allow_override = {"locked_param1"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # First locked param should use user value (explicitly overridden)
+    assert test_object.locked_param1 == 100
+    # Second locked param should use default (not overridden)
+    assert test_object.locked_param2 == 20
+    # Unlocked param should use user value
+    assert test_object.unlocked_param == 300
+
+    # Check log messages
+    assert "locked_param1" in caplog.text
+    assert "explicitly overridden" in caplog.text
+    assert "locked_param2" in caplog.text
+    assert "locked in this mode" in caplog.text
+
+
+def test_fill_parameters_override_empty_set(test_object):
+    """Test that empty allow_override set behaves correctly."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = set()
+
+    fill_parameters(
+        test_object, parameters, default_parameters, locked_keys, allow_override
+    )
+
+    # Should use default (not overridden)
+    assert test_object.locked_param == 42
+
+
+def test_fill_parameters_override_none_value(test_object, caplog):
+    """Test that None for allow_override is handled correctly."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override=None,
+        )
+
+    # Should use default (not overridden)
+    assert test_object.locked_param == 42
+    # Should have standard locked warning
+    assert "locked_param" in caplog.text
+    assert "locked in this mode" in caplog.text
+
+
+def test_fill_parameters_override_without_user_parameter(test_object, caplog):
+    """Test override specification when user didn't provide the parameter."""
+    parameters = {}
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Should use default (user didn't override it)
+    assert test_object.locked_param == 42
+    # Should not log any override warning
+    assert "explicitly overridden" not in caplog.text
+
+
+def test_fill_parameters_override_all_locked_keys(test_object, caplog):
+    """Test overriding all locked parameters."""
+    parameters = {
+        "locked_param1": 100,
+        "locked_param2": 200,
+        "locked_param3": 300,
+    }
+    default_parameters = {
+        "locked_param1": 10,
+        "locked_param2": 20,
+        "locked_param3": 30,
+    }
+    locked_keys = {"locked_param1", "locked_param2", "locked_param3"}
+    allow_override = {"locked_param1", "locked_param2", "locked_param3"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # All should use user values
+    assert test_object.locked_param1 == 100
+    assert test_object.locked_param2 == 200
+    assert test_object.locked_param3 == 300
+
+    # All should have override warnings
+    assert caplog.text.count("explicitly overridden") == 3
+
+
+def test_fill_parameters_override_logs_both_values(test_object, caplog):
+    """Test that override warning includes both model and user values."""
+    parameters = {
+        "locked_param": 999,
+    }
+    default_parameters = {
+        "locked_param": 42,
+    }
+    locked_keys = {"locked_param"}
+    allow_override = {"locked_param"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Warning should mention both values
+    assert "42" in caplog.text
+    assert "999" in caplog.text
+    assert "Model-provided value" in caplog.text
+    assert "user-supplied value" in caplog.text
+
+
+def test_fill_parameters_override_quantity_logs_units(test_object, caplog):
+    """Test that override warning for Quantity shows units."""
+    parameters = {
+        "locked_distance": 100 * u.m,
+    }
+    default_parameters = {
+        "locked_distance": 10 * u.m,
+    }
+    locked_keys = {"locked_distance"}
+    allow_override = {"locked_distance"}
+
+    with caplog.at_level(logging.WARNING):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
+
+    # Warning should mention units
+    assert "10.0 m" in caplog.text or "10. m" in caplog.text
+    assert "100.0 m" in caplog.text or "100. m" in caplog.text
+
+
+# ============================================================================
+# Tests for fill_parameters - Edge cases with overrides
+# ============================================================================
+
+
+def test_fill_parameters_override_superset_of_locked():
+    """Test that allow_override can be a superset of locked_keys."""
+    test_object = type("TestObject", (), {})()
+    parameters = {
+        "locked_param": 100,
+        "unlocked_param": 200,
+    }
+    default_parameters = {
+        "locked_param": 10,
+        "unlocked_param": 20,
+    }
+    locked_keys = {"locked_param"}
+    # Override set includes both locked and unlocked
+    allow_override = {"locked_param", "unlocked_param"}
+
+    fill_parameters(
+        test_object, parameters, default_parameters, locked_keys, allow_override
+    )
+
+    # Both should use user values
+    assert test_object.locked_param == 100
+    assert test_object.unlocked_param == 200
+
+
+def test_fill_parameters_override_disjoint_sets():
+    """Test error when allow_override contains keys not in defaults."""
+    test_object = type("TestObject", (), {})()
+    parameters = {}
+    default_parameters = {
+        "param1": 10,
+    }
+    locked_keys = {"param1"}
+    allow_override = {"completely_different_param"}
+
+    with pytest.raises(ValueError, match="unrecognized parameter name"):
+        fill_parameters(
+            test_object, parameters, default_parameters, locked_keys, allow_override
+        )
