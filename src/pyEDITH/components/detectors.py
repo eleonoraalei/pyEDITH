@@ -326,13 +326,31 @@ class EACDetector(Detector):
         self.DEFAULT_CONFIG["RN"] = rn_arr * READ_NOISE
 
         # array values binned at wavelength points must just be stacked
-        vis = np.atleast_1d(np.asarray(detector_params["qe_vis"], dtype=float))
-        nir = np.atleast_1d(np.asarray(detector_params["qe_nir"], dtype=float))
-        qe_arr = np.where(np.isnan(vis), nir, vis)
-        # A NaN here means the selected curve did not cover its side of the
-        # 1 um split (a genuine coverage gap), so fail loudly rather than
-        # silently zeroing it out.
-        assert not np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
+        # combine the vis and nir qe arrays into a single array.
+        qe_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
+        if parameters["observing_mode"] == "IMAGER":
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
+            ] = detector_params["qe_vis"]
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
+            ] = detector_params["qe_nir"]
+        elif parameters["observing_mode"] == "IFS":
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
+            ] = detector_params["qe_vis"][
+                mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH
+            ]
+            qe_arr[
+                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
+            ] = detector_params["qe_nir"][
+                mediator.get_observation_parameter("wavelength") >= 1 * WAVELENGTH
+            ]
+            # if qe_arr contains NaNs, then likely the wavelength range is outside of the qe range.
+            # set the NaN values to zero
+            qe_arr = np.nan_to_num(qe_arr)
+            # make sure qe_arr does not contain NaNs
+            assert ~np.isnan(np.sum(qe_arr)), "QE array contains NaN values"
 
         self.DEFAULT_CONFIG["QE"] = qe_arr * QUANTUM_EFFICIENCY
 
