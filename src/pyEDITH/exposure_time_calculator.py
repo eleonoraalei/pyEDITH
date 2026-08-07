@@ -425,7 +425,6 @@ def calculate_CRnf(
     throughput: u.Quantity,
     dlambda: u.Quantity,
     nchannels: int,
-    SNR: u.Quantity,
     noisefloor: u.Quantity,
 ) -> u.Quantity:
     """
@@ -452,8 +451,6 @@ def calculate_CRnf(
         Bandwidth [um]
     nchannels : int
         Number of channels
-    SNR : float
-        Signal-to-noise ratio
     noisefloor : u.Quantity
         Noise floor level [dimensionless]
 
@@ -464,15 +461,12 @@ def calculate_CRnf(
     """
 
     return (
-        SNR
-        * (F0 * Fs_over_F0 * area * throughput * dlambda * nchannels / (pixscale**2))
-        * noisefloor
-    )
+        F0 * Fs_over_F0 * area * throughput * dlambda * nchannels / (pixscale**2)
+    ) * noisefloor  # Update 1.7.1: SNR now moved outside of this function
 
 
 def calculate_CRnf_ez(
     CRbez: u.Quantity,
-    SNR: u.Quantity,
     ez_PPF: u.Quantity,
 ) -> u.Quantity:
     """
@@ -486,8 +480,6 @@ def calculate_CRnf_ez(
     ----------
     CRbez : u.Quantity
         Count rate of the exozodi [photons / s]
-    SNR : float
-        Signal-to-noise ratio
     ez_PPF : u.Quantity
         Post-processing factor for exozodi [dimensionless]
 
@@ -497,7 +489,7 @@ def calculate_CRnf_ez(
         Exozodi noise floor count rate [photons / s]
     """
 
-    return SNR * CRbez / ez_PPF
+    return CRbez / ez_PPF  # Update 1.7.1: SNR now moved outside of this function
 
 
 def measure_coronagraph_performance_at_IWA(
@@ -1011,12 +1003,7 @@ def calculate_exposure_time_or_snr(
     observation.photon_counts["CRbd"] = CRbd_arr.value
 
     # --- NOISE FLOOR ---
-    #  NOTE when calculating the SNR, we set snr_for_nf to 1 to calculate the noise
-    # factor ratio (i.e. we assume SNR =1 so that we can use it for the snr calculation later)
-    snr_for_nf = (
-        observation.SNR if mode == "exposure_time" else np.ones(observation.nlambd)
-    )
-
+    # Calculate CRnf without SNR. Update 1.7.1: SNR now moved outside of this function
     CRnf_s_arr = (
         calculate_CRnf(
             scene.F0,
@@ -1026,7 +1013,6 @@ def calculate_exposure_time_or_snr(
             observatory.total_throughput,
             deltalambda_nm,
             observatory.coronagraph.nchannels,
-            snr_for_nf,
             noisefloor_at_planet,
         )
         * omega_lod_at_planet
@@ -1035,7 +1021,6 @@ def calculate_exposure_time_or_snr(
 
     CRnf_ez_arr = calculate_CRnf_ez(
         CRbez_arr * omega_lod_at_planet.value,
-        snr_for_nf,
         scene.ez_PPF,
     )
     observation.photon_counts["CRnf_ez"] = CRnf_ez_arr.value
@@ -1063,7 +1048,9 @@ def calculate_exposure_time_or_snr(
     if mode == "exposure_time":
         cp_arr = (
             (CRp_arr + observation.CRb_multiplier * CRb_arr)
-            / (CRp_arr * CRp_arr - CRnf_arr * CRnf_arr)
+            / (
+                CRp_arr * CRp_arr - observation.SNR**2 * CRnf_arr * CRnf_arr
+            )  # Update 1.7.1: SNR now outside CRnf
             * u.electron
         )
 
@@ -1246,7 +1233,7 @@ def calculate_exposure_time_or_snr(
         "CRbth": CRbth_arr * omega_lod_at_planet,
         "CRb": CRb_arr,
         "CRbd": CRbd_arr,
-        "CRnf": CRnf_arr,
+        "CRnf": CRnf_arr,  # Now stored WITHOUT SNR factor
         # --- results ---
         "sciencetime": sciencetime_arr,
         "exptime": observation.exptime if mode == "exposure_time" else None,

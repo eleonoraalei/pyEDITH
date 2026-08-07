@@ -369,15 +369,16 @@ def test_calculate_CRnf():
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
     nchannels = 2
-    SNR = 7
     noisefloor = 7.25659425003725e-18 * DIMENSIONLESS
 
     result = calculate_CRnf(
-        F0, Fs_over_F0, area, pixscale, throughput, dlambda, nchannels, SNR, noisefloor
+        F0, Fs_over_F0, area, pixscale, throughput, dlambda, nchannels, noisefloor
     )
 
     assert result.unit == (u.electron / u.s)
-    assert np.isclose(result.value, 1.7763531e-6)
+    assert np.isclose(
+        result.value, 2.5376479000e-07
+    )  # Value changed because of Update 1.7.1: SNR now outside CRnf
 
 
 def test_calculate_t_photon_count():
