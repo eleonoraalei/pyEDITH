@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/source/_static/pyEDITH.png" alt="pyEDITH logo">
+  <img src="docs/source/_static/pyEDITH-removebg-preview.png" alt="pyEDITH logo">
 </p>
 
 <p align="center">
