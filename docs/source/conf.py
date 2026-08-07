@@ -68,7 +68,7 @@ html_theme_options = {
     "use_issues_button": True,
     "use_repository_button": True,
 }
-html_logo = "_static/pyEDITH.png"  # replace with your logo's filename
+html_logo = "_static/pyEDITH-removebg-preview.png"  # replace with your logo's filename
 
 
 # -- Options for autodoc ----------------------------------------------------

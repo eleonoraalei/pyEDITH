@@ -10,7 +10,7 @@ source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 1. Clone the [Sci-Eng-Interface repository](https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface/tree/main). This repository contains all the relevant and updated telescope and detector parameters.
 
 ```
-git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface/tree/main
+git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface/
 ```
 
 ```{warning} This will be deprecated in v.2.0.
