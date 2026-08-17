@@ -1592,3 +1592,237 @@ def test_fill_parameters_override_disjoint_sets():
         fill_parameters(
             test_object, parameters, default_parameters, locked_keys, allow_override
         )
+
+
+# ============================================================================
+# Tests for fill_parameters - STEP 0: Rebinning override parameters
+# ============================================================================
+
+
+def test_fill_parameters_rebin_array_override(test_object, caplog):
+    """Test that array override parameters (like DC) are rebinned to match resolved wavelength."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1.5e-3, 2e-3, 2.5e-3, 1.5e-3]) * DARK_CURRENT,
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1e-3, 1e-3]) * DARK_CURRENT,
+    }
+    locked_keys = {"DC"}
+    allow_override = {"DC"}
+
+    with caplog.at_level(logging.INFO):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+    # Should be rebinned to match rebinned_wavelength length
+    assert len(test_object.DC) == len(rebinned_wavelength)
+    assert np.array_equal(test_object.DC, [1e-3, 2e-3, 1.5e-3] * DARK_CURRENT)
+    assert isinstance(test_object.DC, u.Quantity)
+    assert test_object.DC.unit == DARK_CURRENT
+    assert "Before overriding: rebinning DC array" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_skip_scalar_override(test_object, caplog):
+    """Test that scalar override parameters (like diameter) are not rebinned."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]) * WAVELENGTH,
+        "diameter": 4.0 * LENGTH,
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "diameter": 2.4 * LENGTH,
+    }
+    locked_keys = {"diameter"}
+    allow_override = {"diameter"}
+
+    with caplog.at_level(logging.INFO):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+    # Scalar should remain scalar and use user value
+    assert test_object.diameter == 4.0 * LENGTH
+    assert "diameter is a scalar and won't be rebinned" in caplog.text
+    assert "explicitly overridden" in caplog.text
+
+
+def test_fill_parameters_mixed_overrides(test_object, caplog):
+    """Test rebinning with both array (DC) and scalar (diameter) overrides."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1.5e-3, 2e-3, 2.5e-3, 1.5e-3]) * DARK_CURRENT,
+        "diameter": 4.0 * u.m,
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1e-3, 1e-3]) * DARK_CURRENT,
+        "diameter": 2.4 * u.m,
+    }
+    locked_keys = {"DC", "diameter"}
+    allow_override = {"DC", "diameter"}
+
+    with caplog.at_level(logging.INFO):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+    # DC should be rebinned
+    assert len(test_object.DC) == len(rebinned_wavelength)
+    assert np.array_equal(test_object.DC, [1e-3, 2e-3, 1.5e-3] * DARK_CURRENT)
+    assert isinstance(test_object.DC, u.Quantity)
+    assert test_object.DC.unit == DARK_CURRENT
+    assert "Before overriding: rebinning DC array" in caplog.text
+
+    # diameter should remain scalar
+    assert test_object.diameter == 4.0 * LENGTH
+    assert "diameter is a scalar and won't be rebinned" in caplog.text
+
+
+def test_fill_parameters_mixed_overrides_non_quantities(test_object, caplog):
+    """Test rebinning with both array (DC) and scalar (diameter) overrides."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]),
+        "DC": np.array([1e-3, 1.5e-3, 2e-3, 2.5e-3, 1.5e-3]),
+        "diameter": 4.0,
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1e-3, 1e-3]) * DARK_CURRENT,
+        "diameter": 2.4 * u.m,
+    }
+    locked_keys = {"DC", "diameter"}
+    allow_override = {"DC", "diameter"}
+
+    with caplog.at_level(logging.INFO):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+    # DC should be rebinned
+    assert len(test_object.DC) == len(rebinned_wavelength)
+    assert np.array_equal(test_object.DC, [1e-3, 2e-3, 1.5e-3] * DARK_CURRENT)
+    assert isinstance(test_object.DC, u.Quantity)
+    assert test_object.DC.unit == DARK_CURRENT
+    assert "Before overriding: rebinning DC array" in caplog.text
+
+    # diameter should remain scalar
+    assert test_object.diameter == 4.0 * LENGTH
+    assert "diameter is a scalar and won't be rebinned" in caplog.text
+
+
+def test_fill_parameters_error_wrong_length_array(test_object, caplog):
+    """Test that arrays with length != wavelength fail."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1.5e-3, 1.5e-3]) * DARK_CURRENT,
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1e-3, 1e-3]) * DARK_CURRENT,
+    }
+    locked_keys = {"DC"}
+    allow_override = {"DC"}
+
+    with pytest.raises(
+        ValueError,
+        match="Before overriding: DC does not have length equal to input wavelength. Please check your inputs.",
+    ):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+
+def test_fill_parameters_override_not_provided(test_object, caplog):
+    """Test that override parameters not provided by user are not processed in STEP 0."""
+    parameters = {
+        "wavelength": np.array([0.5, 0.550, 0.60, 0.650, 0.700]) * WAVELENGTH,
+        # DC intentionally not provided
+    }
+    rebinned_wavelength = np.array([0.5, 0.6, 0.7]) * WAVELENGTH
+    default_parameters = {
+        "wavelength": np.array([0.5, 0.6, 0.7]) * WAVELENGTH,
+        "DC": np.array([1e-3, 1e-3, 1e-3]) * DARK_CURRENT,
+    }
+    locked_keys = {"DC"}
+    allow_override = {"DC"}
+
+    with caplog.at_level(logging.INFO):
+        fill_parameters(
+            test_object,
+            parameters,
+            default_parameters,
+            locked_keys,
+            allow_override,
+            rebinned_wavelength,
+        )
+
+    # Should use default value (not rebinned since user didn't provide it)
+    assert np.array_equal(test_object.DC, default_parameters["DC"])
+    # No rebinning message for DC
+    assert "Before overriding: rebinning DC" not in caplog.text
+
+
+# def test_fill_parameters_step0_integration_with_step1(test_object, caplog):
+#     """Test that rebinned DC from STEP 0 is correctly applied as override in STEP 1."""
+#     parameters = {
+#         "wavelength": np.array([500, 600, 700]) * u.nm,
+#         "DC": np.array([1e-3, 2e-3, 1.5e-3]) * u.electron / u.s / u.pix,
+#     }
+#     rebinned_wavelength = np.array([500, 550, 600, 650, 700]) * u.nm
+#     default_parameters = {
+#         "wavelength": np.array([500, 600, 700]) * u.nm,
+#         "DC": 1e-3 * u.electron / u.s / u.pix,
+#     }
+#     locked_keys = {"DC"}
+#     allow_override = {"DC"}
+
+#     with caplog.at_level(logging.WARNING):
+#         fill_parameters(
+#             test_object,
+#             parameters,
+#             default_parameters,
+#             locked_keys,
+#             allow_override,
+#             rebinned_wavelength,
+#         )
+
+#     # Check that DC was rebinned then applied as override
+#     assert len(test_object.DC) == len(rebinned_wavelength)
+#     assert isinstance(test_object.DC, u.Quantity)
+#     assert test_object.DC.unit == u.electron / u.s / u.pix
+#     # Should see the override warning from STEP 1
+#     assert "explicitly overridden" in caplog.text

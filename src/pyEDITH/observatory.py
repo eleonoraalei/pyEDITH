@@ -56,12 +56,12 @@ class Observatory(ABC):  # abstract class
         },
         "EAC1": {
             "telescope": "EAC1",
-            "coronagraph": "eac1_optimal_order_6_1d",  # will download from the database
+            "coronagraph": "eac1_aavc_2d",  # will download from the database
             "detector": "EAC1",
         },
         "EAC5": {
             "telescope": "EAC5",
-            "coronagraph": "eac1_optimal_order_6_1d",  # temporary, will be replaced by a more suitable one
+            "coronagraph": "eac1_aavc_2d",  # temporary, will be replaced by a more suitable one
             "detector": "EAC5",
         },
     }

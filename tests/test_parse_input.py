@@ -65,6 +65,35 @@ def ifs_input_file_valid():
 
 
 @pytest.fixture
+def ifs_input_file_no_observing_mode():
+    """Fixture providing an input file without observing mode."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        wavelength = [0.5, 0.6, 0.7]
+        Fstar_10pc = [1e-8, 1e-8, 1e-8]
+        Fp/Fs = [1e-10, 1e-10, 1e-10]
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
+def ifs_input_file_wrong_observing_mode():
+    """Fixture providing an input file with wrong observing mode."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = 'Invalid'
+        wavelength = [0.5, 0.6, 0.7]
+        Fstar_10pc = [1e-8, 1e-8, 1e-8]
+        Fp/Fs = [1e-10, 1e-10, 1e-10]
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
 def ifs_input_file_missing_keys():
     """Fixture providing an IFS mode input file with missing required keys."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
@@ -168,6 +197,24 @@ def test_parse_input_file_ifs_valid(ifs_input_file_valid):
 # ============================================================================
 # Tests for parse_input_file - Error handling
 # ============================================================================
+
+
+def test_parse_input_file_no_observing_mode(ifs_input_file_no_observing_mode):
+    """Test parsing an input file without observing_mode."""
+    with pytest.raises(
+        KeyError,
+        match="Required parameter 'observing_mode' is not provided in the input file.",
+    ):
+        parse_input_file(ifs_input_file_no_observing_mode, secondary_flag=False)
+
+
+def test_parse_input_file_wrong_observing_mode(ifs_input_file_wrong_observing_mode):
+    """Test parsing an input file without observing_mode."""
+    with pytest.raises(
+        ValueError,
+        match="Invalid observing mode 'Invalid'. Must be 'IMAGER' or 'IFS'.",
+    ):
+        parse_input_file(ifs_input_file_wrong_observing_mode, secondary_flag=False)
 
 
 def test_parse_input_file_imager_multi_wavelength_error(

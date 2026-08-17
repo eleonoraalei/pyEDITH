@@ -164,7 +164,9 @@ def calc_flux_zero_point(
                 equivalencies=u.spectral_density(lambd),
             )
 
-    logger.info(f"Flux zero point calculated at {lambd} in units of {f0.unit}")
+    logger.info(
+        f"Flux zero point calculated at lambda of interest in units of {f0.unit}"
+    )
 
     return f0
 
@@ -192,11 +194,11 @@ def calc_exozodi_flux(
     nexozodis : Quantity
         Number of exozodis for each star.
     lambd : Quantity
-        Wavelength in microns (vector of length nlambd).
+        Wavelength in microns (vector of length nlambda).
     lambdmag : Quantity
-        Apparent magnitude of stars at each lambd (array nlambd).
+        Apparent magnitude of stars at each lambd (array nlambda).
     F0lambd : Quantity
-        Flux zero point at wavelength lambd (vector of length nlambd).
+        Flux zero point at wavelength lambd (vector of length nlambda).
 
     Returns
     -------
@@ -208,7 +210,7 @@ def calc_exozodi_flux(
     if len(lambd) > 1:
         if len(lambd) != lambdmag.shape[0]:
             raise ValueError(
-                "ERROR. lambdmag must have dimensions nstars x nlambd, where nlambd is the length of lambd."
+                "ERROR. lambdmag must have dimensions nstars x nlambda, where nlambda is the length of lambd."
             )
 
     vmag_1zodi = (
@@ -222,7 +224,7 @@ def calc_exozodi_flux(
 
     # Now, multiply by the ratio of the star's counts received at lambd to those
     # received at V band
-    nlambd = len(lambd)
+    nlambda = len(lambd)
 
     flux_exozodi_lambd = (
         nexozodis
@@ -259,9 +261,9 @@ def calc_zodi_flux(
     ra : Quantity
         Right ascension of targets in degrees (J2000 equatorial coordinate).
     lambd : Quantity
-        Wavelengths in microns (vector of length nlambd).
+        Wavelengths in microns (vector of length nlambda).
     F0 : Quantity
-        Flux zero points at wavelengths lambd (vector of length nlambd).
+        Flux zero points at wavelengths lambd (vector of length nlambda).
 
     Returns
     -------
@@ -270,7 +272,7 @@ def calc_zodi_flux(
         This is equivalent to 10^(-0.4*magOmega_ZL).
         - Multiply by F0 to get photons s^-1 cm^-2 arcsec^-2 nm^-1
         - Multiply by energy of photons to get erg s^-1 cm^-2 arcsec^-2 nm^-1
-        The output array has dimensions (nlambd, nstars).
+        The output array has dimensions (nlambda, nstars).
 
     Raises
     ------
@@ -447,7 +449,7 @@ def calc_zodi_flux(
     I90fabsfco = I90fabsfco / F0
 
     # Calculate final zodi flux
-    nlambd = len(lambd)
+    nlambda = len(lambd)
     flux_zodi = f * I90fabsfco
 
     return flux_zodi  # 1/arcsec^2 (UNITS OF SPECTRAL RADIANCE)

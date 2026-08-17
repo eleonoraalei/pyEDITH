@@ -103,6 +103,16 @@ def parse_input_file(
             "Secondary flag is True but no secondary variables found in the input file."
         )
 
+    # Check that observing_mode is present and valid
+    if "observing_mode" not in variables:
+        raise KeyError(
+            "Required parameter 'observing_mode' is not provided in the input file."
+        )
+    if variables["observing_mode"] not in ["IMAGER", "IFS"]:
+        raise ValueError(
+            f"Invalid observing mode '{variables['observing_mode']}'. Must be 'IMAGER' or 'IFS'."
+        )
+
     # Handle IFS mode
     if variables.get("observing_mode") == "IFS":
         required_columns = ["wavelength", "Fstar_10pc", "Fp/Fs"]
@@ -166,7 +176,7 @@ def parse_input_file(
     return variables, secondary_variables
 
 
-def normalize_list_shapes(parameters, key, default_len):
+def normalize_list_shapes(parameters, key, default_len=1):
     """
     Normalize the *shape* of a user-supplied parameter without binding it to a
     wavelength grid that may later change.

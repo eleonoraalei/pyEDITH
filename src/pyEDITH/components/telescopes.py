@@ -111,7 +111,7 @@ class ToyModelTelescope(Telescope):
         "toverhead_fixed": 8.25e3 * TIME,  # fixed overhead time (seconds,scalar)
         "toverhead_multi": 1.1 * DIMENSIONLESS,  # multiplicative overhead time (scalar)
         "telescope_optical_throughput": [0.823]
-        * DIMENSIONLESS,  # Optical throughput (nlambd array) [made up from EAC1-ish]
+        * DIMENSIONLESS,  # Optical throughput (nlambda array) [made up from EAC1-ish]
         "temperature": 290 * TEMPERATURE,
         "T_contamination": 0.95 * DIMENSIONLESS,
     }
@@ -200,7 +200,7 @@ class EACTelescope(Telescope):
         * TIME,  # fixed overhead time (seconds,scalar) ### NOTE default for now
         "toverhead_multi": 1.1
         * DIMENSIONLESS,  # multiplicative overhead time (scalar) ### NOTE default for now
-        "telescope_optical_throughput": None,  # Optical throughput (nlambd array)
+        "telescope_optical_throughput": None,  # Optical throughput (nlambda array)
         "T_contamination": 1.0
         * DIMENSIONLESS,  # Effective throughput factor to budget for contamination; NOTE: missing from YAML files
         "temperature": 290
@@ -297,6 +297,7 @@ class EACTelescope(Telescope):
             allow_override=set(
                 set(parameters.get("overrides", [])) & self.LOCKED_KEYS
             ),  # finds the keys that should be locked but that the user wants to override
+            rebinned_wavelength=mediator.get_observation_parameter("wavelength").value,
         )
 
         # Derived parameters

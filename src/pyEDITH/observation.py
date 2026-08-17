@@ -20,7 +20,7 @@ class Observation:
     -----------
     wavelength : np.ndarray
         Wavelength array (in microns).
-    nlambd : int
+    nlambda : int
         Number of wavelength points.
     SNR : np.ndarray
         Desired bulk SNR.
@@ -94,7 +94,7 @@ class Observation:
         if parameters["observing_mode"] == "IMAGER":
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
-            )  # wavelength # nlambd array #unit: micron
+            )  # wavelength # nlambda array #unit: micron
             # IMAGER has no meaningful bin widths for regridding; broadcast-only
             self.delta_wavelength = None
 
@@ -104,7 +104,7 @@ class Observation:
         ):
             self.wavelength = (
                 parameters["wavelength"] * WAVELENGTH
-            )  # wavelength # nlambd array #unit: micron
+            )  # wavelength # nlambda array #unit: micron
             IFS_resolution = self.wavelength / np.gradient(
                 self.wavelength
             )  # calculate the resolution from the wavelength grid
@@ -133,14 +133,14 @@ class Observation:
             )
             self.wavelength = (
                 new_lam * WAVELENGTH
-            )  # wavelength # nlambd array #unit: micron
+            )  # wavelength # nlambda array #unit: micron
             self.delta_wavelength = new_dlam * WAVELENGTH
 
         # ------------------------------------------------------------------
         # Length of the current resolved grid. Any per-wavelength parameter is
         # aligned against this via regrid_to_grid.
         # ------------------------------------------------------------------
-        self.nlambd = len(self.wavelength)
+        self.nlambda = len(self.wavelength)
 
         # Target bin widths (as plain floats) for the regrid branch, if defined.
         to_delta = (
@@ -156,10 +156,9 @@ class Observation:
             parameters["snr"] * DIMENSIONLESS,
             from_wavelength=self._input_wavelength,
             to_wavelength=self.wavelength.value,
-            to_delta_wavelength=to_delta,
             name="snr",
             interpolation="1d",
-        )  # signal to noise # nlambd array
+        )  # signal to noise # nlambda array
 
         self.CRb_multiplier = float(parameters["CRb_multiplier"])
 
@@ -173,10 +172,10 @@ class Observation:
         """
 
         # Initialize some arrays needed for outputs...
-        self.exptime = np.full((self.nlambd), 0.0) * TIME
+        self.exptime = np.full((self.nlambda), 0.0) * TIME
 
         # only used for snr calculation
-        self.fullsnr = np.full((self.nlambd), 0.0) * DIMENSIONLESS
+        self.fullsnr = np.full((self.nlambda), 0.0) * DIMENSIONLESS
 
     def validate_configuration(self):
         """
@@ -194,7 +193,7 @@ class Observation:
         """
         expected_args = {
             "wavelength": WAVELENGTH,
-            "nlambd": int,
+            "nlambda": int,
             "SNR": DIMENSIONLESS,
             "CRb_multiplier": float,
         }

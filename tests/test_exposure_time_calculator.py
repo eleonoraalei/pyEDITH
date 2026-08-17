@@ -44,11 +44,11 @@ def mock_observation():
     observation.delta_wavelength = u.Quantity([0.5 * 0.2], u.micron)
     observation.SNR = u.Quantity([7], DIMENSIONLESS)
     observation.CRb_multiplier = 2
-    observation.nlambd = 1
+    observation.nlambda = 1
     observation.tp = 0.0 * u.s
     # Initialize some arrays needed for outputs...
-    observation.exptime = np.full((observation.nlambd), 0.0) * TIME
-    observation.fullsnr = np.full((observation.nlambd), 0.0) * DIMENSIONLESS
+    observation.exptime = np.full((observation.nlambda), 0.0) * TIME
+    observation.fullsnr = np.full((observation.nlambda), 0.0) * DIMENSIONLESS
 
     return observation
 
@@ -582,7 +582,7 @@ def test_calculate_exposure_time_bandwidth_restriction_warning(
 ):
     """Test that exceeding coronagraph bandwidth triggers warning."""
     mock_observation.wavelength = [0.5] * u.um
-    mock_observation.nlambd = 1
+    mock_observation.nlambda = 1
     mock_observatory.observing_mode = "IMAGER"
     mock_observatory.coronagraph.bandwidth = 1.0
     mock_observatory.coronagraph.coronagraph_spectral_resolution = 10

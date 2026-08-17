@@ -1,41 +1,35 @@
-;This is an input file for EDITH
-;Comments are preceeded with a # or a ;
+;This is an input file for pyEDITH
+;Comments are preceded with a # or a ;
 ;In the comments below, ( ) indicates the units and { } indicates the data format
 
 ;Variable names cannot be changed
-;All string data types must be encased in ' ' or " "
 ;Arrays are encased by [ ] and entries are separated by ,
 ;Scalars cannot be encased in [ ]--scalars are not the same as one-element arrays
 ;Spaces do not matter, empty lines do not matter
-;Parameter definitions can span multiple lines (i.e., long arrays can be split between lines if desired)
 
 ;--------------------------------
 ;------- REFERENCE LAMBDA -------
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-snr = 7.0                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
-CRb_multiplier  = 2.          ; factor to multiply to remove background
-psf_trunc_ratio = 0.35      ; truncation ratio of the PSF
-regrid_wavelength = False
+snr = 7.0                           ; signal-to-noise ratio at desired wavelength {will be propagated to be len(wavelength)} 
+CRb_multiplier  = 2.                ; factor to multiply to remove background
+psf_trunc_ratio = 0.35              ; truncation ratio of the PSF
+regrid_wavelength = False           ; we don't want to regrid over higher spectral resolution since this is just an example
 
 ;--- STAR PARAMETERS ---
-distance = 10.          ;   distance to star (pc)
-stellar_radius = 1           ;   stellar radius (R_sun)
-nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
-ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
-dec = 02.5151668316500      ;   declination of target star used to estimate zodi (deg)
+distance = 10.                      ; distance to star (pc)
+stellar_radius = 1                  ; stellar radius (R_sun)
+nzodis = 3.0                        ; amount of exozodi around target star ("zodis")
+ra = 236.0075773682300              ; right ascension of target star used to estimate zodi (deg) 
+dec = 02.5151668316500              ; declination of target star used to estimate zodi (deg)
 
 ;--- PLANET PARAMETERS ---
-separation = 0.1       ;   separation of planet (arcsec)
-Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
+separation = 0.1                    ; separation of planet (arcsec)
 
 ;--- OBSERVATORY PARAMETERS ----
 observatory_preset = EAC1
 observing_mode =  IFS
-
-;--- (OVERRIDING DEFAULT) CORONAGRAPH PARAMETERS ---
-noisefloor_PPF = 30  ;  postprocessing factor for the coronagraph noisefloor
 
 
 ;--- IFS MODE ONLY: PATH TO SPECTRA --- 

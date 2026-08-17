@@ -681,53 +681,55 @@ def calculate_exposure_time_or_snr(
         lod,
         observation.wavelength.to(LENGTH),
         observatory.telescope.diameter.to(LENGTH),
-    )  # shape (nlambd,), units rad
+    )  # shape (nlambda,), units rad
     lod_rad_arr = u.Quantity(np.atleast_1d(lod_rad_arr.value), lod_rad_arr.unit)
-    lod_arcsec_arr = lod_rad_arr.to(ARCSEC)  # shape (nlambd,)
+    lod_arcsec_arr = lod_rad_arr.to(ARCSEC)  # shape (nlambda,)
 
     # --- Detector pixel scale in λ/D (one value per wavelength) ---
     detpixscale_lod_arr = arcsec_to_lambda_d(
         observatory.detector.pixscale_mas.to(ARCSEC),
         observation.wavelength.to(LENGTH),
         observatory.telescope.diameter.to(LENGTH),
-    )  # shape (nlambd,), units LAMBDA_D
+    )  # shape (nlambda,), units LAMBDA_D
     detpixscale_lod_arr = u.Quantity(
         np.atleast_1d(detpixscale_lod_arr.value), detpixscale_lod_arr.unit
     )
 
     # --- Planet pixel position in the coronagraph image (one per wavelength) ---
     # pixscale_rad: [LAMBDA_D] * [rad/LAMBDA_D] = [rad/pix]
-    pixscale_rad_arr = observatory.coronagraph.pixscale * lod_rad_arr  # shape (nlambd,)
+    pixscale_rad_arr = (
+        observatory.coronagraph.pixscale * lod_rad_arr
+    )  # shape (nlambda,)
     oneopixscale_arcsec_arr = (1 * PIXEL) / pixscale_rad_arr.to(
         ARCSEC
-    )  # shape (nlambd,) [pix/arcsec]
+    )  # shape (nlambda,) [pix/arcsec]
 
     ix_arr = (
         scene.xp * oneopixscale_arcsec_arr + observatory.coronagraph.xcenter
-    ).value  # shape (nlambd,), float pixel indices
+    ).value  # shape (nlambda,), float pixel indices
     iy_arr = (
         scene.yp * oneopixscale_arcsec_arr + observatory.coronagraph.ycenter
-    ).value  # shape (nlambd,), float pixel indices
+    ).value  # shape (nlambda,), float pixel indices
 
     ix_arr = np.atleast_1d(ix_arr)
     iy_arr = np.atleast_1d(iy_arr)
 
     # Integer (floored) pixel indices for coronagraph map lookups
-    ix_int = np.floor(ix_arr).astype(int)  # shape (nlambd,)
-    iy_int = np.floor(iy_arr).astype(int)  # shape (nlambd,)
+    ix_int = np.floor(ix_arr).astype(int)  # shape (nlambda,)
+    iy_int = np.floor(iy_arr).astype(int)  # shape (nlambda,)
 
     # --- Pixel validity mask (checks if the planet is within coronagraph pixels) ---
     npix = observatory.coronagraph.npix
     pixel_valid_mask = np.atleast_1d(
         (ix_int >= 0) & (ix_int < npix) & (iy_int >= 0) & (iy_int < npix)
-    )  # shape (nlambd,), bool
+    )  # shape (nlambda,), bool
 
     # Clamp indices so fancy indexing never goes out of bounds on invalid channels
     # (values for those channels will be masked out anyway)
     ix_safe = np.clip(ix_int, 0, npix - 1)
     iy_safe = np.clip(iy_int, 0, npix - 1)
 
-    # --- Vectorized coronagraph map lookups  [shape (nlambd,)] ---
+    # --- Vectorized coronagraph map lookups  [shape (nlambda,)] ---
 
     # NOTE: noisefloor_interp: technically the Y axis
     # is rows and the X axis is columns,
@@ -747,14 +749,14 @@ def calculate_exposure_time_or_snr(
     # NOTE: npsfratios == 1 in practice; iratio = 0 throughout.
     iratio = 0  # only one psf truncation ratio supported
 
-    # omega_lod at the planet position, shape (nlambd,)
+    # omega_lod at the planet position, shape (nlambda,)
     omega_lod_at_planet = u.Quantity(
         np.atleast_1d(
             observatory.coronagraph.omega_lod[iy_safe, ix_safe, iratio].value
         ),
         observatory.coronagraph.omega_lod.unit,
     )
-    # photometric aperture throughput at the planet position, shape (nlambd,)
+    # photometric aperture throughput at the planet position, shape (nlambda,)
     Upsilon_at_planet = np.atleast_1d(
         observatory.coronagraph.photometric_aperture_throughput[
             iy_safe, ix_safe, iratio
@@ -764,7 +766,7 @@ def calculate_exposure_time_or_snr(
     # -----------------------------------------------------------------------
     # Measure coronagraph performance close to IWA
     # -----------------------------------------------------------------------
-    # Compute per wavelength via the existing helper (now vectorized over nlambd
+    # Compute per wavelength via the existing helper (now vectorized over nlambda
     # because measure_coronagraph_performance_at_IWA accepts scalar oneopixscale;
     # we call it in a list-comprehension to preserve the existing function signature) #TODO update after validation
 
@@ -779,7 +781,7 @@ def calculate_exposure_time_or_snr(
             observatory.coronagraph.ycenter,
             oneopixscale_arcsec_arr[ilambd],
         )
-        for ilambd in range(observation.nlambd)
+        for ilambd in range(observation.nlambda)
     ]
 
     # Convert to Quantity arrays
@@ -1142,7 +1144,7 @@ def calculate_exposure_time_or_snr(
     below_noise_floor = np.atleast_1d(
         (pixel_valid_mask & phot_aperture_valid_mask & (CRp_arr <= CRnf_arr))
         if mode == "exposure_time"
-        else np.zeros(observation.nlambd, dtype=bool)
+        else np.zeros(observation.nlambda, dtype=bool)
     )
     if np.any(below_noise_floor):
         logger.error(
@@ -1172,7 +1174,7 @@ def calculate_exposure_time_or_snr(
     sciencetime_arr = (
         observation.SNR**2 * cp_arr
         if mode == "exposure_time"
-        else u.Quantity(np.zeros(observation.nlambd), u.s)
+        else u.Quantity(np.zeros(observation.nlambda), u.s)
     )
 
     observation.validation_variables = {

@@ -138,6 +138,7 @@ def fill_parameters(
     default_parameters: dict,
     locked_keys: set = None,
     allow_override: set = None,
+    rebinned_wavelength: list = None,
 ) -> None:
     """
     Populate class object attributes with user parameters or default values.
@@ -163,6 +164,7 @@ def fill_parameters(
         correspond to a key in ``default_parameters`` raises a ValueError,
         to catch typos rather than silently ignoring them.
     """
+
     if locked_keys is None:
         locked_keys = set()
     if allow_override is None:
@@ -183,6 +185,50 @@ def fill_parameters(
             return u.Quantity(user_value, default_value.unit)
         return user_value
 
+    # Step 0: ensure that all the overrides parameters have the correct length
+    for key in allow_override:
+        if (
+            key in parameters
+        ):  # the user actually provided the value, otherwise nothing will happen
+            param_value = parameters[key]
+
+            # Extract value and unit if it's a Quantity
+            if isinstance(param_value, u.Quantity):
+                param_unit = param_value.unit
+                param_array = param_value.value
+            else:
+                param_unit = None
+                param_array = param_value
+
+            if isinstance(param_array, (np.ndarray, list)) and len(param_array) > 1:
+                if len(param_array) == len(
+                    parameters["wavelength"]
+                ):  # Rebin only parameters that are supposed to be nlambda
+                    logger.info(
+                        f"Before overriding: rebinning {key} array to regridded lambda..."
+                    )
+                    rebinned_values = regrid_to_grid(
+                        param_array,
+                        from_wavelength=parameters["wavelength"],
+                        to_wavelength=rebinned_wavelength,
+                        name=key,
+                        interpolation="1d",
+                    )
+                    # Reattach unit if original was a Quantity
+                    if param_unit is not None:
+                        parameters[key] = rebinned_values * param_unit
+                    else:
+                        parameters[key] = rebinned_values
+                else:
+                    raise ValueError(
+                        f"Before overriding: {key} does not have length equal to input wavelength. Please check your inputs."
+                    )
+            else:
+                logger.info(
+                    f"Before overriding: {key} is a scalar and won't be rebinned."
+                )
+
+    # Step 1: replace overrides when possible
     for key, default_value in default_parameters.items():
         is_locked = key in locked_keys
         is_overridden = key in allow_override
@@ -925,7 +971,7 @@ def regrid_to_grid(
     values,
     from_wavelength,
     to_wavelength,
-    to_delta_wavelength=None,
+    to_delta_wavelength=None,  # (only needed for Gaussian interpolation)
     *,  # Forces all subsequent parameters to be keyword-only (must be called as name="value")
     name: str = "parameter",
     interpolation: str = "1d",  # 1d or Gaussian
@@ -953,7 +999,7 @@ def regrid_to_grid(
     to_wavelength : array-like
         The target (resolved) wavelength grid, i.e. ``observation.wavelength``.
     to_delta_wavelength : array-like, optional
-        Bin widths of the target grid, required only when a regrid is needed.
+        Bin widths of the target grid, required only when a regrid is needed. (only used for Gaussian interpolation)
     name : str, optional
         Name used in log messages.
 

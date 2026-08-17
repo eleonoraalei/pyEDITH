@@ -174,7 +174,7 @@ def mock_observation_imager():
     obs.wavelength = u.Quantity([0.5], u.micron)
     obs.SNR = u.Quantity([7], DIMENSIONLESS)
     obs.CRb_multiplier = 2
-    obs.nlambd = 1
+    obs.nlambda = 1
     obs.tp = 0.0 * u.s
     obs.exptime = u.Quantity([0.0], u.s)
     obs.fullsnr = u.Quantity([0.0], DIMENSIONLESS)
@@ -190,7 +190,7 @@ def mock_observation_ifs():
     obs.wavelength = u.Quantity([0.5, 0.6], u.micron)
     obs.SNR = u.Quantity([7, 7], DIMENSIONLESS)
     obs.CRb_multiplier = 2
-    obs.nlambd = 2
+    obs.nlambda = 2
     obs.exptime = u.Quantity([0.0, 0.0], u.s)
     obs.fullsnr = u.Quantity([0.0, 0.0], DIMENSIONLESS)
     return obs

@@ -1,38 +1,34 @@
-;This is an input file for EDITH
-;Comments are preceeded with a # or a ;
+;This is an input file for pyEDITH
 ;In the comments below, ( ) indicates the units and { } indicates the data format
 
 ;Variable names cannot be changed
-;All string data types must be encased in ' ' or " "
 ;Arrays are encased by [ ] and entries are separated by ,
 ;Scalars cannot be encased in [ ]--scalars are not the same as one-element arrays
 ;Spaces do not matter, empty lines do not matter
-;Parameter definitions can span multiple lines (i.e., long arrays can be split between lines if desired)
 
 ;--------------------------------
 ;------- REFERENCE LAMBDA -------
 ;--------------------------------
 
 ;--- OBSERVATIONAL PARAMETERS ---
-wavelength = [0.5,0.55]              ;   wavelength (micron)
-snr = [7.0,7.0]                 ;   signal-to-noise ratio at lambda (must have same length as lambda)
-CRb_multiplier  = 2.          ; factor to multiply to remove background
-psf_trunc_ratio = 0.35      ; truncation ratio of the PSF 
-regrid_wavelength = False ; we don't want to regrid over higher spectral resolution since this is just an example
+wavelength = [0.5,0.55]                     ; wavelength (micron)
+snr = [7.0,7.0]                             ; signal-to-noise ratio at desired wavelength {same length as wavelength} 
+CRb_multiplier  = 2.                        ; factor to multiply to remove background
+psf_trunc_ratio = 0.35                      ; truncation ratio of the PSF 
+regrid_wavelength = False                   ; we don't want to regrid over higher spectral resolution since this is just an example
 
 ;--- STAR PARAMETERS ---
-distance = 10           ;   distance to star (pc)
-FstarV_10pc = 1.244e+02     ; flux in the V band (ph/s/cm^2/nm)
-Fstar_10pc = [1.128e+02, 1.13e+02]
-stellar_radius = 0.95            ;   stellar radius (R_sun)
-nzodis = 3.0              ;  amount of exozodi around target star ("zodis")
-ra = 236.0075773682300       ;   right ascension of target star used to estimate zodi (deg) 
-dec = 02.5151668316500      ;   declination of target star used to estimate zodi (deg)
+distance = 10                               ; distance to star (pc)
+FstarV_10pc = 1.244e+02                     ; flux in the V band (ph/s/cm^2/nm)
+Fstar_10pc = [1.128e+02, 1.13e+02]          ; flux at desired wavelength {same length as wavelength} (ph/s/cm^2/nm)
+stellar_radius = 0.95                       ; stellar radius (R_sun)
+nzodis = 3.0                                ; amount of exozodi around target star ("zodis")
+ra = 236.0075773682300                      ; right ascension of target star used to estimate zodi (deg) 
+dec = 02.5151668316500                      ; declination of target star used to estimate zodi (deg)
 
 ;--- PLANET PARAMETERS ---
-separation = 0.1       ;   separation of planet (arcsec)
-Fp/Fs =  [1e-10,1.1e-10]                 ; planet flux at lambda in ph/s/cm^2/nm 
-Fp_min/Fs =  1e-10                 ; minimum planet flux that can be detected at lambda in ph/s/cm^2/nm 
+separation = 0.1                            ; separation of planet (arcsec)
+Fp/Fs =  [1e-10,1.1e-10]                    ; planet contrast at desired wavelength {same length as wavelength} 
 
 
 ;--- OBSERVATORY PARAMETERS ----

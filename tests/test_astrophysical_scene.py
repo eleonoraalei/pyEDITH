@@ -836,10 +836,10 @@ def test_calculate_zodi_exozodi_correct_array_lengths():
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(parameters)
 
-    nlambd = len(parameters["wavelength"])
-    assert len(scene.Fzodi_list) == nlambd
-    assert len(scene.Fexozodi_list) == nlambd
-    assert len(scene.Fbinary_list) == nlambd
+    nlambda = len(parameters["wavelength"])
+    assert len(scene.Fzodi_list) == nlambda
+    assert len(scene.Fexozodi_list) == nlambda
+    assert len(scene.Fbinary_list) == nlambda
 
 
 def test_calculate_zodi_exozodi_flux_values():
@@ -1194,7 +1194,7 @@ def test_regrid_spectra_basic_functionality():
 
     class MockObservation:
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
-        nlambd = len(wavelength)
+        nlambda = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
         _input_wavelength = parameters["wavelength"]
 
@@ -1226,14 +1226,14 @@ def test_regrid_spectra_basic_functionality():
     scene.regrid_spectra(observation)
 
     # Check that all arrays match observation wavelength grid
-    assert len(scene.F0) == observation.nlambd
-    assert len(scene.Fzodi_list) == observation.nlambd
-    assert len(scene.Fexozodi_list) == observation.nlambd
-    assert len(scene.Fbinary_list) == observation.nlambd
-    assert len(scene.Fp_over_Fs) == observation.nlambd
-    assert len(scene.Fs_over_F0) == observation.nlambd
-    assert len(scene.mag) == observation.nlambd
-    assert len(scene.deltamag) == observation.nlambd
+    assert len(scene.F0) == observation.nlambda
+    assert len(scene.Fzodi_list) == observation.nlambda
+    assert len(scene.Fexozodi_list) == observation.nlambda
+    assert len(scene.Fbinary_list) == observation.nlambda
+    assert len(scene.Fp_over_Fs) == observation.nlambda
+    assert len(scene.Fs_over_F0) == observation.nlambda
+    assert len(scene.mag) == observation.nlambda
+    assert len(scene.deltamag) == observation.nlambda
 
 
 def test_regrid_spectra_preserves_units():
@@ -1246,7 +1246,7 @@ def test_regrid_spectra_preserves_units():
 
     class MockObservation:
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
-        nlambd = len(wavelength)
+        nlambda = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
         _input_wavelength = parameters["wavelength"]
 

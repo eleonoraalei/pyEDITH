@@ -110,11 +110,11 @@ class ToyModelDetector(Detector):
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
         "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
-        "DC": [3e-5] * DARK_CURRENT,  # Dark current (counts pix^-1 s^-1, nlambd array)
-        "RN": [0.0] * READ_NOISE,  # Read noise (counts pix^-1 read^-1, nlambd array)
-        "tread": [1000] * READ_TIME,  # Read time (s, nlambd array)
+        "DC": [3e-5] * DARK_CURRENT,  # Dark current (counts pix^-1 s^-1, nlambda array)
+        "RN": [0.0] * READ_NOISE,  # Read noise (counts pix^-1 read^-1, nlambda array)
+        "tread": [1000] * READ_TIME,  # Read time (s, nlambda array)
         "CIC": [1.3e-3]
-        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array)
+        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambda array)
         "QE": [0.9] * QUANTUM_EFFICIENCY,  # Quantum efficiency of detector
         "dQE": [0.75]
         * DIMENSIONLESS,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
@@ -176,6 +176,7 @@ class ToyModelDetector(Detector):
             "QE",
             "dQE",
         ]
+
         self.DEFAULT_CONFIG.update(
             {
                 key: parse_input.normalize_list_shapes(
@@ -226,11 +227,11 @@ class EACDetector(Detector):
         "pixscale_mas": None,  # Detector pixel scale in milliarcseconds.
         "npix_multiplier": 1
         * DIMENSIONLESS,  # Number of detector pixels per image plane "pixel".
-        "DC": None,  # Dark current (counts pix^-1 s^-1, nlambd array)
-        "RN": None,  # Read noise (counts pix^-1 read^-1, nlambd array)
-        "tread": [1000] * READ_TIME,  # Read time (s, nlambd array) # TO ADD TO YAML
+        "DC": None,  # Dark current (counts pix^-1 s^-1, nlambda array)
+        "RN": None,  # Read noise (counts pix^-1 read^-1, nlambda array)
+        "tread": [1000] * READ_TIME,  # Read time (s, nlambda array) # TO ADD TO YAML
         "CIC": [0]
-        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambd array) # TO ADD TO YAML
+        * CLOCK_INDUCED_CHARGE,  # Clock-induced charge (counts pix^-1 photon_count^-1, nlambda array) # TO ADD TO YAML
         "QE": None,  # Quantum efficiency of detector
         "dQE": None,  # Effective QE due to degradation, cosmic ray effects, readout inefficiencies
     }
@@ -312,9 +313,9 @@ class EACDetector(Detector):
         )
         self.DEFAULT_CONFIG["DC"] = (
             dc_arr * DARK_CURRENT
-        )  # Dark current (counts pix^-1 s^-1, nlambd array)
+        )  # Dark current (counts pix^-1 s^-1, nlambda array)
 
-        # Dark current (counts pix^-1 s^-1, nlambd array)
+        # Dark current (counts pix^-1 s^-1, nlambda array)
 
         rn_arr = np.empty_like(mediator.get_observation_parameter("wavelength").value)
         rn_arr[mediator.get_observation_parameter("wavelength") < 1 * WAVELENGTH] = (
@@ -400,6 +401,7 @@ class EACDetector(Detector):
             allow_override=set(
                 set(parameters.get("overrides", [])) & self.LOCKED_KEYS
             ),  # finds the keys that should be locked but that the user wants to override
+            rebinned_wavelength=mediator.get_observation_parameter("wavelength").value,
         )
 
         # USED ONLY TO VALIDATE ETCs
