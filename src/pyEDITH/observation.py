@@ -81,13 +81,6 @@ class Observation:
         # ------------------------------------------------------------------
         self.nlambda = len(self.wavelength)
 
-        # Target bin widths (as plain floats) for the regrid branch, if defined.
-        to_delta = (
-            None
-            if self.delta_wavelength is None
-            else np.asarray(self.delta_wavelength.value, dtype=np.float64)
-        )
-
         # ------------------------------------------------------------------
         # SNR: align onto the current resolved grid.
         # ------------------------------------------------------------------
@@ -183,9 +176,6 @@ class Observation:
                 stacklevel=2,
             )
             input_wls = parameters["wavelength"]
-            if parameters["lam_low"] is None and parameters["lam_high"] is None:
-                parameters["lam_low"] = [np.min(input_wls[1:])]
-                parameters["lam_high"] = [np.max(input_wls[:-1])]
 
             assert (
                 len(parameters["spectral_resolution"])

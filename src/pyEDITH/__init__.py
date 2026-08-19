@@ -113,6 +113,7 @@ from .observatory import Observatory
 from .components.coronagraphs import Coronagraph
 from .components.telescopes import Telescope
 from .components.detectors import Detector
+from .components.filters import Filter
 
 # Import main functions
 from .exposure_time_calculator import calculate_exposure_time_or_snr
@@ -132,6 +133,7 @@ __all__ = [
     "Telescope",
     "Coronagraph",
     "Detector",
+    "Filter",
     "calculate_exposure_time_or_snr",
     "main",
     "calculate_texp",
@@ -141,6 +143,7 @@ __all__ = [
     "average_over_bandpass",
     "interpolate_over_bandpass",
     "validate_attributes",
+    "set_verbosity",
 ]
 
 set_verbosity(level="warning")
