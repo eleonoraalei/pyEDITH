@@ -61,6 +61,35 @@ def test_observation_init():
 
 
 # ============================================================================
+# Check filters are within input lambda (LEGACY HELPER)
+# ============================================================================
+
+
+def test_generate_wavelength_grid_lower_boundary_outside_range(ifs_observation_params):
+    """Test that lower boundary outside input range raises AssertionError."""
+    ifs_observation_params["wavelength"] = np.linspace(0.8, 2.0, 1000)
+
+    with pytest.raises(
+        AssertionError,
+        match="Your minimum input wavelength is greater than first channel lower boundary.",
+    ):
+        obs = Observation()
+        obs.load_configuration(ifs_observation_params)
+
+
+def test_generate_wavelength_grid_upper_boundary_outside_range(ifs_observation_params):
+    """Test that upper boundary outside input range raises AssertionError."""
+    ifs_observation_params["wavelength"] = np.linspace(0.1, 1.5, 1000)
+
+    with pytest.raises(
+        AssertionError,
+        match="Your maximum input wavelength is less than last channel upper boundary.",
+    ):
+        obs = Observation()
+        obs.load_configuration(ifs_observation_params)
+
+
+# ============================================================================
 # Tests for Observation.load_configuration - Basic functionality
 # ============================================================================
 
@@ -96,15 +125,20 @@ def test_observation_load_configuration_ifs_mode(ifs_observation_params):
 
     # Check that spectral grid has correct resolution for each channel
     channel_1_mask = obs.wavelength.value < ifs_observation_params["lam_high"][0]
-    channel_2_mask = obs.wavelength.value >= ifs_observation_params["lam_high"][1]
+    channel_2_mask = obs.wavelength.value >= ifs_observation_params["lam_low"][1]
 
-    assert np.all(
-        obs.wavelength[channel_1_mask] / obs.delta_wavelength[channel_1_mask]
-        == ifs_observation_params["spectral_resolution"][0]
+    np.testing.assert_allclose(
+        obs.wavelength[channel_1_mask].value
+        / obs.delta_wavelength[channel_1_mask].value,
+        ifs_observation_params["spectral_resolution"][0],
+        rtol=1e-5,
     )
-    assert np.all(
-        obs.wavelength[channel_2_mask] / obs.delta_wavelength[channel_2_mask]
-        == ifs_observation_params["spectral_resolution"][1]
+
+    np.testing.assert_allclose(
+        obs.wavelength[channel_2_mask].value
+        / obs.delta_wavelength[channel_2_mask].value,
+        ifs_observation_params["spectral_resolution"][1],
+        rtol=1e-5,
     )
     assert len(obs.SNR) == len(obs.wavelength)
     assert len(obs.SNR) != len(ifs_observation_params["wavelength"])

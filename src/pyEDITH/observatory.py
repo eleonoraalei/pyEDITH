@@ -405,7 +405,7 @@ class Observatory(ABC):  # abstract class
             ifs_eff = u.Quantity(parameters.get("IFS_eff", 1.0), unit=DIMENSIONLESS)
 
             # Rebin to proper wavelength grid
-            ifs_eff = utils.regrid_to_grid(
+            ifs_eff = utils.resample_to_wavelength_grid(
                 ifs_eff,
                 from_wavelength=parameters["wavelength"],
                 to_wavelength=mediator.get_observation_parameter("wavelength"),

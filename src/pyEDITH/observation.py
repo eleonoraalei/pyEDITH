@@ -9,19 +9,13 @@ logger = logging.getLogger("pyEDITH")
 
 class Observation:
     """
-    A class representing an astronomical observation.
+    A class representing the observational parameters.
 
-    This class encapsulates various parameters and methods related to
-    astronomical observations, including target star properties, planet
-    characteristics, observational settings, telescope specifications,
-    instrument details, and detector parameters.
+    This class collects the "Operations" setup, specifically initializing the
+    output arrays and selecting the observing mode and filters that the user wants to use.
 
     Parameters
     -----------
-    wavelength : np.ndarray
-        Wavelength array (in microns).
-    nlambda : int
-        Number of wavelength points.
     SNR : np.ndarray
         Desired bulk SNR.
     exptime : ndarray
@@ -52,20 +46,6 @@ class Observation:
         aperture settings. For IFS mode, it can calculate or regrid the wavelength
         grid based on specified parameters.
 
-        Grid model
-        ----------
-        This method is the place where the *resolved* wavelength grid is defined,
-        and it is designed to be safely re-callable (e.g. inside a loop that
-        rebins the grid between iterations). To make that safe:
-
-        * ``parameters["wavelength"]`` is stored verbatim as
-            ``self._input_wavelength`` -- the pristine, pre-regrid source grid.
-            This is the single source of truth used as ``from_wavelength`` and is
-            NEVER overwritten with a regridded array.
-        * Per-wavelength inputs (currently ``snr``) are parsed with ``parse_parameters``
-          and then aligned onto the current resolved grid via ``regrid_to_grid``,
-          always regridding FROM the input wavelength.
-
         Parameters
         ----------
         parameters : dict
@@ -80,65 +60,24 @@ class Observation:
             necessary parameters
         """
         parameters = parse_input.parse_parameters(parameters)
-        self.observing_mode = parameters["observing_mode"]
 
-        # ------------------------------------------------------------------
-        # Pristine source grid: the single source of truth for from_wavelength.
-        # Store it once, before any rebinning, and never overwrite it with a
-        # regridded array. Everything per-wavelength is regridded FROM this.
-        # ------------------------------------------------------------------
-        self._input_wavelength = np.asarray(parameters["wavelength"], dtype=np.float64)
+        # assert (
+        #     np.min(input_wls) <= lam_low
+        # ), "Your minimum input wavelength is greater than the lower boundary."
+        # assert (
+        #     np.max(input_wls) >= lam_high
+        # ), "Your maximum input wavelength is less than the upper boundary."
+
+        self.observing_mode = parameters["observing_mode"]
 
         # -------- INPUTS ---------
         # Observational parameters
-        if parameters["observing_mode"] == "IMAGER":
-            self.wavelength = (
-                parameters["wavelength"] * WAVELENGTH
-            )  # wavelength # nlambda array #unit: micron
-            # IMAGER has no meaningful bin widths for regridding; broadcast-only
-            self.delta_wavelength = None
 
-        elif (
-            parameters["observing_mode"] == "IFS"
-            and bool(parameters["regrid_wavelength"]) is False
-        ):
-            self.wavelength = (
-                parameters["wavelength"] * WAVELENGTH
-            )  # wavelength # nlambda array #unit: micron
-            IFS_resolution = self.wavelength / np.gradient(
-                self.wavelength
-            )  # calculate the resolution from the wavelength grid
-            dlam_um = np.gradient(self.wavelength)
-            if ~np.isfinite(IFS_resolution).any():
-                logger.warning(
-                    "Wavelength grid is not valid. Using default spectral resolution of 140."
-                )
-                IFS_resolution = 140 * np.ones_like(
-                    self.wavelength
-                )  # default resolution
-                dlam_um = self.wavelength / IFS_resolution
-            self.delta_wavelength = dlam_um
-
-        elif (
-            parameters["observing_mode"] == "IFS"
-            and bool(parameters["regrid_wavelength"]) is True
-        ):
-            logger.info("Calculating a new wavelength grid and re-gridding spectra...")
-
-            new_lam, new_dlam = utils.regrid_wavelengths(
-                self._input_wavelength,
-                parameters["spectral_resolution"],
-                parameters["lam_low"],
-                parameters["lam_high"],
-            )
-            self.wavelength = (
-                new_lam * WAVELENGTH
-            )  # wavelength # nlambda array #unit: micron
-            self.delta_wavelength = new_dlam * WAVELENGTH
+        self.legacy_helper(parameters)
 
         # ------------------------------------------------------------------
         # Length of the current resolved grid. Any per-wavelength parameter is
-        # aligned against this via regrid_to_grid.
+        # aligned against this via resample_to_wavelength_grid.
         # ------------------------------------------------------------------
         self.nlambda = len(self.wavelength)
 
@@ -152,9 +91,9 @@ class Observation:
         # ------------------------------------------------------------------
         # SNR: align onto the current resolved grid.
         # ------------------------------------------------------------------
-        self.SNR = utils.regrid_to_grid(
+        self.SNR = utils.resample_to_wavelength_grid(
             parameters["snr"] * DIMENSIONLESS,
-            from_wavelength=self._input_wavelength,
+            from_wavelength=parameters["wavelength"],
             to_wavelength=self.wavelength.value,
             name="snr",
             interpolation="1d",
@@ -199,3 +138,80 @@ class Observation:
         }
 
         utils.validate_attributes(self, expected_args)
+
+    def legacy_helper(self, parameters):
+
+        if parameters["observing_mode"] == "IMAGER":
+            self.wavelength = (
+                parameters["wavelength"] * WAVELENGTH
+            )  # wavelength # nlambda array #unit: micron
+            # IMAGER has no meaningful bin widths for regridding; broadcast-only
+            self.delta_wavelength = None
+
+        elif (
+            parameters["observing_mode"] == "IFS"
+            and bool(parameters["regrid_wavelength"]) is False
+        ):
+            self.wavelength = (
+                parameters["wavelength"] * WAVELENGTH
+            )  # wavelength # nlambda array #unit: micron
+            IFS_resolution = self.wavelength / np.gradient(
+                self.wavelength
+            )  # calculate the resolution from the wavelength grid
+            dlam_um = np.gradient(self.wavelength)
+            if ~np.isfinite(IFS_resolution).any():
+                logger.warning(
+                    "Wavelength grid is not valid. Using default spectral resolution of 140."
+                )
+                IFS_resolution = 140 * np.ones_like(
+                    self.wavelength
+                )  # default resolution
+                dlam_um = self.wavelength / IFS_resolution
+            self.delta_wavelength = dlam_um
+
+        elif (
+            parameters["observing_mode"] == "IFS"
+            and bool(parameters["regrid_wavelength"]) is True
+        ):
+            logger.info("Calculating a new wavelength grid and re-gridding spectra...")
+            import warnings
+
+            warnings.warn(
+                "The parameters 'spectral_resolution', 'lam_low', 'lam_high', and 'regrid_wavelength' will be deprecated soon. "
+                "Please update your configuration to use the new Filter object.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            input_wls = parameters["wavelength"]
+            if parameters["lam_low"] is None and parameters["lam_high"] is None:
+                parameters["lam_low"] = [np.min(input_wls[1:])]
+                parameters["lam_high"] = [np.max(input_wls[:-1])]
+
+            assert (
+                len(parameters["spectral_resolution"])
+                == len(parameters["lam_low"])
+                == len(parameters["lam_high"])
+            )
+            assert (
+                np.min(input_wls) < parameters["lam_low"][0]
+            ), "Your minimum input wavelength is greater than first channel lower boundary."
+            assert (
+                np.max(input_wls) > parameters["lam_high"][-1]
+            ), f"Your maximum input wavelength is less than last channel upper boundary."
+
+            new_lam = []
+            new_dlam = []
+            for i in range(0, len(parameters["spectral_resolution"])):
+                res = parameters["spectral_resolution"][i]
+                lam_low = parameters["lam_low"][i]
+                lam_high = parameters["lam_high"][i]
+
+                lam, dlam = utils.generate_wavelength_grid(res, lam_low, lam_high)
+
+                new_lam = np.concatenate((new_lam, lam))
+                new_dlam = np.concatenate((new_dlam, dlam))
+
+            self.wavelength = (
+                new_lam * WAVELENGTH
+            )  # wavelength # nlambda array #unit: micron
+            self.delta_wavelength = new_dlam * WAVELENGTH

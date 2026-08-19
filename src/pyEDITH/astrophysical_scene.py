@@ -490,6 +490,8 @@ class AstrophysicalScene:
         Brightest planet to resolve at the IWA
     F0V : float
         Flux zero point for V band
+    wavelength:
+        Wavelength array
     F0 : ndarray
         Flux zero points for prescribed wavelengths
     M_V : float
@@ -545,6 +547,9 @@ class AstrophysicalScene:
         parameters = parse_input.parse_parameters(parameters)
 
         # -------- INPUTS ---------
+
+        # Input wavelength
+        self._input_wavelength = np.asarray(parameters["wavelength"], dtype=np.float64)
 
         # distance to star (pc) # used to be (ntargs array) now scalar
         self.dist = parameters["distance"] * DISTANCE
@@ -840,9 +845,9 @@ class AstrophysicalScene:
             setattr(
                 self,
                 attr_name,
-                utils.regrid_to_grid(
+                utils.resample_to_wavelength_grid(
                     getattr(self, attr_name),
-                    observation._input_wavelength,
+                    self._input_wavelength,
                     observation.wavelength.value,
                     observation.delta_wavelength.value,
                     name=attr_name,

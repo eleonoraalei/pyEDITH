@@ -207,7 +207,7 @@ def fill_parameters(
                     logger.info(
                         f"Before overriding: rebinning {key} array to regridded lambda..."
                     )
-                    rebinned_values = regrid_to_grid(
+                    rebinned_values = resample_to_wavelength_grid(
                         param_array,
                         from_wavelength=parameters["wavelength"],
                         to_wavelength=rebinned_wavelength,
@@ -724,110 +724,26 @@ def synthesize_observation(
     return obs, noise
 
 
-def wavelength_grid_fixed_res(x_min: float, x_max: float, res: float = -1) -> tuple:
+def generate_wavelength_grid(
+    # input_wls: np.ndarray,
+    res: float,
+    lam_low: float,
+    lam_high: float,
+) -> tuple:
     """
-    LEGACY
-    Generate a wavelength grid at a fixed spectral resolution.
+    Create a new fixed-resolution wavelength grid within given boundaries.
 
     This function creates a wavelength grid with constant resolution across
     the specified wavelength range. The grid spacing increases logarithmically
     to maintain constant R = λ/Δλ.
-
     Parameters
     ----------
-    x_min : float
-        Minimum wavelength
-    x_max : float
-        Maximum wavelength
-    res : float, optional
-        Spectral resolution R = λ/Δλ. Default is -1
-
-    Returns
-    -------
-    tuple
-        A tuple containing two 1D numpy arrays:
-
-        wavelength : np.ndarray
-            Wavelength grid
-
-        delta_wavelength : np.ndarray
-            Delta wavelength grid
-    """
-
-    x = [x_min]
-    fac = (1 + 2 * res) / (2 * res - 1)
-    i = 0
-    while x[i] * fac < x_max:
-        x = np.concatenate((x, [x[i] * fac]))
-        i = i + 1
-    Dx = x / res
-    return np.squeeze(x), np.squeeze(Dx)
-
-
-def gen_wavelength_grid(x_min: list, x_max: list, res: list) -> tuple:
-    """
-    LEGACY
-    Generate a continuous wavelength grid for multiple spectral channels.
-
-    This function creates wavelength grids at fixed resolution for each spectral
-    channel, then concatenates them to form a continuous wavelength grid covering
-    all channels.
-
-    Parameters
-    ----------
-    x_min : list
-        Minimum wavelength for each spectral channel
-    x_max : list
-        Maximum wavelength for each spectral channel
-    res : list
-        Spectral resolution for each spectral channel
-
-    Returns
-    -------
-    tuple
-        A tuple containing two 1D numpy arrays:
-
-        wavelength_grid : np.ndarray
-            Combined wavelength grid for all channels
-
-        delta_wavelength_grid : np.ndarray
-            Combined delta wavelength grid for all channels
-    """
-
-    x, Dx = wavelength_grid_fixed_res(x_min[0], x_max[0], res=res[0])
-    if len(x_min) > 1:
-        for i in range(1, len(x_min)):
-            xi, Dxi = wavelength_grid_fixed_res(x_min[i], x_max[i], res=res[i])
-            x = np.concatenate((x, xi))
-            Dx = np.concatenate((Dx, Dxi))
-    Dx = [Dxs for _, Dxs in sorted(zip(x, Dx))]
-    x = np.sort(x)
-    return np.squeeze(x), np.squeeze(Dx)
-
-
-def regrid_wavelengths(
-    input_wls: np.ndarray, res: list, lam_low: list = None, lam_high: list = None
-) -> tuple:
-    """
-    LEGACY
-    Create a new wavelength grid with specified resolution and channel boundaries.
-
-    This function generates a new wavelength grid given the resolution and
-    channel boundaries for each spectral channel. If no boundaries are provided,
-    it uses the full range of the input wavelengths.
-
-    Parameters
-    ----------
-    input_wls : np.ndarray
-        The wavelength grid supplied by the user
-    res : list
-        Array of desired resolutions for each channel. Should have length equal
-        to the number of spectral channels. For example, for UV, VIS, and NIR
-        channels: res = [R_UV, R_VIS, R_NIR], e.g. [7, 140, 40]
-    lam_low : list, optional
-        Array of the lower boundaries of spectral channels
-    lam_high : list, optional
-        Array of the upper boundaries of spectral channels
+    res : float
+        Desired spectral resolution, e.g. R = lambda / delta_lambda
+    lam_low : float, optional
+        Lower boundary of the new grid. Defaults to the input grid minimum.
+    lam_high : float, optional
+        Upper boundary of the new grid. Defaults to the input grid maximum.
 
     Returns
     -------
@@ -841,26 +757,14 @@ def regrid_wavelengths(
             New delta wavelength grid
     """
 
-    if lam_low is None and lam_high is None:
-        lam_low = [np.min(input_wls[1:])]
-        lam_high = [np.max(input_wls[:-1])]
-    else:  # lam_low is not None and lam_high is not None:
-        assert len(res) == len(lam_low) == len(lam_high)
-
-    if len(res) > 1:
-        assert (
-            np.min(input_wls) < lam_low[0]
-        ), "Your minimum input wavelength is greater than first channel lower boundary."
-        assert (
-            np.max(input_wls) > lam_high[-1]
-        ), f"Your maximum input wavelength is less than last channel upper boundary."
-
-        lam, dlam = gen_wavelength_grid(lam_low, lam_high, res)
-    else:
-        # no channel boundaries
-        lam, dlam = gen_wavelength_grid(lam_low, lam_high, res)
-
-    return lam, dlam
+    x = [lam_low]
+    fac = (1 + 2 * res) / (2 * res - 1)
+    i = 0
+    while x[i] * fac < lam_high:
+        x = np.concatenate((x, [x[i] * fac]))
+        i = i + 1
+    Dx = x / res
+    return np.squeeze(x), np.squeeze(Dx)
 
 
 def regrid_spec_gaussconv(
@@ -937,37 +841,7 @@ def regrid_spec_gaussconv(
     return spec_regrid
 
 
-def regrid_spec_interp(
-    input_wls: np.ndarray, input_spec: np.ndarray, new_lam: np.ndarray
-) -> np.ndarray:
-    """
-    (Legacy) Regrid a spectrum onto a new wavelength grid using 1D interpolation.
-
-    This function regrids a spectrum using simple linear interpolation between
-    the original and new wavelength grids. This method is faster than Gaussian
-    convolution but does not account for spectral resolution effects.
-
-    Parameters
-    ----------
-    input_wls : np.ndarray
-        The wavelength grid supplied by the user
-    input_spec : np.ndarray
-        The spectrum supplied by the user
-    new_lam : np.ndarray
-        The new wavelength grid calculated for the ETC
-
-    Returns
-    -------
-    np.ndarray
-        1D array containing the regridded spectrum with original units preserved
-    """
-
-    interp_func = interp1d(input_wls, input_spec)
-    spec_regrid = interp_func(new_lam)
-    return spec_regrid
-
-
-def regrid_to_grid(
+def resample_to_wavelength_grid(
     values,
     from_wavelength,
     to_wavelength,
@@ -1033,11 +907,11 @@ def regrid_to_grid(
             f"has length {n_target}. Rebinning..."
         )
         if interpolation == "1d":
-            result = regrid_spec_interp(
-                np.asarray(from_wavelength, dtype=np.float64),
-                values_plain,
-                to_wavelength,
+            interp_func = interp1d(
+                np.asarray(from_wavelength, dtype=np.float64), values_plain
             )
+            result = interp_func(to_wavelength)
+
         elif interpolation == "Gaussian":
             if to_delta_wavelength is None:
                 raise ValueError(

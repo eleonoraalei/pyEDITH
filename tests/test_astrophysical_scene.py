@@ -1196,11 +1196,14 @@ def test_regrid_spectra_basic_functionality():
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
         nlambda = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
-        _input_wavelength = parameters["wavelength"]
 
     observation = MockObservation()
 
     # Set up scene with random spectra
+    scene._input_wavelength = (
+        np.asarray(parameters["wavelength"], dtype=np.float64) * WAVELENGTH
+    )
+
     scene.F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
     scene.Fzodi_list = (
         np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
@@ -1248,11 +1251,14 @@ def test_regrid_spectra_preserves_units():
         wavelength = np.linspace(0.5, 1.7, 100) * WAVELENGTH
         nlambda = len(wavelength)
         delta_wavelength = np.gradient(wavelength)
-        _input_wavelength = parameters["wavelength"]
 
     observation = MockObservation()
 
     # Set up scene with specific units
+    scene._input_wavelength = (
+        np.asarray(parameters["wavelength"], dtype=np.float64) * WAVELENGTH
+    )
+
     scene.F0 = np.random.randn(len(parameters["wavelength"])) * PHOTON_FLUX_DENSITY
     scene.Fzodi_list = (
         np.random.randn(len(parameters["wavelength"])) * INV_SQUARE_ARCSEC
