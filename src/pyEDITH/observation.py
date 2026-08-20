@@ -61,6 +61,10 @@ class Observation:
         """
         parameters = parse_input.parse_parameters(parameters)
 
+        self.observing_mode = parameters["observing_mode"]
+
+        # CHECK THAT WAVELENGTH IS IN FILTERS, OTHERWISE DEACTIVATE FILTER
+
         # assert (
         #     np.min(input_wls) <= lam_low
         # ), "Your minimum input wavelength is greater than the lower boundary."
@@ -68,12 +72,64 @@ class Observation:
         #     np.max(input_wls) >= lam_high
         # ), "Your maximum input wavelength is less than the upper boundary."
 
-        self.observing_mode = parameters["observing_mode"]
-
-        # -------- INPUTS ---------
+        # -------- FILTERS ---------
         # Observational parameters
+        print("filter_list" in parameters.keys())
+        if "filter_list" in parameters.keys():
+            active_filters = []
+            wl_min = np.min(parameters["wavelength"]) * WAVELENGTH
+            wl_max = np.max(parameters["wavelength"]) * WAVELENGTH
 
-        self.legacy_helper(parameters)
+            # Calculate input spectrum resolution if in IFS mode
+            if self.observing_mode == "IFS":
+                input_wavelengths = parameters["wavelength"] * WAVELENGTH
+                input_dlam = np.gradient(input_wavelengths)
+                input_resolution = input_wavelengths / input_dlam
+
+            for f in parameters["filter_list"]:
+
+                if wl_min <= f.low and wl_max >= f.high:
+                    active_filters.append(f)
+
+                    # Check spectral resolution compatibility for IFS mode
+                    if self.observing_mode == "IFS":
+                        # Find overlapping wavelength region
+                        overlap_mask = (input_wavelengths >= f.low) & (
+                            input_wavelengths <= f.high
+                        )
+                        if np.any(overlap_mask):
+                            # Get median resolution in overlapping region
+                            median_input_res = np.median(input_resolution[overlap_mask])
+
+                            # Warn if input resolution is lower than filter resolution
+                            if median_input_res < f.resolution:
+                                logger.warning(
+                                    f"Filter {f.name if hasattr(f, 'name') else f}: "
+                                    f"Input spectrum resolution (R~{median_input_res:.1f}) is lower than "
+                                    f"filter resolution (R~{f.resolution:.1f}). "
+                                    f"Interpolation to filter wavelength grid may introduce artifacts."
+                                )
+                else:
+                    logger.warning(
+                        f"Filter {f.name if hasattr(f, 'name') else f} discarded: "
+                        f"wavelength range [{wl_min}, {wl_max}] does not fully cover "
+                        f"filter range [{f.low}, {f.high}]"
+                    )
+
+            parameters["filter_list"] = active_filters
+
+            if len(active_filters) == 0:
+                raise ValueError(
+                    "No filters remain after filtering. Specify different filters or change spectrum."
+                )
+            else:
+                # concatenate wavelengths from all active filters (to reproduce legacy behavior)
+                filter_wavelengths = [f.wavelength for f in active_filters]
+                self.wavelength = np.concatenate(filter_wavelengths)
+                filter_deltawavelengths = [f.delta_wavelength for f in active_filters]
+                self.delta_wavelength = np.concatenate(filter_deltawavelengths)
+        else:
+            self.legacy_helper(parameters)
 
         # ------------------------------------------------------------------
         # Length of the current resolved grid. Any per-wavelength parameter is
@@ -167,14 +223,6 @@ class Observation:
             and bool(parameters["regrid_wavelength"]) is True
         ):
             logger.info("Calculating a new wavelength grid and re-gridding spectra...")
-            import warnings
-
-            warnings.warn(
-                "The parameters 'spectral_resolution', 'lam_low', 'lam_high', and 'regrid_wavelength' will be deprecated soon. "
-                "Please update your configuration to use the new Filter object.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
             input_wls = parameters["wavelength"]
 
             assert (

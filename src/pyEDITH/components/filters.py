@@ -57,14 +57,24 @@ class Filter:
                 f"Filter {name}: resolution not set, will default to IMAGER type."
             )
         if low is not None and high is not None:
-            self.low = low.to(WAVELENGTH)
-            self.high = high.to(WAVELENGTH)
+            self.low = (
+                low.to(WAVELENGTH) if isinstance(low, u.Quantity) else low * WAVELENGTH
+            )
+            self.high = (
+                high.to(WAVELENGTH)
+                if isinstance(high, u.Quantity)
+                else high * WAVELENGTH
+            )
             self.center = (self.low + self.high) / 2
             self.bandpass = ((self.high - self.low) / self.center).to(DIMENSIONLESS)
             self.width = self.high - self.low
 
         elif center is not None and bandpass is not None:
-            self.center = center.to(WAVELENGTH)
+            self.center = (
+                center.to(WAVELENGTH)
+                if isinstance(center, u.Quantity)
+                else center * WAVELENGTH
+            )
             self.bandpass = bandpass * DIMENSIONLESS
             self.low = self.center * (1 - self.bandpass.value / 2)
             self.high = self.center * (1 + self.bandpass.value / 2)

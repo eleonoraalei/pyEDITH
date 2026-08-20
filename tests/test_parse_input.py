@@ -152,6 +152,71 @@ def spectrum_file_non_numeric():
     os.unlink(tmp.name)
 
 
+@pytest.fixture
+def filter_input_file_center_bandpass():
+    """Fixture providing an input file with filters using center/bandpass specification."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = 'IMAGER'
+        wavelength = 0.6
+        filter_name = ['F1']
+        filter_center = [0.6]
+        filter_bandpass = [0.1]
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
+def filter_input_file_low_high():
+    """Fixture providing an input file with filters using low/high specification."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = 'IMAGER'
+        wavelength = 0.6
+        filter_name = ['F1']
+        filter_low = [0.5]
+        filter_high = [0.7]
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
+def filter_input_file_ifs_with_resolution():
+    """Fixture providing an IFS mode input file with filters including resolution."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = 'IFS'
+        spectrum_file = 'inputs/spectrum.txt' 
+        filter_name = ['Channel1', 'Channel2']
+        filter_low = [0.5, 1.0]
+        filter_high = [1.0, 1.7]
+        filter_resolution = [140, 40]
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
+@pytest.fixture
+def filter_input_file_single_filter():
+    """Fixture providing an input file with a single filter (scalar values)."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = 'IMAGER'
+        wavelength = 0.6
+        filter_name = 'F1'
+        filter_center = 0.6
+        filter_bandpass = 0.1
+        """)
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)
+
+
 # ============================================================================
 # Tests for parse_input_file - Basic functionality
 # ============================================================================
@@ -1782,3 +1847,427 @@ def test_parse_parameters_npix_multiplier_integer_array():
 
     assert parsed["npix_multiplier"] == 3.0
     assert isinstance(parsed["npix_multiplier"], float)
+
+
+# ============================================================================
+# Tests for parse_input_file - Filter handling
+# ============================================================================
+
+
+def test_parse_input_file_filter_center_bandpass(filter_input_file_center_bandpass):
+    """Test parsing filters with center/bandpass specification."""
+    variables, _ = parse_input_file(
+        filter_input_file_center_bandpass, secondary_flag=False
+    )
+
+    assert "filter_list" in variables
+    assert len(variables["filter_list"]) == 1
+
+    # Check first filter
+    assert variables["filter_list"][0].name == "F1"
+    assert hasattr(variables["filter_list"][0], "wavelength")
+    assert hasattr(variables["filter_list"][0], "delta_wavelength")
+
+
+def test_parse_input_file_filter_low_high(filter_input_file_low_high):
+    """Test parsing filters with low/high specification."""
+    variables, _ = parse_input_file(filter_input_file_low_high, secondary_flag=False)
+
+    assert "filter_list" in variables
+    assert len(variables["filter_list"]) == 1
+
+    # Check first filter bounds
+    filter1 = variables["filter_list"][0]
+    assert filter1.name == "F1"
+    assert filter1.low.value == 0.5
+    assert filter1.high.value == 0.7
+
+
+def test_parse_input_file_filter_ifs_with_resolution(
+    filter_input_file_ifs_with_resolution,
+):
+    """Test parsing IFS mode filters with resolution."""
+    variables, _ = parse_input_file(
+        filter_input_file_ifs_with_resolution, secondary_flag=False
+    )
+
+    assert "filter_list" in variables
+    assert len(variables["filter_list"]) == 2
+
+    # Check that filters have resolution
+    assert variables["filter_list"][0].resolution == 140
+    assert variables["filter_list"][1].resolution == 40
+
+    # Check that type is set correctly
+    assert variables["filter_list"][0].type == "IFS"
+    assert variables["filter_list"][1].type == "IFS"
+
+
+def test_parse_input_file_filter_single_filter(filter_input_file_single_filter):
+    """Test parsing a single filter (scalar values converted to list)."""
+    variables, _ = parse_input_file(
+        filter_input_file_single_filter, secondary_flag=False
+    )
+
+    assert "filter_list" in variables
+    assert len(variables["filter_list"]) == 1
+    assert variables["filter_list"][0].name == "F1"
+    assert variables["filter_list"][0].type == "IMAGER"
+
+
+def test_parse_input_file_filter_missing_name():
+    """Test that missing filter_name raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        filter_center = [0.6]
+        filter_bandpass = [0.1]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError,
+            match="'filter_name' is required whenever any filter_\\* parameter is provided",
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_both_specs_provided():
+    """Test that providing both center/bandpass and low/high raises ValueError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        filter_name = ['F1']
+        filter_center = [0.6]
+        filter_bandpass = [0.1]
+        filter_low = [0.5]
+        filter_high = [0.7]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            ValueError,
+            match="Specify filters using either \\(filter_center, filter_bandpass\\) or \\(filter_low, filter_high\\), not both",
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_no_bounds_specified():
+    """Test that providing filter_name without bounds raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        filter_name = ['F1']
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError,
+            match="Filters require either \\(filter_center, filter_bandpass\\) or \\(filter_low, filter_high\\)",
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_missing_center():
+    """Test that missing filter_center when filter_bandpass is provided raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        filter_name = ['F1']
+        filter_bandpass = [0.1]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError, match="'filter_center' is required to fully specify filter bounds"
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_missing_bandpass():
+    """Test that missing filter_bandpass when filter_center is provided raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        filter_name = ['F1']
+        wavelength = 0.6
+        filter_center = [0.6]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError,
+            match="'filter_bandpass' is required to fully specify filter bounds",
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_missing_low():
+    """Test that missing filter_low when filter_high is provided raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.7
+        filter_name = ['F1']
+        filter_high = [0.7]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError, match="'filter_low' is required to fully specify filter bounds"
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_missing_high():
+    """Test that missing filter_high when filter_low is provided raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.5
+        filter_name = ['F1']
+        filter_low = [0.5]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError, match="'filter_high' is required to fully specify filter bounds"
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_ifs_missing_resolution(valid_spectrum_file):
+    """Test that IFS mode without filter_resolution raises KeyError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write(f"""
+        observing_mode = IFS
+        spectrum_file = '{valid_spectrum_file}'
+
+        filter_name = ['Channel1']
+        filter_low = [0.5]
+        filter_high = [1.0]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            KeyError,
+            match="'filter_resolution' is required for filters when observing_mode is 'IFS'",
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_mismatched_lengths():
+    """Test that mismatched filter parameter lengths raise ValueError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        filter_name = ['F1', 'F2']
+        filter_center = [0.6]
+        filter_bandpass = [0.1]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            ValueError, match="All filter_\\* parameters .* must have the same length"
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_mismatched_lengths_with_resolution(
+    valid_spectrum_file,
+):
+    """Test that mismatched filter parameter lengths including resolution raise ValueError."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write(f"""
+        observing_mode = IFS
+        spectrum_file = '{valid_spectrum_file}'
+        filter_name = ['F1', 'F2']
+        filter_low = [0.5, 0.7]
+        filter_high = [0.7, 0.9]
+        filter_resolution = [140]
+        """)
+        tmp.flush()
+
+        with pytest.raises(
+            ValueError, match="All filter_\\* parameters .* must have the same length"
+        ):
+            parse_input_file(tmp.name, secondary_flag=False)
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_imager_no_resolution():
+    """Test that IMAGER mode filters work without resolution (optional)."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+
+        filter_name = ['F1']
+        filter_center = [0.6]
+        filter_bandpass = [0.1]
+        """)
+        tmp.flush()
+
+        variables, _ = parse_input_file(tmp.name, secondary_flag=False)
+
+        # Should work without resolution for IMAGER
+        assert "filter_list" in variables
+        assert len(variables["filter_list"]) == 1
+
+        os.unlink(tmp.name)
+
+
+def test_parse_input_file_filter_keys_removed_after_processing(
+    filter_input_file_low_high,
+):
+    """Test that filter_* keys are removed after creating filter_list."""
+    variables, _ = parse_input_file(filter_input_file_low_high, secondary_flag=False)
+
+    # Original filter_* keys should be removed
+    assert "filter_name" not in variables
+    assert "filter_low" not in variables
+    assert "filter_high" not in variables
+
+    # Only filter_list should remain
+    assert "filter_list" in variables
+
+
+def test_parse_input_file_filter_type_set_from_observing_mode(valid_spectrum_file):
+    """Test that filter type is correctly set from observing_mode."""
+    # Test IMAGER
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write("""
+        observing_mode = IMAGER
+        wavelength = 0.6
+        Fstar_10pc = 122.9279 
+        Fp/Fs = 1e-10
+        filter_name = 'F1'
+        filter_center = 0.6
+        filter_bandpass = 0.1
+        """)
+        tmp.flush()
+
+        variables, _ = parse_input_file(tmp.name, secondary_flag=False)
+        assert variables["filter_list"][0].type == "IMAGER"
+
+        os.unlink(tmp.name)
+
+    # Test IFS
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
+        tmp.write(f"""
+        observing_mode = IFS
+        spectrum_file = '{valid_spectrum_file}'
+
+        filter_name = 'Channel1'
+        filter_low = 0.5
+        filter_high = 1.0
+        filter_resolution = 140
+        """)
+        tmp.flush()
+
+        variables, _ = parse_input_file(tmp.name, secondary_flag=False)
+        assert variables["filter_list"][0].type == "IFS"
+
+        os.unlink(tmp.name)
+
+
+# ============================================================================
+# Tests for parse_parameters - Filter handling
+# ============================================================================
+
+
+def test_parse_parameters_filter_list_single_filter():
+    """Test parsing filter_list with a single filter object."""
+    from pyEDITH.components.filters import Filter
+
+    filter_obj = Filter("TestFilter", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
+
+    parsed = parse_parameters({"wavelength": 0.5, "filter_list": filter_obj})
+
+    assert "filter_list" in parsed
+    assert isinstance(parsed["filter_list"], list)
+    assert len(parsed["filter_list"]) == 1
+    assert parsed["filter_list"][0].name == "TestFilter"
+
+
+def test_parse_parameters_filter_list_multiple_filters():
+    """Test parsing filter_list with multiple filter objects."""
+    from pyEDITH.components.filters import Filter
+
+    filter1 = Filter("F1", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
+    filter2 = Filter("F2", center=0.8 * u.um, bandpass=0.15, type="IMAGER")
+
+    parsed = parse_parameters({"wavelength": 0.5, "filter_list": [filter1, filter2]})
+
+    assert len(parsed["filter_list"]) == 2
+    assert parsed["filter_list"][0].name == "F1"
+    assert parsed["filter_list"][1].name == "F2"
+
+
+def test_parse_parameters_filter_list_invalid_type():
+    """Test that non-Filter object in filter_list raises TypeError."""
+
+    with pytest.raises(
+        TypeError, match="Filter at index 0: must be a Filter object, but got str"
+    ):
+        parse_parameters({"wavelength": 0.5, "filter_list": ["not_a_filter"]})
+
+
+def test_parse_parameters_filter_list_mixed_invalid():
+    """Test that invalid object in list of filters raises TypeError."""
+    from pyEDITH.components.filters import Filter
+
+    filter1 = Filter("F1", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
+
+    with pytest.raises(
+        TypeError, match="Filter at index 1: must be a Filter object, but got int"
+    ):
+        parse_parameters({"wavelength": 0.5, "filter_list": [filter1, 42]})
+
+
+def test_parse_parameters_filter_list_empty():
+    """Test parsing empty filter_list."""
+    parsed = parse_parameters({"wavelength": 0.5, "filter_list": []})
+
+    assert "filter_list" in parsed
+    assert parsed["filter_list"] == []
+
+
+def test_parse_parameters_filter_list_not_provided():
+    """Test that absence of filter_list doesn't create the key."""
+    parsed = parse_parameters({"wavelength": 0.5})
+
+    assert "filter_list" not in parsed
+
+
+def test_parse_parameters_filter_list_dict_not_filter():
+    """Test that dict (non-Filter object with __dict__) raises TypeError."""
+
+    with pytest.raises(
+        TypeError, match="Filter at index 0: must be a Filter object, but got dict"
+    ):
+        parse_parameters({"wavelength": 0.5, "filter_list": [{"name": "not_a_filter"}]})

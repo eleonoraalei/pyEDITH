@@ -3,10 +3,6 @@ import sys
 import logging
 
 
-import logging
-import sys
-
-
 # ANSI color codes for your palette
 class ColorCodes:
     WARNING = "\033[38;2;226;147;0m"  # #E29300 - Orange for warnings

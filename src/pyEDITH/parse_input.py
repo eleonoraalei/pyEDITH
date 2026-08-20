@@ -2,6 +2,8 @@ from typing import Union, Dict, Tuple
 from pathlib import Path
 import astropy.units as u
 import numpy as np
+
+from pyEDITH.components.filters import Filter
 from .units import *
 import pandas as pd
 import os
@@ -52,6 +54,37 @@ def parse_input_file(
 
     """
 
+    def _parse_array_value(raw_items: str) -> list:
+        """
+        Parse the contents of a bracketed array (without the brackets) into
+        a list of floats or strings, entry by entry.
+
+        Parameters
+        ----------
+        raw_items : str
+            Comma-separated array contents, e.g. "0.55, 0.65" or "photometry, photometry"
+
+        Returns
+        -------
+        list
+            List where each element is a float if convertible, otherwise a
+            stripped string (surrounding quotes removed if present).
+        """
+        parsed = []
+        for item in raw_items.split(","):
+            item = item.strip()
+            # Try numeric conversion first, since this is the common case
+            try:
+                parsed.append(float(item))
+            except ValueError:
+                # Strip optional surrounding quotes, e.g. 'photometry' -> photometry
+                if (item.startswith("'") and item.endswith("'")) or (
+                    item.startswith('"') and item.endswith('"')
+                ):
+                    item = item[1:-1]
+                parsed.append(item)
+        return parsed
+
     with open(file_path, "r") as file:
         content = file.read()
 
@@ -74,7 +107,7 @@ def parse_input_file(
 
             # Handle arrays
             if value.startswith("[") and value.endswith("]"):
-                value = [float(v.strip()) for v in value[1:-1].split(",")]
+                value = _parse_array_value(value[1:-1])
             # Handle strings
             elif value.startswith("'") and value.endswith("'"):
                 value = value[1:-1]
@@ -173,6 +206,97 @@ def parse_input_file(
         raise KeyError(
             "In IMAGER mode you can only use one wavelength at a time. If you are simulating photometry, please run every single wavelength separately. If you want to model a spectrum, please use IFS mode."
         )
+
+    # ------------------------------------------------------------------
+    # Handle Filters feature: reconstruct Filter objects from parallel
+    # arrays, mirroring the list of Filter instances passed directly in
+    # the Python-IDE path. Filter.type is always taken from observing_mode,
+    # so it is never specified per-filter in the input file. Filter
+    # resolution is optional for IMAGER but required for IFS, matching
+    # the fact that resolution is only physically meaningful for a
+    # spectrograph.
+    # ------------------------------------------------------------------
+    filter_keys_present = [key for key in variables if key.startswith("filter_")]
+
+    if filter_keys_present:
+        if "filter_name" not in variables:
+            raise KeyError(
+                "'filter_name' is required whenever any filter_* parameter is provided."
+            )
+
+        has_center_bandpass = (
+            "filter_center" in variables or "filter_bandpass" in variables
+        )
+        has_low_high = "filter_low" in variables or "filter_high" in variables
+
+        if has_center_bandpass and has_low_high:
+            raise ValueError(
+                "Specify filters using either (filter_center, filter_bandpass) "
+                "or (filter_low, filter_high), not both, in the same input file."
+            )
+        elif has_center_bandpass:
+            bounds_keys = ["filter_center", "filter_bandpass"]
+        elif has_low_high:
+            bounds_keys = ["filter_low", "filter_high"]
+        else:
+            raise KeyError(
+                "Filters require either (filter_center, filter_bandpass) "
+                "or (filter_low, filter_high) to be specified."
+            )
+
+        for key in bounds_keys:
+            if key not in variables:
+                raise KeyError(f"'{key}' is required to fully specify filter bounds.")
+
+        # observing_mode is guaranteed present and valid at this point,
+        # since it was checked earlier in this function.
+        observing_mode = variables["observing_mode"]
+
+        if observing_mode == "IFS" and "filter_resolution" not in variables:
+            raise KeyError(
+                "'filter_resolution' is required for filters when observing_mode is 'IFS'."
+            )
+
+        all_filter_keys = ["filter_name"] + bounds_keys
+        if "filter_resolution" in variables:
+            all_filter_keys.append("filter_resolution")
+
+        # Normalize single-filter shorthand (scalar instead of one-item list)
+        for key in all_filter_keys:
+            if not isinstance(variables[key], list):
+                variables[key] = [variables[key]]
+
+        lengths = {len(variables[key]) for key in all_filter_keys}
+        if len(lengths) != 1:
+            raise ValueError(
+                f"All filter_* parameters ({', '.join(all_filter_keys)}) "
+                "must have the same length."
+            )
+        n_filters = lengths.pop()
+
+        filter_name_list = variables.pop("filter_name")
+        filter_resolution_list = variables.pop("filter_resolution", [None] * n_filters)
+
+        filter_list = []
+        for i in range(n_filters):
+            filter_kwargs = {
+                "resolution": filter_resolution_list[i],
+                "type": observing_mode,
+            }
+            if bounds_keys == ["filter_center", "filter_bandpass"]:
+                filter_kwargs["center"] = variables["filter_center"][i] * u.um
+                filter_kwargs["bandpass"] = variables["filter_bandpass"][i]
+            else:
+                filter_kwargs["low"] = variables["filter_low"][i] * u.um
+                filter_kwargs["high"] = variables["filter_high"][i] * u.um
+
+            filter_list.append(Filter(filter_name_list[i], **filter_kwargs))
+
+        for key in bounds_keys:
+            variables.pop(key)
+
+        variables["filter_list"] = filter_list
+
     return variables, secondary_variables
 
 
@@ -376,7 +500,7 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
     for key in list(set(target_params) & set(parameters.keys())):
         parsed_params[key] = float(parameters[key])
 
-    # ----- SCALARS ----
+    # ---- SCALARS ----
     scalar_params = [
         "photometric_aperture_radius",
         "psf_trunc_ratio",
@@ -422,12 +546,12 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
         else:
             parsed_params[key] = float(parameters[key])
 
-    # ---- INTEGERS ---
+    # ---- INTEGERS ----
     integer_params = ["nrolls", "nchannels"]
 
     for key in list(set(integer_params) & set(parameters.keys())):
         parsed_params[key] = int(parameters[key])
-    # ----- BOOLEANS ---
+    # ----- BOOLEANS ----
     for key in ["az_avg", "regrid_wavelength"]:
         if key in parameters.keys():
             value = parameters[key]
@@ -459,7 +583,7 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
                     f"Expected boolean, string, or numeric (0/1)."
                 )
 
-    # ----- OBSERVATORY SPECS ---
+    # ---- OBSERVATORY SPECS ----
     for key in [
         "observatory_preset",
         "telescope_type",
@@ -473,8 +597,31 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
             if key == "observing_mode" and parameters[key] not in ["IMAGER", "IFS"]:
                 raise KeyError("Invalid observing mode. Must be 'IMAGER' or 'IFS'.")
 
+    # ---- FILTERS ----
+
+    if "filter_list" in parameters.keys():
+        filter_list = parameters["filter_list"]
+
+        # If it's a single filter, convert to list
+        if not isinstance(filter_list, list):
+            filter_list = [filter_list]
+        # Validate each filter in the list
+        for i, filter_obj in enumerate(filter_list):
+            # Check if it's a Filter object (duck typing - check for expected attributes)
+            if not hasattr(filter_obj, "__dict__"):
+                raise TypeError(
+                    f"Filter at index {i}: must be a Filter object, "
+                    f"but got {type(filter_obj).__name__}"
+                )
+
+        parsed_params["filter_list"] = filter_list
+
     # --- REQUIRED PARAMETERS IN SPECIFIC MODES ---
     if parsed_params.get("regrid_wavelength", False):
+        logger.warning(
+            "DeprecationWarning: The parameters 'spectral_resolution', 'lam_low', 'lam_high', and 'regrid_wavelength' will be deprecated soon. "
+            "Please update your configuration to use the new Filter object."
+        )
         required_keys = ["spectral_resolution", "lam_low", "lam_high"]
         for key in required_keys:
             if key not in parameters:
