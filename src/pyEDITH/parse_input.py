@@ -531,14 +531,12 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
             and hasattr(value, "__len__")
             and not isinstance(value, str)
         ):
-            import warnings
 
-            warnings.warn(
-                "Passing 'npix_multiplier' as an array is deprecated and will be removed in a future version. "
-                "Please provide it as a scalar value instead. Using the first element for now.",
-                DeprecationWarning,
-                stacklevel=2,
+            logging.warning(
+                "DeprecationWarning: Passing 'npix_multiplier' as an array is deprecated and will be removed in a future version. "
+                "Please provide it as a scalar value instead. Using the first element for now."
             )
+
             if isinstance(value, np.ndarray):
                 parsed_params[key] = float(value.flat[0])
             else:
@@ -547,10 +545,16 @@ def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
             parsed_params[key] = float(parameters[key])
 
     # ---- INTEGERS ----
-    integer_params = ["nrolls", "nchannels"]
+    integer_params = ["nrolls"]
 
     for key in list(set(integer_params) & set(parameters.keys())):
         parsed_params[key] = int(parameters[key])
+
+    if "nchannels" in parameters.keys():
+        logging.warning(
+            "DeprecationWarning: 'nchannels' is deprecated, disregarding. Results will be comparable to setting nchannels to 1."
+        )
+
     # ----- BOOLEANS ----
     for key in ["az_avg", "regrid_wavelength"]:
         if key in parameters.keys():

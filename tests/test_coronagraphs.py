@@ -95,7 +95,6 @@ def imager_toymodel_basic_params():
         "Tcore": 0.3,
         "TLyot": 0.7,
         "nrolls": 1,
-        "nchannels": 1,
         "wavelength": 0.7,
     }
 
@@ -112,7 +111,6 @@ def ifs_toymodel_basic_params():
         "Tcore": 0.3,
         "TLyot": 0.7,
         "nrolls": 1,
-        "nchannels": 1,
         "wavelength": [0.5, 0.6, 0.7],
     }
 
@@ -124,7 +122,6 @@ def imager_yipcoronagraph_basic_params():
         "observing_mode": "IMAGER",
         "bandwidth": 0.1,
         "psf_trunc_ratio": 0.3,
-        "nchannels": 1,
         "az_avg": True,
         "wavelength": 0.7,
     }
@@ -137,7 +134,6 @@ def ifs_yipcoronagraph_basic_params():
         "observing_mode": "IFS",
         "bandwidth": 0.1,
         "psf_trunc_ratio": 0.3,
-        "nchannels": 1,
         "az_avg": True,
         "wavelength": [0.5, 0.6, 0.7],
     }
@@ -220,7 +216,6 @@ def test_toy_model_load_configuration_basic_parameters(
         assert coronagraph.Tcore == 0.3 * DIMENSIONLESS
         assert coronagraph.TLyot == 0.7 * DIMENSIONLESS
         assert coronagraph.nrolls == 1
-        assert coronagraph.nchannels == 1
         assert coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
         assert coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
         assert hasattr(coronagraph, "npsfratios")
@@ -358,7 +353,6 @@ def test_toy_model_load_configuration_ifs_basic_parameters(
         assert coronagraph.Tcore == 0.3 * DIMENSIONLESS
         assert coronagraph.TLyot == 0.7 * DIMENSIONLESS
         assert coronagraph.nrolls == 1
-        assert coronagraph.nchannels == 1
         assert coronagraph.coronagraph_optical_throughput == [0.44] * DIMENSIONLESS
         assert coronagraph.coronagraph_spectral_resolution == 1 * DIMENSIONLESS
 
@@ -708,7 +702,6 @@ def test_coronagraph_yip_load_configuration_imager_basic_parameters(
     assert coronagraph.pixscale == yippy_coronagraph.header.pixscale.value * LAMBDA_D
     assert coronagraph.bandwidth == 0.1
     assert coronagraph.nrolls == 1
-    assert coronagraph.nchannels == 1
     assert coronagraph.az_avg == True
     assert coronagraph.npix == yippy_coronagraph.header.naxis1
     assert coronagraph.xcenter == yippy_coronagraph.header.xcenter * PIXEL
@@ -947,7 +940,6 @@ def test_coronagraph_yip_load_configuration_ifs_basic_parameters(
     assert coronagraph.pixscale == yippy_coronagraph.header.pixscale.value * LAMBDA_D
     assert coronagraph.bandwidth == 0.1
     assert coronagraph.nrolls == 1
-    assert coronagraph.nchannels == 1
     assert coronagraph.az_avg == True
     assert coronagraph.npix == yippy_coronagraph.header.naxis1
     assert coronagraph.xcenter == yippy_coronagraph.header.xcenter * PIXEL
@@ -1259,7 +1251,6 @@ def valid_coronagraph():
     coronagraph.bandwidth = 0.1
     coronagraph.npsfratios = 1
     coronagraph.nrolls = 1
-    coronagraph.nchannels = 1
     coronagraph.coronagraph_optical_throughput = np.array([0.5]) * DIMENSIONLESS
     coronagraph.coronagraph_spectral_resolution = 1 * DIMENSIONLESS
     return coronagraph

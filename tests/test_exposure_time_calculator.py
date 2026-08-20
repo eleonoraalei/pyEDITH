@@ -132,7 +132,6 @@ def mock_observatory():
     observatory.coronagraph.Tcore = 0.2968371 * DIMENSIONLESS
     observatory.coronagraph.TLyot = 0.65 * DIMENSIONLESS
     observatory.coronagraph.nrolls = 2
-    observatory.coronagraph.nchannels = 2
     observatory.coronagraph.coronagraph_optical_throughput = u.Quantity(
         [0.44], DIMENSIONLESS
     )
@@ -230,14 +229,13 @@ def test_calculate_CRp():
     Upsilon = 0.2968371 * DIMENSIONLESS
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
 
     result = calculate_CRp(
-        F0, Fs_over_F0, Fp_over_Fs, area, Upsilon, throughput, dlambda, nchannels
+        F0, Fs_over_F0, Fp_over_Fs, area, Upsilon, throughput, dlambda
     )
 
     assert result.unit == (u.electron / u.s)
-    assert np.isclose(result.value, 0.64877874)
+    assert np.isclose(result.value, 0.32438937)
 
 
 def test_calculate_CRbs():
@@ -249,14 +247,11 @@ def test_calculate_CRbs():
     pixscale = 0.25 * LAMBDA_D
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
 
-    result = calculate_CRbs(
-        F0, Fs_over_F0, Istar, area, pixscale, throughput, dlambda, nchannels
-    )
+    result = calculate_CRbs(F0, Fs_over_F0, Istar, area, pixscale, throughput, dlambda)
 
     assert result.unit == (u.electron / u.s)
-    assert np.isclose(result.value, 0.0008138479)
+    assert np.isclose(result.value, 0.00040692395)
 
 
 def test_calculate_CRbz():
@@ -267,15 +262,12 @@ def test_calculate_CRbz():
     area = 427590.68268120557 * u.cm**2
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
     lod_arcsec = 0.013104498490920989 * ARCSEC
 
-    result = calculate_CRbz(
-        F0, Fzodi, lod_arcsec, skytrans, area, throughput, dlambda, nchannels
-    )
+    result = calculate_CRbz(F0, Fzodi, lod_arcsec, skytrans, area, throughput, dlambda)
 
     assert result.unit == (u.electron / u.s)
-    assert np.isclose(result.value, 0.0099697346)
+    assert np.isclose(result.value, 0.0049848673)
 
 
 def test_calculate_CRbez():
@@ -288,7 +280,6 @@ def test_calculate_CRbez():
     area = 427590.68268120557 * u.cm**2
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
     lod_arcsec = 0.013104498490920989 * ARCSEC
 
     result = calculate_CRbez(
@@ -299,13 +290,12 @@ def test_calculate_CRbez():
         area,
         throughput,
         dlambda,
-        nchannels,
         dist,
         sp,
     )
 
     assert result.unit == (u.electron / u.s)
-    assert np.isclose(result.value, 1.2124248)
+    assert np.isclose(result.value, 0.6062124)
 
 
 def test_calculate_CRbbin():
@@ -316,11 +306,8 @@ def test_calculate_CRbbin():
     area = 427590.68268120557 * u.cm**2
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
 
-    result = calculate_CRbbin(
-        F0, Fbinary, skytrans, area, throughput, dlambda, nchannels
-    )
+    result = calculate_CRbbin(F0, Fbinary, skytrans, area, throughput, dlambda)
 
     assert result.unit == (u.electron / u.s)
     assert result.value == 0
@@ -368,16 +355,15 @@ def test_calculate_CRnf():
     pixscale = 0.25 * LAMBDA_D
     throughput = 0.35910000000000003 * ELECTRON / PHOTON_COUNT
     dlambda = 100 * u.nm
-    nchannels = 2
     noisefloor = 7.25659425003725e-18 * DIMENSIONLESS
 
     result = calculate_CRnf(
-        F0, Fs_over_F0, area, pixscale, throughput, dlambda, nchannels, noisefloor
+        F0, Fs_over_F0, area, pixscale, throughput, dlambda, noisefloor
     )
 
     assert result.unit == (u.electron / u.s)
     assert np.isclose(
-        result.value, 2.5376479000e-07
+        result.value, 2.5376479000e-07 / 2
     )  # Value changed because of Update 1.7.1: SNR now outside CRnf
 
 
@@ -403,7 +389,7 @@ def test_calculate_exposure_time_mode(mock_observation, mock_scene, mock_observa
 
     assert hasattr(mock_observation, "exptime")
     assert mock_observation.exptime.unit == u.s
-    assert np.isclose(mock_observation.exptime.value, 252301.15315671)
+    assert np.isclose(mock_observation.exptime.value, 487839.70631343)
 
 
 def test_calculate_snr_mode(mock_observation, mock_scene, mock_observatory):
@@ -416,7 +402,7 @@ def test_calculate_snr_mode(mock_observation, mock_scene, mock_observatory):
 
     assert hasattr(mock_observation, "fullsnr")
     assert mock_observation.fullsnr.unit == u.dimensionless_unscaled
-    assert np.isclose(mock_observation.fullsnr.value, 2.00051)
+    assert np.isclose(mock_observation.fullsnr.value, 1.41457256)
 
 
 def test_calculate_exposure_time_etc_validation(

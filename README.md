@@ -104,7 +104,6 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | bandwidth               | Dimensionless                | Scalar                   | Fractional bandwidth of coronagraph               |     |
 | npsfratios              | Integer                      | Scalar                   | Number of PSF ratios                              |     |
 | nrolls                  | Integer                      | Scalar                   | Number of roll angles                             |     |
-| nchannels               | Integer                      | Scalar                   | Number of channels                                |     |
 | coronagraph_optical_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
 | diameter                | Length                       | Scalar                   | Circumscribed diameter of telescope aperture      |     |
 | Area                    | Length²                      | Scalar                   | Effective collecting area of telescope            |     |
@@ -176,7 +175,6 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | stellar_angular_diameter_arcsec                | Scalar        | arcsec           | angular diameter of the star                                                   | No            |
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |
 | nrolls                          | Scalar                   | Dimensionless       | Number of roll angles performed                                       | Yes           |
-| nchannels                       | Scalar                   | Dimensionless       | Number of channels in coronagraph                                           | Yes           |
 | coronagraph_optical_throughput          | [nlambda]                | Dimensionless | Throughput for all coronagraph optics                        | Yes           |
 | coronagraph_spectral_resolution | Scalar                   | Dimensionless | Spectral resolution of the coronagraph                       | Yes           |
 | contrast                        | Scalar                   | Dimensionless | Noise floor contrast of coronagraph                          | Yes (ToyModel only)           |

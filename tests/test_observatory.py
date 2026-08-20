@@ -86,7 +86,6 @@ class MockCoronagraph(Coronagraph):
         self.Tcore = 0.2968371 * DIMENSIONLESS
         self.TLyot = 0.65 * DIMENSIONLESS
         self.nrolls = 1
-        self.nchannels = 2
         self.coronagraph_optical_throughput = u.Quantity([0.44], DIMENSIONLESS)
         self.coronagraph_spectral_resolution = 1.0 * DIMENSIONLESS
         self.npsfratios = 1

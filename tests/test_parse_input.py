@@ -1769,57 +1769,66 @@ def test_parse_parameters_overrides_string_extra_whitespace():
 
 
 # ============================================================================
-# Tests for parse_parameters - npix_multiplier deprecation
+# Tests for parse_parameters - Deprecations
 # ============================================================================
 
 
-def test_parse_parameters_npix_multiplier_scalar():
+def test_parse_parameters_npix_multiplier_scalar(caplog):
     """Test that scalar npix_multiplier works without warnings."""
     parameters = {"wavelength": [1.0], "npix_multiplier": 2.5}
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")  # Turn warnings into errors
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         parsed = parse_parameters(parameters)
+    assert not any(record.levelno == logging.WARNING for record in caplog.records)
 
     assert parsed["npix_multiplier"] == 2.5
     assert isinstance(parsed["npix_multiplier"], float)
 
 
-def test_parse_parameters_npix_multiplier_list_raises_deprecation_warning():
+def test_parse_parameters_npix_multiplier_list_raises_deprecation_warning(caplog):
     """Test that list npix_multiplier raises DeprecationWarning and uses first element."""
     parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": [2.5, 3.0]}
 
-    with pytest.warns(
-        DeprecationWarning,
-        match="Passing 'npix_multiplier' as an array is deprecated",
-    ):
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         parsed = parse_parameters(parameters)
+    assert any(
+        "Passing 'npix_multiplier' as an array is deprecated" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
 
     assert parsed["npix_multiplier"] == 2.5
     assert isinstance(parsed["npix_multiplier"], float)
 
 
-def test_parse_parameters_npix_multiplier_numpy_array_raises_deprecation_warning():
+def test_parse_parameters_npix_multiplier_numpy_array_raises_deprecation_warning(
+    caplog,
+):
     """Test that numpy array npix_multiplier raises DeprecationWarning and uses first element."""
     parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": np.array([2.5, 3.0])}
 
-    with pytest.warns(
-        DeprecationWarning,
-        match="Passing 'npix_multiplier' as an array is deprecated",
-    ):
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         parsed = parse_parameters(parameters)
-
+    assert any(
+        "Passing 'npix_multiplier' as an array is deprecated" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
     assert parsed["npix_multiplier"] == 2.5
     assert isinstance(parsed["npix_multiplier"], float)
 
 
-def test_parse_parameters_npix_multiplier_single_element_array():
+def test_parse_parameters_npix_multiplier_single_element_array(caplog):
     """Test that single-element array npix_multiplier raises warning and uses first element."""
     parameters = {"wavelength": [1.0], "npix_multiplier": [2.5]}
 
-    with pytest.warns(DeprecationWarning):
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         parsed = parse_parameters(parameters)
+    assert any(
+        "Passing 'npix_multiplier' as an array is deprecated" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
 
     assert parsed["npix_multiplier"] == 2.5
     assert isinstance(parsed["npix_multiplier"], float)
@@ -1828,11 +1837,8 @@ def test_parse_parameters_npix_multiplier_single_element_array():
 def test_parse_parameters_npix_multiplier_string_converts_to_float():
     """Test that string npix_multiplier is converted to float without warning."""
     parameters = {"wavelength": [1.0], "npix_multiplier": "2.5"}
-    import warnings
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        parsed = parse_parameters(parameters)
+    parsed = parse_parameters(parameters)
 
     assert parsed["npix_multiplier"] == 2.5
     assert isinstance(parsed["npix_multiplier"], float)
@@ -1842,11 +1848,38 @@ def test_parse_parameters_npix_multiplier_integer_array():
     """Test that integer arrays are also deprecated and converted to float."""
     parameters = {"wavelength": [1.0, 1.2], "npix_multiplier": [3, 4]}
 
-    with pytest.warns(DeprecationWarning):
-        parsed = parse_parameters(parameters)
+    parsed = parse_parameters(parameters)
 
     assert parsed["npix_multiplier"] == 3.0
     assert isinstance(parsed["npix_multiplier"], float)
+
+
+def test_parse_parameters_nchannels_deprecated(caplog):
+    """Test that scalar npix_multiplier works without warnings."""
+    parameters = {"wavelength": [1.0], "nchannels": 1}
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parsed = parse_parameters(parameters)
+    assert any(
+        "DeprecationWarning: 'nchannels' is deprecated, disregarding. Results will be comparable to setting nchannels to 1."
+        in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+    assert "nchannels" not in parsed.keys()
+
+
+def test_parse_parameters_no_nchannels(caplog):
+    """Test that scalar npix_multiplier works without warnings."""
+    parameters = {
+        "wavelength": [1.0],
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parsed = parse_parameters(parameters)
+    assert not any(record.levelno == logging.WARNING for record in caplog.records)
+
+    assert "nchannels" not in parsed.keys()
 
 
 # ============================================================================

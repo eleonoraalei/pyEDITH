@@ -560,10 +560,6 @@ def print_all_variables(
                 ("observatory.coronagraph.xcenter", observatory.coronagraph.xcenter),
                 ("observatory.coronagraph.ycenter", observatory.coronagraph.ycenter),
                 (
-                    "observatory.coronagraph.nchannels",
-                    observatory.coronagraph.nchannels,
-                ),
-                (
                     "observatory.coronagraph.npsfratios",
                     observatory.coronagraph.npsfratios,
                 ),

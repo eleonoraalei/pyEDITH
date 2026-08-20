@@ -21,7 +21,6 @@ def calculate_CRp(
     Upsilon: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
 ) -> u.Quantity:
     """
     Calculate the planet count rate.
@@ -46,18 +45,13 @@ def calculate_CRp(
         Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
-
     Returns
     -------
     u.Quantity
         Planet count rate [electrons / s]
     """
 
-    return (
-        F0 * Fs_over_F0 * Fp_over_Fs * area * Upsilon * throughput * dlambda * nchannels
-    ).to(
+    return (F0 * Fs_over_F0 * Fp_over_Fs * area * Upsilon * throughput * dlambda).to(
         COUNT_RATE,
         equivalencies=EQUIV_ANGLE,
     )
@@ -71,7 +65,6 @@ def calculate_CRbs(
     pixscale: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
 ) -> u.Quantity:
     """
     Calculate the stellar leakage count rate.
@@ -95,8 +88,6 @@ def calculate_CRbs(
         Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
 
     Returns
     -------
@@ -104,16 +95,7 @@ def calculate_CRbs(
         Stellar leakage count rate [electrons / s]
     """
 
-    return (
-        F0
-        * Fs_over_F0
-        * Istar
-        * area
-        * throughput
-        * dlambda
-        * nchannels
-        / (pixscale**2)
-    ).to(
+    return (F0 * Fs_over_F0 * Istar * area * throughput * dlambda / (pixscale**2)).to(
         COUNT_RATE,
         equivalencies=EQUIV_ANGLE,
     )
@@ -127,7 +109,6 @@ def calculate_CRbz(
     area: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
 ) -> u.Quantity:
     """
     Calculate the local zodiacal light count rate.
@@ -151,8 +132,6 @@ def calculate_CRbz(
         Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
 
     Returns
     -------
@@ -160,9 +139,7 @@ def calculate_CRbz(
         Local zodiacal light count rate [electrons / s]
     """
 
-    return (
-        F0 * Fzodi * skytrans * area * throughput * dlambda * nchannels * lod_arcsec**2
-    ).to(
+    return (F0 * Fzodi * skytrans * area * throughput * dlambda * lod_arcsec**2).to(
         COUNT_RATE,
         equivalencies=EQUIV_ANGLE,
     )
@@ -176,7 +153,6 @@ def calculate_CRbez(
     area: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
     dist: u.Quantity,
     sp: u.Quantity,
 ) -> u.Quantity:
@@ -204,8 +180,6 @@ def calculate_CRbez(
         Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
     dist : u.Quantity
         Distance to the star [pc]
     sp : u.Quantity
@@ -226,7 +200,6 @@ def calculate_CRbez(
         * area
         * throughput
         * dlambda
-        * nchannels
         * lod_arcsec**2
     ).to(
         COUNT_RATE,
@@ -241,7 +214,6 @@ def calculate_CRbbin(
     area: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
 ) -> u.Quantity:
     """
     Calculate the count rate from neighboring stars.
@@ -263,8 +235,6 @@ def calculate_CRbbin(
         Throughput of the system (includes QE) [electrons/photons]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
 
     Note
     ----
@@ -277,7 +247,7 @@ def calculate_CRbbin(
         Count rate from neighboring stars [electrons / s]
     """
 
-    return (F0 * Fbinary * skytrans * area * throughput * dlambda * nchannels).to(
+    return (F0 * Fbinary * skytrans * area * throughput * dlambda).to(
         COUNT_RATE,
         equivalencies=EQUIV_ANGLE,
     )
@@ -424,7 +394,6 @@ def calculate_CRnf(
     pixscale: u.Quantity,
     throughput: u.Quantity,
     dlambda: u.Quantity,
-    nchannels: int,
     noisefloor: u.Quantity,
 ) -> u.Quantity:
     """
@@ -449,8 +418,6 @@ def calculate_CRnf(
         Throughput of the system [dimensionless]
     dlambda : u.Quantity
         Bandwidth [um]
-    nchannels : int
-        Number of channels
     noisefloor : u.Quantity
         Noise floor level [dimensionless]
 
@@ -461,7 +428,7 @@ def calculate_CRnf(
     """
 
     return (
-        F0 * Fs_over_F0 * area * throughput * dlambda * nchannels / (pixscale**2)
+        F0 * Fs_over_F0 * area * throughput * dlambda / (pixscale**2)
     ) * noisefloor  # Update 1.7.1: SNR now moved outside of this function
 
 
@@ -804,7 +771,6 @@ def calculate_exposure_time_or_snr(
             observatory.detector.npix_multiplier
             * det_omega_lod_arr
             / (detpixscale_lod_arr**2)
-            * observatory.coronagraph.nchannels
         ) * PIXEL
 
     # --- det_* quantities used for t_photon_count estimate ---
@@ -823,7 +789,6 @@ def calculate_exposure_time_or_snr(
         det_photometric_aperture_throughput_arr,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
 
     det_CRbs_arr = calculate_CRbs(
@@ -834,7 +799,6 @@ def calculate_exposure_time_or_snr(
         observatory.coronagraph.pixscale,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
 
     det_CRbz_arr = calculate_CRbz(
@@ -845,7 +809,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
 
     det_CRbez_arr = calculate_CRbez(
@@ -856,7 +819,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
         scene.dist,
         det_sep_arr,
     )
@@ -868,7 +830,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
 
     det_CRbth_arr = (
@@ -921,7 +882,6 @@ def calculate_exposure_time_or_snr(
         Upsilon_at_planet,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
     observation.photon_counts["CRp"] = CRp_arr.value
 
@@ -934,7 +894,6 @@ def calculate_exposure_time_or_snr(
         observatory.coronagraph.pixscale,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
     observation.photon_counts["CRbs"] = CRbs_arr.value * omega_lod_at_planet.value
     # --- ZODIACAL LIGHT ---
@@ -946,7 +905,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
     observation.photon_counts["CRbz"] = CRbz_arr.value * omega_lod_at_planet.value
 
@@ -959,7 +917,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
         scene.dist,
         scene.separation,
     )
@@ -975,7 +932,6 @@ def calculate_exposure_time_or_snr(
         area_cm2,
         observatory.total_throughput,
         deltalambda_nm,
-        observatory.coronagraph.nchannels,
     )
 
     observation.photon_counts["CRbbin"] = CRbbin_arr.value * omega_lod_at_planet.value
@@ -1014,7 +970,6 @@ def calculate_exposure_time_or_snr(
             observatory.coronagraph.pixscale,
             observatory.total_throughput,
             deltalambda_nm,
-            observatory.coronagraph.nchannels,
             noisefloor_at_planet,
         )
         * omega_lod_at_planet

@@ -109,7 +109,6 @@ def mock_observatory():
     observatory.coronagraph.omega_lod = np.ones((10, 10, 1)) * 0.1 * LAMBDA_D**2
     observatory.coronagraph.xcenter = 50 * u.pix
     observatory.coronagraph.ycenter = 50 * u.pix
-    observatory.coronagraph.nchannels = 2
     observatory.coronagraph.npsfratios = 1
     observatory.coronagraph.nrolls = 1
 

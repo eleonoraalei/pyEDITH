@@ -150,8 +150,6 @@ class Coronagraph(ABC):
         Number of PSF ratios.
     nrolls : int
         Number of roll angles.
-    nchannels : int
-        Number of channels.
     coronagraph_optical_throughput: np.ndarray
         Throughput for all coronagraph optics in the optical path
     """
@@ -201,7 +199,6 @@ class Coronagraph(ABC):
             "bandwidth": float,
             "npsfratios": int,
             "nrolls": int,
-            "nchannels": int,
             "coronagraph_optical_throughput": DIMENSIONLESS,
             "coronagraph_spectral_resolution": DIMENSIONLESS,
         }
@@ -255,7 +252,6 @@ class ToyModelCoronagraph(Coronagraph):
         "TLyot": 0.65
         * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans
         "nrolls": 1,  # number of rolls
-        "nchannels": 1,  # number of channels
         "coronagraph_optical_throughput": [0.44]
         * DIMENSIONLESS,  # Coronagraph throughput [made up from EAC1-ish]
         "coronagraph_spectral_resolution": 1
@@ -436,7 +432,6 @@ class CoronagraphYIP(Coronagraph):
         "coronagraph_optical_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
-        "nchannels": 1,  # number of channels
         # "TLyot": 0.65
         # * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "az_avg": True,  # azimuthally average the contrast maps and noise floor if True
