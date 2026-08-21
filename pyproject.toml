@@ -19,7 +19,7 @@ dependencies = [
   "scipy",
   "astropy",
   "pandas",
-  "yippy>=2.7.3",
+  "yippy>=2.10.2",
   "openpyxl",
   "synphot",
   "eacy",
