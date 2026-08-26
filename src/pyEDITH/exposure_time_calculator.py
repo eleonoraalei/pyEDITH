@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 from pyEDITH import AstrophysicalScene, Observation, Observatory
-from pyEDITH.components.coronagraphs import CoronagraphYIP, ToyModelCoronagraph
+from pyEDITH.coronagraphs import CoronagraphYIP, ToyModelCoronagraph
 import astropy.constants as c
 import astropy.units as u
 from astropy.modeling import models
@@ -622,20 +622,18 @@ def calculate_exposure_time_or_snr(
 
     # --- Bandwidth per wavelength channel ---
     if observatory.observing_mode == "IMAGER":
-        coronagraph_limit = (
-            observation.wavelength.to_value(NM)
-            / observatory.coronagraph.coronagraph_spectral_resolution
+        # select minimum bandpass possible
+        bw = np.minimum(
+            observatory.coronagraph.coronagraph_bandwidth, observation.filter_bandwidth
         )
-        bandwidth_limit = (
-            observatory.coronagraph.bandwidth * observation.wavelength.to_value(NM)
-        )
+
         # Warn if bandwidth is wider than what the coronagraph allows
-        if np.any(bandwidth_limit >= coronagraph_limit):
+        if observatory.coronagraph.coronagraph_bandwidth < observation.filter_bandwidth:
             logger.warning(
                 "Bandwidth larger than what the coronagraph allows for one or more "
                 "wavelength channels. Selecting widest possible bandwidth..."
             )
-        deltalambda_nm = np.minimum(coronagraph_limit, bandwidth_limit) * NM
+        deltalambda_nm = bw * observation.wavelength.to(NM)
 
     elif observatory.observing_mode == "IFS":
         deltalambda_nm = observation.delta_wavelength.to(NM)

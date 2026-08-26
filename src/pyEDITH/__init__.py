@@ -106,14 +106,14 @@ def set_verbosity(level="warning"):
 from .astrophysical_scene import AstrophysicalScene
 from .observation import Observation
 from .observatory import Observatory
-from .components.coronagraphs import Coronagraph
-from .components.telescopes import Telescope
-from .components.detectors import Detector
-from .components.filters import Filter
+from .coronagraphs import Coronagraph
+from .telescopes import Telescope
+from .detectors import Detector
+from .filters import Filter
 
 # Import main functions
 from .exposure_time_calculator import calculate_exposure_time_or_snr
-from .components.coronagraphs import generate_radii
+from .coronagraphs import generate_radii
 from . import parse_input
 from .utils import *
 from .units import *

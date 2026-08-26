@@ -89,73 +89,6 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 
 # Glossary
 
-<!---
-| Variable Name           | Unit                         | Length                   | Meaning                                           |     |
-| ----------------------- | ---------------------------- | ------------------------ | ------------------------------------------------- | --- |
-| Istar                   | Dimensionless                | [npix, npix]             | Star intensity distribution (on-axis PSF)         |     |
-| noisefloor              | Dimensionless                | [npix, npix]             | Noise floor of the coronagraph                    |     |
-| photometric_aperture_throughput             | Dimensionless                | [npix, npix, npsfratios] | Photometric aperture throughput                     |     |
-| omega_lod               | (λ/D)²                       | [npix, npix, npsfratios] | Solid angle of the photometric aperture           |     |
-| skytrans                | Dimensionless                | [npix, npix]             | Sky transmission                                  |     |
-| pixscale                | λ/D                          | Scalar                   | Pixel scale of the coronagraph                    |     |
-| npix                    | Integer                      | Scalar                   | Number of pixels in the image                     |     |
-| xcenter                 | Pixel                        | Scalar                   | X-coordinate of the image center                  |     |
-| ycenter                 | Pixel                        | Scalar                   | Y-coordinate of the image center                  |     |
-| bandwidth               | Dimensionless                | Scalar                   | Fractional bandwidth of coronagraph               |     |
-| npsfratios              | Integer                      | Scalar                   | Number of PSF ratios                              |     |
-| nrolls                  | Integer                      | Scalar                   | Number of roll angles                             |     |
-| coronagraph_optical_throughput  | Dimensionless                | [nlambda]                | Throughput for all coronagraph optics             |     |
-| diameter                | Length                       | Scalar                   | Circumscribed diameter of telescope aperture      |     |
-| Area                    | Length²                      | Scalar                   | Effective collecting area of telescope            |     |
-| unobscured_area         | Dimensionless                | Scalar                   | Unobscured area percentage                        |     |
-| toverhead_fixed         | Time                         | Scalar                   | Fixed overhead time                               |     |
-| toverhead_multi         | Dimensionless                | Scalar                   | Multiplicative overhead time                      |     |
-| telescope_optical_throughput    | Dimensionless                | [nlambda]                | Optical throughput of telescope                   |     |
-| temperature             | Temperature                  | Scalar                   | Temperature of the warm optics                    |     |
-| T_contamination                 | Dimensionless                | Scalar                   | Effective throughput factor for contamination     |     |
-| pixscale_mas            | Milliarcsecond               | Scalar                   | Detector pixel scale                              |     |
-| npix_multiplier         | Dimensionless                | Scalar                | Number of detector pixels per image plane "pixel" |     |
-| DC                      | Electron / (Pixel * Second)  | [nlambda]                | Dark current                                      |     |
-| RN                      | Electron / (Pixel * Read)    | [nlambda]                | Read noise                                        |     |
-| tread                   | Second                       | [nlambda]                | Read time                                         |     |
-| CIC                     | Electron / (Pixel * Photon)  | [nlambda]                | Clock-induced charge                              |     |
-| QE                      | Electron / Photon            | [nlambda]                | Quantum efficiency of detector                    |     |
-| dQE                     | Dimensionless                | [nlambda]                | Effective QE due to degradation                   |     |
-| wavelength              | Length                       | [nlambda]                | Observation wavelengths                           |     |
-| SNR                     | Dimensionless                | [nlambda]                | Signal-to-noise ratio                             |     |
-| photometric_aperture_radius              | λ/D                          | Scalar                   | Photometric aperture radius                       |     |
-| psf_trunc_ratio         | Dimensionless                | Scalar                   | PSF truncation ratio                              |     |
-| CRb_multiplier          | Dimensionless                | Scalar                   | Factor to multiply to remove background           |     |
-| td_limit                | Time                         | Scalar                   | Limit placed on exposure times                    |     |
-| nooptimize              | Integer                      | Scalar                   | Flag to disable exposure time optimization        |     |
-| optimize_phase          | Integer                      | Scalar                   | Flag to optimize planet phase (non-functional)    |     |
-| ntot                    | Integer                      | Scalar                   | Meaning not explicitly defined in code            |     |
-| nmeananom               | Integer                      | Scalar                   | Number of mean anomalies                          |     |
-| norbits                 | Integer                      | Scalar                   | Number of orbits                                  |     |                             |     |
-| dist                    | Length                       | Scalar                   | Distance to star                                  |     |
-| vmag                    | Magnitude                    | Scalar                   | Stellar magnitude at V band                       |     |
-| mag                     | Magnitude                    | [nlambda]                | Stellar magnitude at desired wavelengths          |     |
-| stellar_angular_diameter_arcsec | Arcsecond                    | Scalar                   | Angular diameter of star                          |     |
-| nzodis                  | Zodi                         | Scalar                   | Amount of exozodi around target star              |     |
-| ra                      | Degree                       | Scalar                   | Right ascension of target star                    |     |
-| dec                     | Degree                       | Scalar                   | Declination of target star                        |     |
-| semimajor_axis              | Astronomical Units                    | Scalar                   | Semimajor axis of the planet's orbit (used to calculate separation; assumes face-on orbit)                           |     |
-
-| separation              | Arcsecond                    | Scalar                   | Separation of planet                              |     |
-| deltamag                | Magnitude                    | Scalar                   | Magnitude difference between planet and host star |     |
-| min_deltamag            | Magnitude                    | Scalar                   | Brightest planet to resolve at the IWA            |     |
-| F0V                     | Photon / (Second * cm² * nm) | Scalar                   | Flux zero point for V band                        |     |
-| F0                      | Photon / (Second * cm² * nm) | [nlambda]                | Flux zero points for prescribed wavelengths       |     |
-| M_V                     | Magnitude                    | Scalar                   | Absolute V band magnitude of target star          |     |
-| Fzodi_list              | Dimensionless                | [nlambda]                | Zodiacal light fluxes                             |     |
-| Fexozodi_list           | Dimensionless                | [nlambda]                | Exozodiacal light fluxes                          |     |
-| Fbinary_list            | Dimensionless                | [nlambda]                | Binary star fluxes                                |     |
-| Fp_over_Fs                     | Dimensionless                | Scalar                   | Flux of planet relative to star                   |     |
-|                         |                              |                          |                                                   |     |
-|                         |                              |                          |                                                   |     |
-|                         |                              |                          |                                                   |     |
--->
-
 ## Within `coronagraphs.py`
 | Variable Name                   | Length                   | Unit          | Meaning                                                      | User Editable |
 | ------------------------------- | ------------------------ | ------------- | ------------------------------------------------------------ | ------------- |
@@ -170,7 +103,7 @@ This mode offers much more flexibility to run the ETC. We refer to our tutorials
 | npix                            | Scalar                   | Dimensionless       | length of one side of the coronagraph model images (assuming a square)                               | No            |
 | xcenter                         | Scalar                   | Pixel         | X-coordinate of the image center                             | No            |
 | ycenter                         | Scalar                   | Pixel         | Y-coordinate of the image center                             | No            |
-| bandwidth                       | Scalar                   | Dimensionless | Fractional bandwidth of coronagraph                          | Yes           |
+| coronagraph_bandwidth                       | Scalar                   | Dimensionless | Fractional bandwidth of coronagraph                          | Yes           |
 | stellar_radius                | Scalar        | R_sun           | stellar radius in solar radii                                                   | Yes            |
 | stellar_angular_diameter_arcsec                | Scalar        | arcsec           | angular diameter of the star                                                   | No            |
 | npsfratios                      | Scalar                   | Dimensionless       | Number of PSF truncation ratios   (default 1)                                      | No            |

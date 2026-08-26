@@ -3,7 +3,7 @@ import numpy as np
 from astropy import units as u
 from astropy import constants as const
 from unittest.mock import patch, MagicMock
-from pyEDITH.components.detectors import ToyModelDetector, EACDetector
+from pyEDITH.detectors import ToyModelDetector, EACDetector
 from pyEDITH.units import (
     MAS,
     DIMENSIONLESS,
@@ -46,6 +46,11 @@ class MockMediator:
                 return np.array([0.5, 0.7, 1.2]) * WAVELENGTH
             elif self.observing_mode == "IMAGER":
                 return np.array([0.5]) * WAVELENGTH
+        elif param == "wavelength_range":
+            if self.observing_mode == "IFS":
+                return np.array([0.5, 1.2]) * WAVELENGTH
+            elif self.observing_mode == "IMAGER":
+                return np.array([0.5 * (1 - 0.2 / 2), 0.5 * (1 + 0.2 / 2)]) * WAVELENGTH
         elif param == "observing_mode":
             return self.observing_mode
         return 1.0

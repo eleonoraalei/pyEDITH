@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import utils
+from . import utils
 import astropy.units as u
-from ..units import *
+from .units import *
 from pyEDITH import parse_input
 
 
@@ -157,6 +157,7 @@ class ToyModelTelescope(Telescope):
         array_params = [
             "telescope_optical_throughput",
         ]
+        # TODO rebin at new wavelength
 
         utils.convert_to_numpy_array(self, array_params)
 
@@ -255,15 +256,9 @@ class EACTelescope(Telescope):
         # Load parameters from YAML files
         telescope_params = load_telescope(self.keyword).__dict__
         if mediator.get_observation_parameter("observing_mode") == "IMAGER":
-            wavelength_range = [
-                mediator.get_observation_parameter("wavelength")
-                * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-                mediator.get_observation_parameter("wavelength")
-                * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-            ] * WAVELENGTH
 
             telescope_params = utils.average_over_bandpass(
-                telescope_params, wavelength_range
+                telescope_params, mediator.get_observation_parameter("wavelength_range")
             )
 
         elif mediator.get_observation_parameter("observing_mode") == "IFS":

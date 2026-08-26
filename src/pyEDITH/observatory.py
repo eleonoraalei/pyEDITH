@@ -5,12 +5,12 @@ import numpy as np
 import os
 from .units import *
 from . import utils
-from pyEDITH.components import telescopes, coronagraphs, detectors
+from pyEDITH import coronagraphs
 from yippy import fetch_yip
 from yippy import Coronagraph as yippycoro
 
 import logging
-from pyEDITH import parse_input
+from pyEDITH import detectors, parse_input, telescopes
 
 logger = logging.getLogger("pyEDITH")
 
@@ -407,7 +407,7 @@ class Observatory(ABC):  # abstract class
             # Rebin to proper wavelength grid
             ifs_eff = utils.resample_to_wavelength_grid(
                 ifs_eff,
-                from_wavelength=parameters["wavelength"],
+                from_wavelength=mediator.get_scene_parameter("_input_wavelength"),
                 to_wavelength=mediator.get_observation_parameter("wavelength"),
                 name="ifs_eff",
                 interpolation="1d",

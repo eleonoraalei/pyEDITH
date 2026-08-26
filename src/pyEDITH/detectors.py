@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import utils
+from . import utils
 import astropy.units as u
-from ..units import *
+from .units import *
 from pyEDITH import parse_input
 
 
@@ -287,15 +287,10 @@ class EACDetector(Detector):
         ).__dict__
 
         if mediator.get_observation_parameter("observing_mode") == "IMAGER":
-            wavelength_range = [
-                mediator.get_observation_parameter("wavelength")
-                * (1 - 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-                mediator.get_observation_parameter("wavelength")
-                * (1 + 0.5 * mediator.get_coronagraph_parameter("bandwidth")),
-            ]
 
             detector_params = utils.average_over_bandpass(
-                raw_detector_params, wavelength_range
+                raw_detector_params,
+                mediator.get_observation_parameter("wavelength_range"),
             )
 
         elif mediator.get_observation_parameter("observing_mode") == "IFS":

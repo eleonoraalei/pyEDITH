@@ -21,9 +21,9 @@ from pyEDITH import (
     AstrophysicalScene,
     Observatory,
 )
-from pyEDITH.components.telescopes import ToyModelTelescope
-from pyEDITH.components.coronagraphs import ToyModelCoronagraph
-from pyEDITH.components.detectors import ToyModelDetector
+from pyEDITH.telescopes import ToyModelTelescope
+from pyEDITH.coronagraphs import ToyModelCoronagraph
+from pyEDITH.detectors import ToyModelDetector
 
 # ============================================================================
 # Fixtures
@@ -96,7 +96,7 @@ def mock_observatory():
     observatory.total_throughput = [0.3, 0.3, 0.3]
     observatory.epswarmTrcold = [0.1, 0.1, 0.1]
 
-    observatory.coronagraph.bandwidth = 0.2
+    observatory.coronagraph.coronagraph_bandwidth = 0.2
     observatory.coronagraph.Istar = np.ones((10, 10)) * 1e-10 * DIMENSIONLESS
     observatory.coronagraph.noisefloor = np.ones((10, 10)) * 1e-11 * DIMENSIONLESS
     observatory.coronagraph.npix = 100
@@ -626,7 +626,7 @@ def test_print_all_variables_includes_attributes(
             assert "observation.wavelength" in content
             assert "scene.mag" in content
             assert "observatory.telescope.diameter" in content
-            assert "observatory.coronagraph.bandwidth" in content
+            assert "observatory.coronagraph.coronagraph_bandwidth" in content
             assert "observatory.detector.pixscale_mas" in content
 
         finally:

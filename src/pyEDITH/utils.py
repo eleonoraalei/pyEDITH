@@ -532,8 +532,8 @@ def print_all_variables(
             file.write("\nCoronagraph:\n")
             for item_name, item in [
                 (
-                    "observatory.coronagraph.bandwidth",
-                    observatory.coronagraph.bandwidth,
+                    "observatory.coronagraph.coronagraph_bandwidth",
+                    observatory.coronagraph.coronagraph_bandwidth,
                 ),
                 ("observatory.coronagraph.Istar", observatory.coronagraph.Istar),
                 (
@@ -759,6 +759,7 @@ def generate_wavelength_grid(
     while x[i] * fac < lam_high:
         x = np.concatenate((x, [x[i] * fac]))
         i = i + 1
+    x = np.array(x)
     Dx = x / res
     return np.squeeze(x), np.squeeze(Dx)
 

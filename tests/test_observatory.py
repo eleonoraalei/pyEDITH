@@ -5,9 +5,9 @@ from unittest.mock import patch, MagicMock
 from astropy import units as u
 from pathlib import Path
 from pyEDITH.observatory import Observatory, ObservatoryMediator
-from pyEDITH.components.telescopes import Telescope, ToyModelTelescope, EACTelescope
-from pyEDITH.components.detectors import Detector, ToyModelDetector, EACDetector
-from pyEDITH.components.coronagraphs import (
+from pyEDITH.telescopes import Telescope, ToyModelTelescope, EACTelescope
+from pyEDITH.detectors import Detector, ToyModelDetector, EACDetector
+from pyEDITH.coronagraphs import (
     Coronagraph,
     ToyModelCoronagraph,
     CoronagraphYIP,
@@ -35,118 +35,127 @@ from pyEDITH.units import (
     PIXEL,
     ZODI,
 )
+from pyEDITH.filters import Filter
 from yippy import Coronagraph as yippycoro
 
 # ============================================================================
-# Mock Component Classes
+# Mock Helper Functions
 # ============================================================================
 
 
-class MockTelescope(Telescope):
-    """Mock telescope for testing."""
+def create_mock_telescope():
+    """Create a mock telescope for unit testing in IMAGER mode."""
+    mock_tel = MagicMock(spec=Telescope)
 
-    def load_configuration(self, parameters, mediator):
-        self.path = None
-        self.diameter = 7.87 * u.m
-        self.unobscured_area = 0.879
-        self.toverhead_fixed = 8381.3 * u.s
-        self.toverhead_multi = 1.1 * DIMENSIONLESS
-        self.telescope_optical_throughput = u.Quantity([0.823], DIMENSIONLESS)
-        self.temperature = 290.0 * u.K
-        self.T_contamination = 0.95 * DIMENSIONLESS
-        self.Area = 42.75906827 * u.m**2
+    # Basic attributes
+    mock_tel.diameter = 7.87 * LENGTH
+    mock_tel.Area = 42.75906827 * LENGTH**2
+    mock_tel.unobscured_area = 0.879
 
+    # Overhead times
+    mock_tel.toverhead_fixed = 8381.3 * TIME
+    mock_tel.toverhead_multi = 1.1 * DIMENSIONLESS
 
-class MockDetector(Detector):
-    """Mock detector for testing."""
+    # Optical properties (nlambda=1 for IMAGER mode)
+    mock_tel.telescope_optical_throughput = np.array([0.823]) * DIMENSIONLESS
 
-    def load_configuration(self, parameters, mediator):
-        self.path = None
-        self.pixscale_mas = 6.55224925 * u.mas
-        self.npix_multiplier = u.Quantity(1.0, DIMENSIONLESS)
-        self.DC = u.Quantity([3.0e-05], DARK_CURRENT)
-        self.RN = u.Quantity([0.0], READ_NOISE)
-        self.tread = u.Quantity([1000.0], READ_TIME)
-        self.CIC = u.Quantity([0.0013], CLOCK_INDUCED_CHARGE)
-        self.QE = u.Quantity([0.897], QUANTUM_EFFICIENCY)
-        self.dQE = u.Quantity([0.75], DIMENSIONLESS)
+    # Thermal properties
+    mock_tel.temperature = 290.0 * TEMPERATURE
+    mock_tel.T_contamination = 0.95 * DIMENSIONLESS
+
+    # Methods
+    mock_tel.validate_configuration = MagicMock()
+
+    return mock_tel
 
 
-class MockCoronagraph(Coronagraph):
-    """Mock coronagraph for testing."""
+def create_mock_detector():
+    """Create a mock detector for unit testing in IMAGER mode."""
+    mock_det = MagicMock(spec=Detector)
 
-    def load_configuration(self, parameters, mediator):
-        self.path = None
-        self.pixscale = 30.0 * LAMBDA_D
-        self.contrast = 1.05e-13 * DIMENSIONLESS
-        self.noisefloor_factor = 0.03 * DIMENSIONLESS
-        self.bandwidth = 0.2
-        self.psf_trunc_ratio = 0.3 * DIMENSIONLESS
-        self.photometric_aperture_radius = 0.7 * LAMBDA_D
-        self.Tcore = 0.2968371 * DIMENSIONLESS
-        self.TLyot = 0.65 * DIMENSIONLESS
-        self.nrolls = 1
-        self.coronagraph_optical_throughput = u.Quantity([0.44], DIMENSIONLESS)
-        self.coronagraph_spectral_resolution = 1.0 * DIMENSIONLESS
-        self.npsfratios = 1
-        self.npix = 4
-        self.xcenter = 2.0 * PIXEL
-        self.ycenter = 2.0 * PIXEL
-        self.r = u.Quantity(
+    # Basic attributes (nlambda=1 for IMAGER mode)
+    mock_det.pixscale_mas = 0.25 * LAMBDA_D
+    mock_det.npix_multiplier = np.array([1.0]) * DIMENSIONLESS
+
+    # Detector noise characteristics
+    mock_det.DC = np.array([3e-5]) * DARK_CURRENT
+    mock_det.RN = np.array([0.0]) * READ_NOISE
+    mock_det.tread = np.array([1000.0]) * READ_TIME
+    mock_det.CIC = np.array([1.3e-3]) * CLOCK_INDUCED_CHARGE
+
+    # Quantum efficiency
+    mock_det.QE = np.array([0.897]) * QUANTUM_EFFICIENCY
+    mock_det.dQE = np.array([0.75]) * DIMENSIONLESS
+
+    # Methods
+    mock_det.validate_configuration = MagicMock()
+
+    return mock_det
+
+
+def create_mock_coronagraph():
+    """Create a mock coronagraph for unit testing in IMAGER mode."""
+    mock_coro = MagicMock(spec=Coronagraph)
+
+    # Basic attributes
+    mock_coro.pixscale = 30.0 * LAMBDA_D
+    mock_coro.npix = 4
+    mock_coro.xcenter = 2.0 * PIXEL
+    mock_coro.ycenter = 2.0 * PIXEL
+    mock_coro.coronagraph_bandwidth = 0.2
+    mock_coro.nrolls = 1
+    mock_coro.npsfratios = 1
+
+    # Coronagraph optical properties
+    mock_coro.coronagraph_optical_throughput = np.array([0.44]) * DIMENSIONLESS
+    mock_coro.coronagraph_spectral_resolution = 1.0 * DIMENSIONLESS
+
+    # Parameters
+    mock_coro.contrast = 1.05e-13 * DIMENSIONLESS
+    mock_coro.noisefloor_factor = 0.03 * DIMENSIONLESS
+    mock_coro.Tcore = 0.2968371 * DIMENSIONLESS
+    mock_coro.TLyot = 0.65 * DIMENSIONLESS
+    mock_coro.PSFpeak = 0.01625 * DIMENSIONLESS
+
+    # 2D arrays for spatial maps
+    mock_coro.r = (
+        np.array(
             [
                 [63.63961031, 47.4341649, 47.4341649, 63.63961031],
                 [47.4341649, 21.21320344, 21.21320344, 47.4341649],
                 [47.4341649, 21.21320344, 21.21320344, 47.4341649],
                 [63.63961031, 47.4341649, 47.4341649, 63.63961031],
-            ],
-            LAMBDA_D,
+            ]
         )
-        self.omega_lod = u.Quantity(
-            [
-                [[2.26980069], [2.26980069], [2.26980069], [2.26980069]],
-                [[2.26980069], [2.26980069], [2.26980069], [2.26980069]],
-                [[2.26980069], [2.26980069], [2.26980069], [2.26980069]],
-                [[2.26980069], [2.26980069], [2.26980069], [2.26980069]],
-            ],
-            LAMBDA_D**2,
-        )
-        self.skytrans = u.Quantity(
-            [
-                [0.65, 0.65, 0.65, 0.65],
-                [0.65, 0.65, 0.65, 0.65],
-                [0.65, 0.65, 0.65, 0.65],
-                [0.65, 0.65, 0.65, 0.65],
-            ],
-            DIMENSIONLESS,
-        )
-        self.photometric_aperture_throughput = u.Quantity(
+        * LAMBDA_D
+    )
+
+    mock_coro.skytrans = np.full((4, 4), 0.65) * DIMENSIONLESS
+    mock_coro.Istar = np.full((4, 4), 1.70625e-15) * DIMENSIONLESS
+    mock_coro.noisefloor = np.full((4, 4), 5.11875e-17) * DIMENSIONLESS
+
+    # 3D arrays with psf_trunc_ratio dimension
+    mock_coro.omega_lod = np.full((4, 4, 1), 2.26980069) * LAMBDA_D**2
+    mock_coro.photometric_aperture_throughput = (
+        np.array(
             [
                 [[0.0], [0.2968371], [0.2968371], [0.0]],
                 [[0.2968371], [0.2968371], [0.2968371], [0.2968371]],
                 [[0.2968371], [0.2968371], [0.2968371], [0.2968371]],
                 [[0.0], [0.2968371], [0.2968371], [0.0]],
-            ],
-            DIMENSIONLESS,
+            ]
         )
-        self.PSFpeak = u.Quantity(0.01625, DIMENSIONLESS)
-        self.Istar = u.Quantity(
-            [
-                [1.70625e-15, 1.70625e-15, 1.70625e-15, 1.70625e-15],
-                [1.70625e-15, 1.70625e-15, 1.70625e-15, 1.70625e-15],
-                [1.70625e-15, 1.70625e-15, 1.70625e-15, 1.70625e-15],
-                [1.70625e-15, 1.70625e-15, 1.70625e-15, 1.70625e-15],
-            ],
-            DIMENSIONLESS,
-        )
-        self.noisefloor = u.Quantity(
-            [
-                [5.11875e-17, 5.11875e-17, 5.11875e-17, 5.11875e-17],
-                [5.11875e-17, 5.11875e-17, 5.11875e-17, 5.11875e-17],
-                [5.11875e-17, 5.11875e-17, 5.11875e-17, 5.11875e-17],
-                [5.11875e-17, 5.11875e-17, 5.11875e-17, 5.11875e-17],
-            ],
-            DIMENSIONLESS,
-        )
+        * DIMENSIONLESS
+    )
+
+    # Photometric aperture (one or the other should be None)
+    mock_coro.photometric_aperture_radius = 0.7 * LAMBDA_D
+    mock_coro.psf_trunc_ratio = 0.3 * DIMENSIONLESS
+
+    # Methods
+    mock_coro.validate_configuration = MagicMock()
+
+    return mock_coro
 
 
 # ============================================================================
@@ -158,9 +167,9 @@ class MockCoronagraph(Coronagraph):
 def mock_observatory():
     """Fixture providing a mock observatory with components."""
     obs = Observatory()
-    obs.telescope = MockTelescope()
-    obs.detector = MockDetector()
-    obs.coronagraph = MockCoronagraph()
+    obs.telescope = create_mock_telescope()
+    obs.detector = create_mock_detector()
+    obs.coronagraph = create_mock_coronagraph()
     return obs
 
 
@@ -224,11 +233,17 @@ def mock_scene():
 
 
 @pytest.fixture
-def configured_mock_observatory(mock_observatory):
-    """Fixture providing a mock observatory with loaded components."""
-    mock_observatory.telescope.load_configuration({}, {})
-    mock_observatory.coronagraph.load_configuration({}, {})
-    mock_observatory.detector.load_configuration({}, {})
+def configured_mock_observatory(mock_observatory, mock_observation_imager, mock_scene):
+    """Fixture providing a fully configured mock observatory."""
+    # Mock observatory already has properly initialized components from create_mock_* functions
+    # No need to call load_configuration with empty dicts
+
+    # Set observatory-level parameters that would be set by load_configuration
+    mock_observatory.observing_mode = "IMAGER"
+    mock_observatory.optics_throughput = np.array([0.8]) * DIMENSIONLESS
+    mock_observatory.total_throughput = np.array([0.6]) * QUANTUM_EFFICIENCY
+    mock_observatory.epswarmTrcold = np.array([0.2]) * DIMENSIONLESS
+
     return mock_observatory
 
 

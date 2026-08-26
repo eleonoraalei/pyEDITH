@@ -178,41 +178,52 @@ def calculate_texp(parameters: dict, ETC_validation: bool = False) -> np.array:
 
     """
 
-    # Define Observation and load relevant parameters
-    observation = Observation()
-    observation.load_configuration(parameters)
-    observation.set_output_arrays()
-    observation.validate_configuration()
+    # Read Filter list
+    filters = parse_input.parse_filters(parameters)
 
-    # Define Astrophysical Scene and load relevant parameters,
-    # then calculate zodi/exozodi
-    scene = AstrophysicalScene()
-    scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(parameters)
-    scene.validate_configuration()
-    if (
-        parameters["observing_mode"] == "IFS"
-        and parameters["regrid_wavelength"] is True
-    ):
-        scene.regrid_spectra(observation)
+    results = {}
+    validation_variables = {}
+    # Loop by filter
+    for f in filters:
+        logger.info("Running pyEDITH for Filter: " + f.name)
+        # Define Observation and load relevant parameters
+        observation = Observation()
+        observation.load_configuration(parameters, filter=f)
+        observation.set_output_arrays()
+        observation.validate_configuration()
 
-    # Create and configure Observatory
-    observatory_config = parse_input.get_observatory_config(parameters)
-    observatory = Observatory()
-    observatory.create_observatory(observatory_config)
-    observatory.load_configuration(parameters, observation, scene)
-    observatory.validate_configuration()
+        # Define Astrophysical Scene and load relevant parameters,
+        # then calculate zodi/exozodi
+        scene = AstrophysicalScene()
+        scene.load_configuration(parameters)
+        scene.calculate_zodi_exozodi(parameters)
+        scene.validate_configuration()
+        if parameters["observing_mode"] == "IFS":
+            scene.regrid_spectra(observation)
 
-    # EXPOSURE TIME CALCULATION
-    calculate_exposure_time_or_snr(
-        observation,
-        scene,
-        observatory,
-        ETC_validation=ETC_validation,
-        mode="exposure_time",
-    )
+        # Create and configure Observatory
+        observatory_config = parse_input.get_observatory_config(parameters)
+        observatory = Observatory()
+        observatory.create_observatory(observatory_config)
+        observatory.load_configuration(parameters, observation, scene)
+        observatory.validate_configuration()
 
-    return observation.exptime, observation.validation_variables
+        # EXPOSURE TIME CALCULATION
+        calculate_exposure_time_or_snr(
+            observation,
+            scene,
+            observatory,
+            ETC_validation=ETC_validation,
+            mode="exposure_time",
+        )
+
+        results[f.name] = {
+            "wavelength": observation.wavelength,
+            "exposure_time": observation.exptime,
+        }
+        validation_variables[f.name] = observation.validation_variables
+
+    return results, validation_variables
 
 
 def calculate_snr(parameters: dict, reference_texp: float):
@@ -243,33 +254,45 @@ def calculate_snr(parameters: dict, reference_texp: float):
 
     """
 
-    # Define Observation and load relevant parameters
-    observation = Observation()
-    observation.load_configuration(parameters)
-    observation.set_output_arrays()
+    # Read Filter list
+    filters = parse_input.parse_filters(parameters)
 
-    # Define Astrophysical Scene and load relevant parameters,
-    # then calculate zodi/exozodi
-    scene = AstrophysicalScene()
-    scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(parameters)
-    if (
-        parameters["observing_mode"] == "IFS"
-        and parameters["regrid_wavelength"] is True
-    ):
-        scene.regrid_spectra(observation)
+    results = {}
+    validation_variables = {}
+    # Loop by filter
+    for f in filters:
+        logger.info("Running pyEDITH for Filter: " + f.name)
 
-    # Create and configure Observatory
-    observatory_config = parse_input.get_observatory_config(parameters)
-    observatory = Observatory()
-    observatory.create_observatory(observatory_config)
-    observatory.load_configuration(parameters, observation, scene)
-    observatory.validate_configuration()
+        # Define Observation and load relevant parameters
+        observation = Observation()
+        observation.load_configuration(parameters, filter=f)
+        observation.set_output_arrays()
 
-    # SNR CALCULATION
-    observation.obstime = reference_texp
-    calculate_exposure_time_or_snr(
-        observation, scene, observatory, mode="signal_to_noise"
-    )
+        # Define Astrophysical Scene and load relevant parameters,
+        # then calculate zodi/exozodi
+        scene = AstrophysicalScene()
+        scene.load_configuration(parameters)
+        scene.calculate_zodi_exozodi(parameters)
 
-    return observation.fullsnr, observation.validation_variables
+        if parameters["observing_mode"] == "IFS":
+            scene.regrid_spectra(observation)
+
+        # Create and configure Observatory
+        observatory_config = parse_input.get_observatory_config(parameters)
+        observatory = Observatory()
+        observatory.create_observatory(observatory_config)
+        observatory.load_configuration(parameters, observation, scene)
+        observatory.validate_configuration()
+
+        # SNR CALCULATION
+        observation.obstime = reference_texp
+        calculate_exposure_time_or_snr(
+            observation, scene, observatory, mode="signal_to_noise"
+        )
+        results[f.name] = {
+            "wavelength": observation.wavelength,
+            "snr": observation.fullsnr,
+        }
+        validation_variables[f.name] = observation.validation_variables
+
+    return results, validation_variables

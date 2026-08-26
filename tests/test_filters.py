@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import astropy.units as u
-from pyEDITH.components.filters import Filter, FULL_CHANNEL_FILTERS
+from pyEDITH.filters import Filter, FULL_CHANNEL_FILTERS
 
 
 def test_filter_from_low_high():
@@ -15,14 +15,14 @@ def test_filter_from_low_high():
     assert f.high.unit == u.um
     assert np.isclose(f.center.value, 0.6)
     assert f.center.unit == u.um
-    assert np.isclose(f.bandpass.value, 0.6667, atol=0.001)
+    assert np.isclose(f.bandwidth.value, 0.6667, atol=0.001)
     assert np.isclose(f.width.value, 0.4)
     assert f.width.unit == u.um
 
 
-def test_filter_from_center_bandpass():
-    """Test creating filter from center wavelength and bandpass."""
-    f = Filter("test", center=0.6 * u.um, bandpass=0.5, resolution=100)
+def test_filter_from_center_bandwidth():
+    """Test creating filter from center wavelength and bandwidth."""
+    f = Filter("test", center=0.6 * u.um, bandwidth=0.5, resolution=100)
 
     assert np.isclose(f.center.value, 0.6)
     assert f.center.unit == u.um
@@ -30,7 +30,7 @@ def test_filter_from_center_bandpass():
     assert f.low.unit == u.um
     assert np.isclose(f.high.value, 0.75)
     assert f.high.unit == u.um
-    assert np.isclose(f.bandpass.value, 0.5)
+    assert np.isclose(f.bandwidth.value, 0.5)
     assert np.isclose(f.width.value, 0.3)
     assert f.width.unit == u.um
 
@@ -47,7 +47,7 @@ def test_filter_missing_parameters():
 def test_filter_imager_type():
     """Test broadband imaging filter (no wavelength array)."""
     f = Filter(
-        "photometric", center=0.55 * u.um, bandpass=0.2, resolution=None, type="IMAGER"
+        "photometric", center=0.55 * u.um, bandwidth=0.2, resolution=None, type="IMAGER"
     )
 
     assert f.type == "IMAGER"
@@ -70,7 +70,7 @@ def test_filter_ifs_type():
 def test_filter_invalid_type():
     """Test invalid filter type raises error."""
     with pytest.raises(ValueError, match="Type must be either"):
-        Filter("bad", center=0.5 * u.um, bandpass=0.1, resolution=100, type="INVALID")
+        Filter("bad", center=0.5 * u.um, bandwidth=0.1, resolution=100, type="INVALID")
 
 
 def test_wavelength_coverage():
@@ -149,7 +149,7 @@ def test_repr():
 
     repr_str = repr(f)
     assert (
-        "Filter(name='VIS', type='IMAGER', center=0.600 um, bandpass=66.67%, width=0.400 um)"
+        "Filter(name='VIS', type='IMAGER', center=0.600 um, bandwidth=66.67%, width=0.400 um)"
         in repr_str
     )
 
@@ -189,11 +189,11 @@ def test_full_channel_filters_resolutions():
 
 def test_narrow_line_filter():
     """Test narrow-band filter for emission line imaging."""
-    # H-alpha filter at 656.3 nm with ~1% bandpass
+    # H-alpha filter at 656.3 nm with ~1% bandwidth
     f = Filter(
         "H-alpha",
         center=656.3 * u.nm,
-        bandpass=0.01,
+        bandwidth=0.01,
         resolution=None,
         type="IMAGER",
     )
@@ -222,3 +222,62 @@ def test_wide_photometric_band():
     assert f.center.value == pytest.approx(0.475, rel=0.01)
     assert f.center.unit == u.um
     assert f.contains(470 * u.nm)
+
+
+def test_unnamed_filter_gets_numeric_name():
+    """Test that filters without names get auto-generated numeric names."""
+    f = Filter(low=0.5 * u.um, high=0.6 * u.um, resolution=100)
+
+    assert f.name is not None
+    assert f.name.isdigit()  # Name should be a string representation of a number
+
+
+def test_unnamed_filters_get_unique_names():
+    """Test that multiple unnamed filters get unique sequential names."""
+    # Reset the counter if it exists
+    if hasattr(Filter, "_filter_count"):
+        delattr(Filter, "_filter_count")
+
+    f1 = Filter(low=0.4 * u.um, high=0.5 * u.um, resolution=100)
+    f2 = Filter(low=0.5 * u.um, high=0.6 * u.um, resolution=100)
+    f3 = Filter(low=0.6 * u.um, high=0.7 * u.um, resolution=100)
+
+    # Names should be different
+    assert f1.name != f2.name
+    assert f2.name != f3.name
+    assert f1.name != f3.name
+
+    # Names should be sequential numbers
+    assert f1.name == "1"
+    assert f2.name == "2"
+    assert f3.name == "3"
+
+
+def test_named_and_unnamed_filters_mix():
+    """Test that named and unnamed filters can coexist."""
+    # Reset counter
+    if hasattr(Filter, "_filter_count"):
+        delattr(Filter, "_filter_count")
+
+    f1 = Filter("custom_name", low=0.4 * u.um, high=0.5 * u.um, resolution=100)
+    f2 = Filter(low=0.5 * u.um, high=0.6 * u.um, resolution=100)
+    f3 = Filter("another_name", low=0.6 * u.um, high=0.7 * u.um, resolution=100)
+
+    assert f1.name == "custom_name"
+    assert f2.name == "1"  # First unnamed filter
+    assert f3.name == "another_name"
+
+
+def test_unnamed_filter_counter_persists():
+    """Test that the unnamed filter counter persists across instances."""
+    # Get current counter value
+    initial_count = getattr(Filter, "_filter_count", 0)
+
+    f1 = Filter(low=0.4 * u.um, high=0.5 * u.um, resolution=100)
+    count_after_f1 = int(f1.name)
+
+    f2 = Filter(low=0.5 * u.um, high=0.6 * u.um, resolution=100)
+    count_after_f2 = int(f2.name)
+
+    # Counter should increment
+    assert count_after_f2 == count_after_f1 + 1

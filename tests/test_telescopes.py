@@ -2,9 +2,10 @@ import pytest
 import numpy as np
 from astropy import units as u
 from unittest.mock import patch, MagicMock
-from pyEDITH.components.telescopes import ToyModelTelescope, EACTelescope
+from pyEDITH.telescopes import ToyModelTelescope, EACTelescope
 from pyEDITH.units import LENGTH, TIME, DIMENSIONLESS, TEMPERATURE, WAVELENGTH
 from pyEDITH.utils import average_over_bandpass, interpolate_over_bandpass
+from pyEDITH.filters import Filter
 from copy import deepcopy
 
 # ============================================================================
@@ -24,18 +25,18 @@ class MockMediator:
                 return np.array([0.5, 0.7, 1.1]) * WAVELENGTH
             elif self.observing_mode == "IMAGER":
                 return np.array([0.7]) * WAVELENGTH
-        if param == "delta_wavelength":
+        elif param == "wavelength_range":
+            if self.observing_mode == "IFS":
+                return np.array([0.5, 1.1]) * WAVELENGTH
+            elif self.observing_mode == "IMAGER":
+                return np.array([0.7 * (1 - 0.2 / 2), 0.7 * (1 + 0.2 / 2)]) * WAVELENGTH
+        elif param == "delta_wavelength":
             if self.observing_mode == "IFS":
                 return np.array([0.5 / 140, 0.7 / 140, 1.1 / 140]) * WAVELENGTH
             elif self.observing_mode == "IMAGER":
                 return np.array([0.7 / 140]) * WAVELENGTH
         elif param == "observing_mode":
             return self.observing_mode
-        return 1.0
-
-    def get_coronagraph_parameter(self, param):
-        if param == "bandwidth":
-            return 0.2 * DIMENSIONLESS
         return 1.0
 
 
@@ -227,18 +228,13 @@ def test_eac_telescope_load_configuration_user_params(
 
     assert telescope.temperature == 290 * TEMPERATURE
     assert telescope.T_contamination == 1.0 * DIMENSIONLESS
-    wavelength = mediator.get_observation_parameter("wavelength")
-    bandwidth = mediator.get_coronagraph_parameter("bandwidth")
-    wavelength_range = [
-        wavelength * (1 - 0.5 * bandwidth),
-        wavelength * (1 + 0.5 * bandwidth),
-    ]
+
     expected_throughput = average_over_bandpass(
         {
             "lam": mock_telescope_params.lam,
             "total_tele_refl": mock_telescope_params.total_tele_refl.copy(),
         },
-        wavelength_range,
+        mediator.get_observation_parameter("wavelength_range"),
     )["total_tele_refl"]
 
     assert np.isclose(
@@ -289,11 +285,7 @@ def test_eac_telescope_load_configuration_default_values(
     assert telescope.temperature == 290 * TEMPERATURE
     assert telescope.T_contamination == 1.0 * DIMENSIONLESS
     wavelength = mediator.get_observation_parameter("wavelength")
-    bandwidth = mediator.get_coronagraph_parameter("bandwidth")
-    wavelength_range = [
-        wavelength * (1 - 0.5 * bandwidth),
-        wavelength * (1 + 0.5 * bandwidth),
-    ]
+    wavelength_range = [min(wavelength), max(wavelength)]
     expected_throughput = average_over_bandpass(
         {
             "lam": mock_telescope_params.lam,

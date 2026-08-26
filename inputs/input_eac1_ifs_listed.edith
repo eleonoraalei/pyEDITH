@@ -15,7 +15,6 @@ wavelength = [0.5,0.55]                     ; wavelength (micron)
 snr = [7.0,7.0]                             ; signal-to-noise ratio at desired wavelength {same length as wavelength} 
 CRb_multiplier  = 2.                        ; factor to multiply to remove background
 psf_trunc_ratio = 0.35                      ; truncation ratio of the PSF 
-regrid_wavelength = False                   ; we don't want to regrid over higher spectral resolution since this is just an example
 
 ;--- STAR PARAMETERS ---
 distance = 10                               ; distance to star (pc)
@@ -38,5 +37,5 @@ observing_mode =  IFS
 ;--- FILTER PARAMETERS (optional) ---
 filter_name       = ifs_filter            ; label per filter
 filter_center     = 0.55                  ; central wavelength per filter (micron)
-filter_bandpass   = 0.2                   ; fractional bandpass per filter
+filter_bandwidth   = 0.2                   ; fractional bandwidth per filter
 filter_resolution = 10                    ; required only if observing_mode = IFS

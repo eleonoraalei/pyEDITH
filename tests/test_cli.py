@@ -2,8 +2,9 @@ import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from pyEDITH.cli import main, calculate_texp, calculate_snr
-from pyEDITH import AstrophysicalScene, Observation, Observatory
+from pyEDITH.filters import Filter
 from io import StringIO
+import astropy.units as u
 
 # ============================================================================
 # Fixtures
@@ -24,7 +25,7 @@ def mock_args():
 
 @pytest.fixture
 def mock_parameters():
-    """Fixture to create a mock parameters dictionary from .edith file."""
+    """Fixture to create a mock parameters dictionary."""
     return {
         "wavelength": [0.5],
         "distance": 10,
@@ -32,22 +33,23 @@ def mock_parameters():
         "nzodis": 3.0,
         "observing_mode": "IMAGER",
         "observatory_preset": "ToyModel",
+        "filter_list": [
+            Filter("photometry", center=0.5 * u.um, bandwidth=0.2, type="IMAGER")
+        ],
     }
 
 
 @pytest.fixture
 def mock_parameters_ifs():
-    """Fixture to create mock parameters for IFS mode with regridding."""
+    """Fixture to create mock parameters for IFS mode."""
     return {
-        "wavelength": [0.5],
+        "wavelength": np.linspace(0.2, 1.8, 100),
         "distance": 10,
         "magV": 5.0,
         "nzodis": 3.0,
         "observing_mode": "IFS",
         "observatory_preset": "ToyModel",
-        "spectral_resolution": [140, 40],
-        "channel_bounds": 1.0,
-        "regrid_wavelength": True,
+        "filter_list": [Filter("VIS", low=0.4 * u.um, high=1.0 * u.um, resolution=140)],
     }
 
 
@@ -357,8 +359,13 @@ def test_calculate_texp_basic_execution(mock_parameters):
         texp, validation_variables = calculate_texp(mock_parameters, False)
 
         # Verify results
-        assert np.array_equal(texp, np.array([1.0]))
-        assert validation_variables == {}
+        filter_name = mock_parameters["filter_list"][0].name
+        assert filter_name in texp
+        assert "wavelength" in texp[filter_name]
+        assert "exposure_time" in texp[filter_name]
+        assert np.array_equal(texp[filter_name]["exposure_time"], np.array([1.0]))
+        assert filter_name in validation_variables
+        assert validation_variables[filter_name] == {}
 
 
 def test_calculate_texp_calls_all_components(mock_parameters):
@@ -414,8 +421,13 @@ def test_calculate_texp_ifs_mode_with_regridding(mock_parameters_ifs):
         texp, validation_variables = calculate_texp(mock_parameters_ifs, False)
 
         # Verify results
-        assert np.array_equal(texp, np.array([1.0]))
-        assert validation_variables == {}
+        filter_name = mock_parameters_ifs["filter_list"][0].name
+        assert filter_name in texp
+        assert "wavelength" in texp[filter_name]
+        assert "exposure_time" in texp[filter_name]
+        assert np.array_equal(texp[filter_name]["exposure_time"], np.array([1.0]))
+        assert filter_name in validation_variables
+        assert validation_variables[filter_name] == {}
 
         # Verify scene regridding was called
         mock_scene_instance.regrid_spectra.assert_called_once()
@@ -450,8 +462,13 @@ def test_calculate_snr_basic_execution(mock_parameters):
         snr, validation_variables = calculate_snr(mock_parameters, 1.0)
 
         # Verify results
-        assert np.array_equal(snr, np.array([10.0]))
-        assert validation_variables == {}
+        filter_name = mock_parameters["filter_list"][0].name
+        assert filter_name in snr
+        assert "wavelength" in snr[filter_name]
+        assert "snr" in snr[filter_name]
+        assert np.array_equal(snr[filter_name]["snr"], np.array([10.0]))
+        assert filter_name in validation_variables
+        assert validation_variables[filter_name] == {}
 
 
 def test_calculate_snr_calls_all_components(mock_parameters):
@@ -508,8 +525,13 @@ def test_calculate_snr_ifs_mode_with_regridding(mock_parameters_ifs):
         snr, validation_variables = calculate_snr(mock_parameters_ifs, 1.0)
 
         # Verify results
-        assert np.array_equal(snr, np.array([10.0]))
-        assert validation_variables == {}
+        filter_name = mock_parameters_ifs["filter_list"][0].name
+        assert filter_name in snr
+        assert "wavelength" in snr[filter_name]
+        assert "snr" in snr[filter_name]
+        assert np.array_equal(snr[filter_name]["snr"], np.array([10.0]))
+        assert filter_name in validation_variables
+        assert validation_variables[filter_name] == {}
 
         # Verify scene regridding was called
         mock_scene_instance.regrid_spectra.assert_called_once()

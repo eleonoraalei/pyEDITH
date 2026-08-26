@@ -14,7 +14,7 @@ from pyEDITH.units import (
     INV_SQUARE_ARCSEC,
     SPECTRAL_FLUX_DENSITY_CGS,
 )
-
+from pyEDITH import Filter
 
 from pyEDITH.astrophysical_scene import (
     AstrophysicalScene,
@@ -313,30 +313,30 @@ def test_load_configuration_with_magnitudes():
     """Test loading configuration with magnitude-based inputs."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 10,
         "magV": 5.0,
-        "mag": [5.1, 5.2],
+        "mag": 5.1,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
         "separation": 0.1,
-        "delta_mag": [20.0, 20.1],
+        "delta_mag": 20.0,
         "delta_mag_min": 25,
     }
 
     scene.load_configuration(parameters)
     assert scene.dist == 10 * DISTANCE
     assert scene.vmag == 5.0 * MAGNITUDE
-    assert np.allclose(scene.mag.value, [5.1, 5.2])
+    assert np.allclose(scene.mag.value, 5.1)
     assert scene.mag.unit == MAGNITUDE
     assert np.isclose(scene.stellar_angular_diameter_arcsec.value, 0.00093009345219)
     assert scene.nzodis == 3.0 * ZODI
     assert scene.ra == 180.0 * DEG
     assert scene.dec == 0.0 * DEG
     assert scene.separation == 0.1 * ARCSEC
-    assert np.allclose(scene.deltamag.value, [20.0, 20.1])
+    assert np.allclose(scene.deltamag.value, 20.0)
     assert scene.deltamag.unit == MAGNITUDE
     assert scene.min_deltamag == 25.0 * MAGNITUDE
 
@@ -371,10 +371,10 @@ def test_load_configuration_with_custom_F0():
     """Test loading configuration with custom F0 value."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 10,
         "magV": 5.0,
-        "mag": [5.1, 5.2],
+        "mag": 5.1,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
@@ -386,7 +386,7 @@ def test_load_configuration_with_custom_F0():
     }
 
     scene.load_configuration(parameters)
-    assert np.allclose(scene.F0.value, [13400, 13400])  # parsed to len(wavelength)
+    assert np.allclose(scene.F0.value, 13400)  # parsed to len(wavelength)
     assert scene.F0.unit == PHOTON_FLUX_DENSITY
 
 
@@ -394,10 +394,10 @@ def test_load_configuration_with_semimajor_axis():
     """Test loading configuration using semimajor_axis instead of separation."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 10,
         "magV": 5.0,
-        "mag": [5.1, 5.2],
+        "mag": 5.1,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
@@ -417,10 +417,10 @@ def test_load_configuration_missing_separation_and_semimajor_axis():
     """Test that missing both separation and semimajor_axis raises KeyError."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 10,
         "magV": 5.0,
-        "mag": [5.1, 5.2],
+        "mag": 5.1,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
@@ -440,11 +440,11 @@ def test_load_configuration_with_flux_inputs():
     """Test loading configuration with flux-based inputs."""
     scene = AstrophysicalScene()
     flux_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 14.8,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "FstarV_10pc": 1.244e02,
-        "Fp/Fs": [6.3e-8, 6.4e-8],
+        "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
@@ -461,7 +461,7 @@ def test_load_configuration_with_flux_inputs():
     )
     assert scene.Fp_min_over_Fs == flux_parameters["Fp_min/Fs"] * DIMENSIONLESS
     assert isinstance(scene.Fs_over_F0, u.Quantity)
-    assert len(scene.Fs_over_F0) == 2
+    assert len(scene.Fs_over_F0) == 1
     assert scene.Fs_over_F0.unit == DIMENSIONLESS
 
 
@@ -469,11 +469,11 @@ def test_load_configuration_flux_stellar_diameter():
     """Test that stellar angular diameter is calculated correctly from flux inputs."""
     scene = AstrophysicalScene()
     flux_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 14.8,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "FstarV_10pc": 1.244e02,
-        "Fp/Fs": [6.3e-8, 6.4e-8],
+        "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
@@ -491,11 +491,11 @@ def test_load_configuration_flux_calculations():
     """Test that flux-to-magnitude conversions are calculated correctly."""
     scene = AstrophysicalScene()
     flux_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 14.8,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "FstarV_10pc": 1.244e02,
-        "Fp/Fs": [6.3e-8, 6.4e-8],
+        "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
@@ -516,18 +516,17 @@ def test_load_configuration_flux_calculations():
 
     # Verify F0 properties
     assert np.all(scene.F0.unit == PHOTON_FLUX_DENSITY)
-    assert len(scene.F0) == len(flux_parameters["wavelength"])
 
 
 def test_load_configuration_magnitude_calculations_from_flux():
     """Test that magnitudes are correctly derived from flux inputs."""
     scene = AstrophysicalScene()
     flux_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 14.8,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "FstarV_10pc": 1.244e02,
-        "Fp/Fs": [6.3e-8, 6.4e-8],
+        "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
@@ -559,11 +558,11 @@ def test_load_configuration_delta_mag_calculations_from_flux():
     """Test that delta magnitudes are correctly derived from flux ratios."""
     scene = AstrophysicalScene()
     flux_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 14.8,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "FstarV_10pc": 1.244e02,
-        "Fp/Fs": [6.3e-8, 6.4e-8],
+        "Fp/Fs": 6.3e-8,
         "Fp_min/Fs": 1e-10,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
@@ -591,7 +590,9 @@ def test_load_configuration_insufficient_parameters():
         scene.load_configuration(
             {
                 "distance": 1.0,
-                "wavelength": [0.5, 0.55],
+                "wavelength": 0.5,
+                "observing_mode": "IMAGER",
+                "bandwidth": 0.2,
             }
         )
 
@@ -600,16 +601,16 @@ def test_load_configuration_mixed_magnitude_flux_inputs():
     """Test that mixing magnitude and flux inputs raises KeyError."""
     scene = AstrophysicalScene()
     mixed_parameters = {
-        "wavelength": [0.5, 0.55],
+        "wavelength": 0.5,
         "distance": 10,
         "magV": 5.0,
-        "Fstar_10pc": [1.128e02, 1.13e02],
+        "Fstar_10pc": 1.128e02,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 180.0,
         "dec": 0.0,
         "separation": 0.1,
-        "delta_mag": [20.0, 20.1],
+        "delta_mag": 20.0,
         "delta_mag_min": 25,
     }
 
@@ -795,10 +796,10 @@ def test_calculate_zodi_exozodi_creates_flux_attributes():
     """Test that calculate_zodi_exozodi creates required flux attributes."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -871,10 +872,10 @@ def test_calculate_zodi_exozodi_correct_units():
     """Test that flux arrays have correct units."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 1,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -965,10 +966,10 @@ def test_validate_configuration_with_valid_scene():
     """Test that validate_configuration passes with a properly configured scene."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -1007,10 +1008,10 @@ def test_validate_configuration_missing_attributes(attr):
     """Test that validate_configuration raises AttributeError for missing attributes."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -1046,22 +1047,22 @@ def test_validate_configuration_missing_attributes(attr):
         ("dec", 2),
         ("separation", 0.1),
         ("F0V", 1e8),
-        ("F0", [1e8, 1e8, 1e8]),
-        ("Fzodi_list", [1e-7, 1e-7, 1e-7]),
-        ("Fexozodi_list", [1e-8, 1e-8, 1e-8]),
-        ("Fbinary_list", [0, 0, 0]),
-        ("Fp_over_Fs", [1e-5, 1e-5, 1e-5]),
-        ("Fs_over_F0", [1, 1, 1]),
+        ("F0", 1e8),
+        ("Fzodi_list", 1e-7),
+        ("Fexozodi_list", 1e-8),
+        ("Fbinary_list", 0),
+        ("Fp_over_Fs", 1e-5),
+        ("Fs_over_F0", 1),
     ],
 )
 def test_validate_configuration_incorrect_types(attr, incorrect_value):
     """Test that validate_configuration raises TypeError for non-Quantity attributes."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -1095,22 +1096,22 @@ def test_validate_configuration_incorrect_types(attr, incorrect_value):
         ("dec", 2 * u.rad),
         ("separation", 0.1 * u.m),
         ("F0V", 1e8 * u.W / (u.m**2)),
-        ("F0", [1e8, 1e8, 1e8] * u.W / (u.m**2)),
-        ("Fzodi_list", [1e-7, 1e-7, 1e-7] * u.W / (u.m**2)),
-        ("Fexozodi_list", [1e-8, 1e-8, 1e-8] * u.W / (u.m**2)),
-        ("Fbinary_list", [0, 0, 0] * u.m),
-        ("Fp_over_Fs", [1e-5, 1e-5, 1e-5] * u.m),
-        ("Fs_over_F0", [1, 1, 1] * u.m),
+        ("F0", 1e8 * u.W / (u.m**2)),
+        ("Fzodi_list", 1e-7 * u.W / (u.m**2)),
+        ("Fexozodi_list", 1e-8 * u.W / (u.m**2)),
+        ("Fbinary_list", 0 * u.m),
+        ("Fp_over_Fs", 1e-5 * u.m),
+        ("Fs_over_F0", 1 * u.m),
     ],
 )
 def test_validate_configuration_incorrect_units(attr, incorrect_value):
     """Test that validate_configuration raises ValueError for incorrect units."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,
@@ -1154,10 +1155,10 @@ def test_validate_configuration_invalid_string_values(attr):
     """Test that validate_configuration raises error for string values."""
     scene = AstrophysicalScene()
     parameters = {
-        "wavelength": [0.5, 0.55, 0.6],
+        "wavelength": 0.5,
         "distance": 14.8,
         "magV": 5.84,
-        "mag": [5.687, 5.632, 5.577],
+        "mag": 5.687,
         "stellar_radius": 0.95,
         "nzodis": 3.0,
         "ra": 236.0075773682300,

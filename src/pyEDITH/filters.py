@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from ..units import *
+from .units import *
 import astropy.units as u
-from .. import utils
+from . import utils
 import logging
+from pyEDITH import parse_input
 
 logger = logging.getLogger("pyEDITH")
 
@@ -15,20 +16,19 @@ class Filter:
 
     def __init__(
         self,
-        name: str,
-        *,
+        name: str = None,
         low: u.Quantity = None,
         high: u.Quantity = None,
         center: u.Quantity = None,
-        bandpass: float = None,
+        bandwidth: float = None,
         resolution: float = None,
         type: str = "IFS",
     ):
         """
-        If type is 'IMAGER', save a filter object with wavelength and bandpass.
+        If type is 'IMAGER', save a filter object with wavelength and bandwidth.
         If type is 'IFS', create a filter from either:
         - low, high, resolution (explicit bounds)
-        - center, bandpass, resolution (center wavelength + fractional bandwidth)
+        - center, bandwidth, resolution (center wavelength + fractional bandwidth)
 
         And generate wavelength array for the filters given those parameters.
 
@@ -36,24 +36,32 @@ class Filter:
         ----------
         name : str
             Filter identifier (e.g., "UV", "500nm")
-        type :
+        type : str
+            Type of filter ("IFS" or "IMAGER")
         low : u.Quantity, optional
             Lower wavelength bound
         high : u.Quantity, optional
             Upper wavelength bound
         center : u.Quantity, optional
             Center wavelength
-        bandpass : float, optional
+        bandwidth : float, optional
             Fractional bandwidth (e.g., 0.2 for 20%)
         resolution : float
             Spectral resolution R = λ/Δλ
         """
-        self.name = name
+        if name is not None:
+            self.name = name
+        else:
+            # Generate a unique number for unnamed filters
+            if not hasattr(Filter, "_filter_count"):
+                Filter._filter_count = 0
+            Filter._filter_count += 1
+            self.name = str(Filter._filter_count)
         self.type = type
         self.resolution = resolution
 
         if self.resolution is None:
-            logging.warning(
+            logger.warning(
                 f"Filter {name}: resolution not set, will default to IMAGER type."
             )
         if low is not None and high is not None:
@@ -66,33 +74,34 @@ class Filter:
                 else high * WAVELENGTH
             )
             self.center = (self.low + self.high) / 2
-            self.bandpass = ((self.high - self.low) / self.center).to(DIMENSIONLESS)
+            self.bandwidth = ((self.high - self.low) / self.center).to(DIMENSIONLESS)
             self.width = self.high - self.low
 
-        elif center is not None and bandpass is not None:
+        elif center is not None and bandwidth is not None:
             self.center = (
                 center.to(WAVELENGTH)
                 if isinstance(center, u.Quantity)
                 else center * WAVELENGTH
             )
-            self.bandpass = bandpass * DIMENSIONLESS
-            self.low = self.center * (1 - self.bandpass.value / 2)
-            self.high = self.center * (1 + self.bandpass.value / 2)
+            self.bandwidth = bandwidth * DIMENSIONLESS
+            self.low = self.center * (1 - self.bandwidth.value / 2)
+            self.high = self.center * (1 + self.bandwidth.value / 2)
             self.width = self.high - self.low
 
         else:
             raise ValueError(
-                f"Filter '{name}': Must provide either (low, high) or (center, bandpass)"
+                f"Filter '{name}': Must provide either (low, high) or (center, bandwidth)"
             )
 
         if self.type == "IMAGER" or self.resolution == None:
             ## BROADBAND PHOTOMETRY
-            self.wavelength = self.center
+            self.wavelength = np.array([self.center.value]) * WAVELENGTH
             self.delta_wavelength = None
 
         elif self.type == "IFS":
             ## SPECTROSCOPY
             # Create wavelength array
+            print(self.resolution, self.low.value, self.high.value)
             lam, dlam = utils.generate_wavelength_grid(
                 res=self.resolution,
                 lam_low=self.low.value,
@@ -115,7 +124,7 @@ class Filter:
         if self.type == "IMAGER" or self.resolution is None:
             return (
                 f"Filter(name='{self.name}', type='{self.type}', "
-                f"center={self.center:.3f}, bandpass={self.bandpass.value:.2%}, "
+                f"center={self.center:.3f}, bandwidth={self.bandwidth.value:.2%}, "
                 f"width={self.width:.3f})"
             )
         else:

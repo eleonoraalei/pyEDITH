@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from .. import utils
+from . import utils
 from astropy import units as u
-from ..units import *
+from .units import *
 from scipy.interpolate import interp1d
 from yippy import Coronagraph as yippycoro
 from lod_unit import lod
@@ -138,7 +138,7 @@ class Coronagraph(ABC):
         X-coordinate of the image center.
     ycenter : float
         Y-coordinate of the image center.
-    bandwidth : float
+    coronagraph_bandwidth : float
         Bandwidth of the coronagraph.
     stellar_angular_diameter : np.ndarray
         Angular diameters of the target objects.
@@ -196,7 +196,7 @@ class Coronagraph(ABC):
             "npix": int,
             "xcenter": PIXEL,
             "ycenter": PIXEL,
-            "bandwidth": float,
+            "coronagraph_bandwidth": float,
             "npsfratios": int,
             "nrolls": int,
             "coronagraph_optical_throughput": DIMENSIONLESS,
@@ -245,7 +245,7 @@ class ToyModelCoronagraph(Coronagraph):
         * DIMENSIONLESS,  # noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_factor": 0.03
         * DIMENSIONLESS,  #  1 sigma systematic noise floor expressed as a multiplicative factor to the contrast (unitless)
-        "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
+        "coronagraph_bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "photometric_aperture_radius": 0.85 * LAMBDA_D,
         "Tcore": 0.2968371
         * DIMENSIONLESS,  # core throughput of coronagraph (uniform over dark hole, unitless, scalar)
@@ -405,7 +405,7 @@ class CoronagraphYIP(Coronagraph):
     # In YIP mode these quantities are OWNED by the YIP / yippy and must stay
     # consistent with the loaded package. The user is NOT allowed to override
     # them; if they try, fill_parameters will warn and keep the YIP value.
-    # Anything not listed here (e.g. bandwidth, noisefloor_PPF, Tcore, az_avg,
+    # Anything not listed here (e.g. noisefloor_PPF, Tcore, az_avg,
     # coronagraph_spectral_resolution) remains user-editable.
     LOCKED_KEYS: set = {
         "pixscale",
@@ -420,20 +420,17 @@ class CoronagraphYIP(Coronagraph):
         "photometric_aperture_throughput",
         "Istar",
         "noisefloor",
+        "coronagraph_bandwidth",
     }
 
     DEFAULT_CONFIG = {
-        # "contrast": 1.05e-13,  #  noise floor contrast of coronagraph (uniform over dark hole and unitless)
         "noisefloor_PPF": 30.0,  # 30.0 #  divide Istar by this to get the noise floor (unitless)
-        "bandwidth": 0.2,  # fractional bandwidth of coronagraph (unitless)
         "nrolls": 1,  # number of rolls
         "Tcore": 0.2968371
         * DIMENSIONLESS,  # core throughput within off-axis PSF (only used with photometric_aperture_radius method of calculating Omega)
         "coronagraph_optical_throughput": None,
         "coronagraph_spectral_resolution": 1
         * DIMENSIONLESS,  # Set to default. It is used to limit the bandwidth if the coronagraph has a specific spectral window.
-        # "TLyot": 0.65
-        # * DIMENSIONLESS,  # Lyot transmission of the coronagraph and the factor of 1.6 is just an estimate, used for skytrans}
         "az_avg": True,  # azimuthally average the contrast maps and noise floor if True
     }
 
@@ -486,26 +483,15 @@ class CoronagraphYIP(Coronagraph):
 
         from eacy import load_instrument, load_telescope
 
-        # ***** Set the bandwith *****
-        setattr(
-            self,
-            "bandwidth",
-            parameters.get("bandwidth", self.DEFAULT_CONFIG["bandwidth"]),
-        )
-
         # ***** Load the YAML using EACy *****
         instrument_params = load_instrument("CI").__dict__
 
         # averaging over bandpass is only required for imaging mode.
         if mediator.get_observation_parameter("observing_mode") == "IMAGER":
-            wavelength_range = [
-                mediator.get_observation_parameter("wavelength")
-                * (1 - 0.5 * self.bandwidth),
-                mediator.get_observation_parameter("wavelength")
-                * (1 + 0.5 * self.bandwidth),
-            ]
+
             instrument_params = utils.average_over_bandpass(
-                instrument_params, wavelength_range
+                instrument_params,
+                mediator.get_observation_parameter("wavelength_range"),
             )
         else:  # IFS case
             instrument_params = utils.interpolate_over_bandpass(
@@ -567,11 +553,31 @@ class CoronagraphYIP(Coronagraph):
         else:
             yippy_obj = yippycoro(self.path, psf_trunc_ratio=obs_trunc_float)
 
+        # ***** Set the bandwith *****
+        # get bandwidth info from yippy, if it exists in the YIP files
+        if (
+            hasattr(yippy_obj, "header")
+            and hasattr(yippy_obj.header, "lambda0")
+            and hasattr(yippy_obj.header, "minlam")
+            and hasattr(yippy_obj.header, "maxlam")
+        ):
+            coronagraph_bandwidth = (
+                yippy_obj.header.maxlam - yippy_obj.header.minlam
+            ) / yippy_obj.header.lambda0
+            self.DEFAULT_CONFIG["coronagraph_bandwidth"] = coronagraph_bandwidth.value
+        else:
+            logger.warning(
+                "No bandwidth info in YIPs, setting coronagraph_bandwidth = 0.2"
+            )
+
+            self.DEFAULT_CONFIG["coronagraph_bandwidth"] = 0.2
+
         # get nrolls from yippy, if it exists in the YIP files
         if hasattr(yippy_obj, "nrolls"):
             self.DEFAULT_CONFIG["nrolls"] = yippy_obj.nrolls
         else:
             # if yippy did not find nrolls, assume YIP has 360deg coverage and default to 1
+            logger.warning("No nrolls in YIPs, setting nrolls = 1.")
             self.DEFAULT_CONFIG["nrolls"] = 1
 
         # ***** Set all parameters that are defined in the YIP (unpack YIP metadata) *****

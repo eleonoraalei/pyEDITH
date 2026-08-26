@@ -21,11 +21,14 @@ def sample_input_file():
         tmp.write("""
         ; This is a comment
         wavelength = 0.5
+        bandwidth = 0.2
         distance = 10
         magV = 5.0
         nzodis = 3.0
         observing_mode = IMAGER
+        secondary_observing_mode = IMAGER
         secondary_wavelength = 1.0
+        secondary_bandwidth = 0.2
         """)
         tmp.flush()
         yield tmp.name
@@ -43,6 +46,7 @@ def sample_input_file_imager_multi_wavelength():
         magV = 5.0
         nzodis = 3.0
         observing_mode = IMAGER
+        bandwidth = 0.2
         """)
         tmp.flush()
         yield tmp.name
@@ -153,15 +157,15 @@ def spectrum_file_non_numeric():
 
 
 @pytest.fixture
-def filter_input_file_center_bandpass():
-    """Fixture providing an input file with filters using center/bandpass specification."""
+def filter_input_file_center_bandwidth():
+    """Fixture providing an input file with filters using center/bandwidth specification."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
         tmp.write("""
         observing_mode = 'IMAGER'
         wavelength = 0.6
         filter_name = ['F1']
         filter_center = [0.6]
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         """)
         tmp.flush()
         yield tmp.name
@@ -210,7 +214,7 @@ def filter_input_file_single_filter():
         wavelength = 0.6
         filter_name = 'F1'
         filter_center = 0.6
-        filter_bandpass = 0.1
+        filter_bandwidth = 0.1
         """)
         tmp.flush()
         yield tmp.name
@@ -615,32 +619,84 @@ def test_parse_parameters_wavelength_scalar():
     """Test parsing wavelength as a scalar."""
     parsed = parse_parameters({"wavelength": 0.5})
 
-    assert parsed["wavelength"] == np.array([0.5])
+    assert parsed["nlambda"] == 1
     assert isinstance(parsed["wavelength"], np.ndarray)
+    assert len(parsed["wavelength"]) == 1
+    assert parsed["wavelength"][0] == 0.5
 
 
 def test_parse_parameters_wavelength_list():
     """Test parsing wavelength as a list."""
     parsed = parse_parameters({"wavelength": [0.5, 0.6, 0.7]})
 
-    assert np.all(parsed["wavelength"] == np.array([0.5, 0.6, 0.7]))
+    assert parsed["nlambda"] == 3
     assert isinstance(parsed["wavelength"], np.ndarray)
+    assert len(parsed["wavelength"]) == 3
+    assert np.allclose(parsed["wavelength"], [0.5, 0.6, 0.7])
 
 
 def test_parse_parameters_wavelength_scalar_quantity():
     """Test parsing wavelength as a scalar Quantity."""
     parsed = parse_parameters({"wavelength": 0.5 * u.um})
 
-    assert parsed["wavelength"] == [0.5] * u.um
-    assert isinstance(parsed["wavelength"], u.Quantity)
+    assert parsed["nlambda"] == 1
+    assert isinstance(parsed["wavelength"], (np.ndarray, u.Quantity))
+    assert len(parsed["wavelength"]) == 1
+    # Check value regardless of whether it's a Quantity or array
+    value = (
+        parsed["wavelength"][0].value
+        if isinstance(parsed["wavelength"], u.Quantity)
+        else parsed["wavelength"][0]
+    )
+    assert value == 0.5
 
 
 def test_parse_parameters_wavelength_list_quantity():
     """Test parsing wavelength as a list Quantity."""
-    parsed = parse_parameters({"wavelength": [0.5, 0.6, 0.7] * u.um})
+    parsed = parse_parameters(
+        {
+            "wavelength": [0.5, 0.6, 0.7] * u.um,
+        }
+    )
+    assert parsed["nlambda"] == 3
+    assert isinstance(parsed["wavelength"], (np.ndarray, u.Quantity))
+    assert len(parsed["wavelength"]) == 3
+    # Check values
+    if isinstance(parsed["wavelength"], u.Quantity):
+        assert np.allclose(parsed["wavelength"].value, [0.5, 0.6, 0.7])
+        assert parsed["wavelength"].unit == u.um
+    else:
+        assert np.allclose(parsed["wavelength"], [0.5, 0.6, 0.7])
 
-    assert np.all(parsed["wavelength"] == [0.5, 0.6, 0.7] * u.um)
-    assert isinstance(parsed["wavelength"], u.Quantity)
+
+def test_parse_parameters_wavelength_array():
+    """Test parsing wavelength as a numpy array."""
+    parsed = parse_parameters(
+        {
+            "wavelength": np.array([0.5, 0.6, 0.7]),
+        }
+    )
+    assert parsed["nlambda"] == 3
+    assert isinstance(parsed["wavelength"], np.ndarray)
+    assert np.allclose(parsed["wavelength"], [0.5, 0.6, 0.7])
+
+
+def test_parse_parameters_wavelength_missing():
+    """Test that missing wavelength raises ValueError."""
+    with pytest.raises(ValueError, match="pyEDITH does not have access to wavelength"):
+        parse_parameters({})
+
+
+def test_parse_parameters_wavelength_empty_list():
+    """Test parsing empty wavelength list."""
+    with pytest.raises(
+        ValueError, match="'wavelength' parameter cannot be an empty list."
+    ):
+        parse_parameters(
+            {
+                "wavelength": [],
+            }
+        )
 
 
 # ============================================================================
@@ -816,7 +872,6 @@ def test_parse_parameters_scalar_params():
         "contrast",
         "noisefloor_factor",
         "noisefloor_PPF",
-        "bandwidth",
         "Tcore",
         "TLyot",
         "temperature",
@@ -879,11 +934,8 @@ def test_parse_parameters_boolean_true():
     """Test parsing boolean parameter as True."""
     parsed = parse_parameters(
         {
-            "wavelength": 0.5,
+            "wavelength": np.linspace(0.2, 1.1, 20),
             "az_avg": True,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
         }
     )
     assert parsed["az_avg"] is True
@@ -1102,77 +1154,6 @@ def test_parse_parameters_boolean_invalid_type_dict():
         )
 
 
-def test_parse_parameters_boolean_both_params():
-    """Test parsing both boolean parameters (az_avg and regrid_wavelength)."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "az_avg": True,
-            "regrid_wavelength": "yes",
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["az_avg"] is True
-    assert parsed["regrid_wavelength"] is True
-    assert isinstance(parsed["az_avg"], bool)
-    assert isinstance(parsed["regrid_wavelength"], bool)
-
-
-def test_parse_parameters_boolean_mixed_formats():
-    """Test parsing booleans with different format inputs."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "az_avg": "TRUE",
-            "regrid_wavelength": 0,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["az_avg"] is True
-    assert parsed["regrid_wavelength"] is False
-
-
-def test_parse_parameters_regrid_wavelength_invalid_string_value():
-    """Test that invalid string for regrid_wavelength raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match=r"Invalid value 'invalid' for parameter 'regrid_wavelength'\. "
-        r"Expected boolean or one of: 'true', 'false', '1', '0', 'yes', 'no' "
-        r"\(case-insensitive\)\.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": "invalid",
-                "spectral_resolution": [100],
-                "lam_low": [0.4],
-                "lam_high": [1.0],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_invalid_numeric():
-    """Test that invalid numeric for regrid_wavelength raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match=r"Invalid numeric value '-1' for parameter 'regrid_wavelength'\. "
-        r"Expected 0 or 1 for boolean parameters\.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": -1,
-                "spectral_resolution": [100],
-                "lam_low": [0.4],
-                "lam_high": [1.0],
-            }
-        )
-
-
 def test_parse_parameters_boolean_empty_string():
     """Test that empty string for boolean raises ValueError."""
     with pytest.raises(
@@ -1218,273 +1199,6 @@ def test_parse_parameters_boolean_none_type():
                 "az_avg": None,
             }
         )
-
-
-def test_parse_parameters_regrid_wavelength_bool():
-    """Test parsing regrid_wavelength as boolean."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": True,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["regrid_wavelength"] is True
-    assert isinstance(parsed["regrid_wavelength"], bool)
-
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": False,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["regrid_wavelength"] is False
-    assert isinstance(parsed["regrid_wavelength"], bool)
-
-
-def test_parse_parameters_regrid_wavelength_int():
-    """Test parsing regrid_wavelength from integer."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": 1,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["regrid_wavelength"] is True
-    assert isinstance(parsed["regrid_wavelength"], bool)
-
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": 0,
-            "spectral_resolution": [100],
-            "lam_low": [0.4],
-            "lam_high": [1.0],
-        }
-    )
-    assert parsed["regrid_wavelength"] is False
-    assert isinstance(parsed["regrid_wavelength"], bool)
-
-
-def test_parse_parameters_regrid_wavelength_missing_lam_low():
-    """Test that regrid_wavelength=True with missing lam_low raises ValueError."""
-    with pytest.raises(
-        KeyError,
-        match="regrid_wavelength is True, but 'lam_low' is missing. "
-        "Required parameters: spectral_resolution, lam_low, lam_high",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100],
-                "lam_high": [1.0],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_missing_lam_high():
-    """Test that regrid_wavelength=True with missing lam_high raises ValueError."""
-    with pytest.raises(
-        KeyError,
-        match="regrid_wavelength is True, but 'lam_high' is missing. "
-        "Required parameters: spectral_resolution, lam_low, lam_high",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100],
-                "lam_low": [0.4],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_missing_all_required():
-    """Test that regrid_wavelength=True with all required parameters missing raises ValueError."""
-    with pytest.raises(
-        KeyError,
-        match="regrid_wavelength is True, but 'spectral_resolution' is missing. "
-        "Required parameters: spectral_resolution, lam_low, lam_high",
-    ):
-        parse_parameters({"wavelength": 0.5, "regrid_wavelength": True})
-
-
-def test_parse_parameters_regrid_wavelength_spectral_resolution_not_array():
-    """Test that regrid_wavelength=True with scalar spectral_resolution raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match="regrid_wavelength is True, but 'spectral_resolution' is not an array. "
-        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": 100,  # scalar instead of array
-                "lam_low": [0.4],
-                "lam_high": [1.0],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_lam_low_not_array():
-    """Test that regrid_wavelength=True with scalar lam_low raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match="regrid_wavelength is True, but 'lam_low' is not an array. "
-        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100],
-                "lam_low": 0.4,  # scalar instead of array
-                "lam_high": [1.0],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_lam_high_not_array():
-    """Test that regrid_wavelength=True with scalar lam_high raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match="regrid_wavelength is True, but 'lam_high' is not an array. "
-        "All of spectral_resolution, lam_low, lam_high must be arrays of the same length.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100],
-                "lam_low": [0.4],
-                "lam_high": 1.0,  # scalar instead of array
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_mismatched_lengths_two_params():
-    """Test that regrid_wavelength=True with two parameters of different lengths raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
-        ".*spectral_resolution.*2.*lam_low.*2.*lam_high.*3.* All must have the same length.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100, 200],
-                "lam_low": [0.4, 0.5],
-                "lam_high": [1.0, 1.5, 2.0],  # different length
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_mismatched_lengths_all_different():
-    """Test that regrid_wavelength=True with all parameters of different lengths raises ValueError."""
-    with pytest.raises(
-        ValueError,
-        match="regrid_wavelength is True, but spectral_resolution, lam_low, lam_high have different lengths: "
-        ".*spectral_resolution.*1.*lam_low.*2.*lam_high.*3.* All must have the same length.",
-    ):
-        parse_parameters(
-            {
-                "wavelength": 0.5,
-                "regrid_wavelength": True,
-                "spectral_resolution": [100],
-                "lam_low": [0.4, 0.5],
-                "lam_high": [1.0, 1.5, 2.0],
-            }
-        )
-
-
-def test_parse_parameters_regrid_wavelength_valid_lists():
-    """Test that regrid_wavelength=True with valid lists succeeds."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": True,
-            "spectral_resolution": [100, 200],
-            "lam_low": [0.4, 0.5],
-            "lam_high": [1.0, 1.5],
-        }
-    )
-
-    assert parsed["regrid_wavelength"] is True
-    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
-    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
-    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
-
-
-def test_parse_parameters_regrid_wavelength_valid_numpy_arrays():
-    """Test that regrid_wavelength=True with numpy arrays succeeds."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": True,
-            "spectral_resolution": np.array([100, 200]),
-            "lam_low": np.array([0.4, 0.5]),
-            "lam_high": np.array([1.0, 1.5]),
-        }
-    )
-
-    assert parsed["regrid_wavelength"] is True
-    assert np.all(parsed["spectral_resolution"] == np.array([100, 200]))
-    assert np.all(parsed["lam_low"] == np.array([0.4, 0.5]))
-    assert np.all(parsed["lam_high"] == np.array([1.0, 1.5]))
-
-
-def test_parse_parameters_regrid_wavelength_valid_quantities():
-    """Test that regrid_wavelength=True with Quantity arrays succeeds."""
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": True,
-            "spectral_resolution": [100, 200] * u.dimensionless_unscaled,
-            "lam_low": [0.4, 0.5] * u.um,
-            "lam_high": [1.0, 1.5] * u.um,
-        }
-    )
-
-    assert parsed["regrid_wavelength"] is True
-    assert isinstance(parsed["spectral_resolution"], u.Quantity)
-    assert isinstance(parsed["lam_low"], u.Quantity)
-    assert isinstance(parsed["lam_high"], u.Quantity)
-
-
-def test_parse_parameters_regrid_wavelength_false_no_validation():
-    """Test that regrid_wavelength=False skips validation of required parameters."""
-    # Should not raise even though required parameters are missing
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-            "regrid_wavelength": False,
-        }
-    )
-
-    assert parsed["regrid_wavelength"] is False
-
-
-def test_parse_parameters_regrid_wavelength_absent_no_validation():
-    """Test that absence of regrid_wavelength skips validation of required parameters."""
-    # Should not raise even though required parameters are missing
-    parsed = parse_parameters(
-        {
-            "wavelength": 0.5,
-        }
-    )
-
-    assert "regrid_wavelength" not in parsed
 
 
 # ============================================================================
@@ -1887,10 +1601,10 @@ def test_parse_parameters_no_nchannels(caplog):
 # ============================================================================
 
 
-def test_parse_input_file_filter_center_bandpass(filter_input_file_center_bandpass):
-    """Test parsing filters with center/bandpass specification."""
+def test_parse_input_file_filter_center_bandwidth(filter_input_file_center_bandwidth):
+    """Test parsing filters with center/bandwidth specification."""
     variables, _ = parse_input_file(
-        filter_input_file_center_bandpass, secondary_flag=False
+        filter_input_file_center_bandwidth, secondary_flag=False
     )
 
     assert "filter_list" in variables
@@ -1955,7 +1669,7 @@ def test_parse_input_file_filter_missing_name():
         observing_mode = IMAGER
         wavelength = 0.6
         filter_center = [0.6]
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         """)
         tmp.flush()
 
@@ -1969,14 +1683,14 @@ def test_parse_input_file_filter_missing_name():
 
 
 def test_parse_input_file_filter_both_specs_provided():
-    """Test that providing both center/bandpass and low/high raises ValueError."""
+    """Test that providing both center/bandwidth and low/high raises ValueError."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
         tmp.write("""
         observing_mode = IMAGER
         wavelength = 0.6
         filter_name = ['F1']
         filter_center = [0.6]
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         filter_low = [0.5]
         filter_high = [0.7]
         """)
@@ -1984,7 +1698,7 @@ def test_parse_input_file_filter_both_specs_provided():
 
         with pytest.raises(
             ValueError,
-            match="Specify filters using either \\(filter_center, filter_bandpass\\) or \\(filter_low, filter_high\\), not both",
+            match="Specify filters using either \\(filter_center, filter_bandwidth\\) or \\(filter_low, filter_high\\), not both",
         ):
             parse_input_file(tmp.name, secondary_flag=False)
 
@@ -2003,7 +1717,7 @@ def test_parse_input_file_filter_no_bounds_specified():
 
         with pytest.raises(
             KeyError,
-            match="Filters require either \\(filter_center, filter_bandpass\\) or \\(filter_low, filter_high\\)",
+            match="Filters require either \\(filter_center, filter_bandwidth\\) or \\(filter_low, filter_high\\)",
         ):
             parse_input_file(tmp.name, secondary_flag=False)
 
@@ -2011,13 +1725,13 @@ def test_parse_input_file_filter_no_bounds_specified():
 
 
 def test_parse_input_file_filter_missing_center():
-    """Test that missing filter_center when filter_bandpass is provided raises KeyError."""
+    """Test that missing filter_center when filter_bandwidth is provided raises KeyError."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
         tmp.write("""
         observing_mode = IMAGER
         wavelength = 0.6
         filter_name = ['F1']
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         """)
         tmp.flush()
 
@@ -2029,8 +1743,8 @@ def test_parse_input_file_filter_missing_center():
         os.unlink(tmp.name)
 
 
-def test_parse_input_file_filter_missing_bandpass():
-    """Test that missing filter_bandpass when filter_center is provided raises KeyError."""
+def test_parse_input_file_filter_missing_bandwidth():
+    """Test that missing filter_bandwidth when filter_center is provided raises KeyError."""
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".edith") as tmp:
         tmp.write("""
         observing_mode = IMAGER
@@ -2042,7 +1756,7 @@ def test_parse_input_file_filter_missing_bandpass():
 
         with pytest.raises(
             KeyError,
-            match="'filter_bandpass' is required to fully specify filter bounds",
+            match="'filter_bandwidth' is required to fully specify filter bounds",
         ):
             parse_input_file(tmp.name, secondary_flag=False)
 
@@ -2117,7 +1831,7 @@ def test_parse_input_file_filter_mismatched_lengths():
         wavelength = 0.6
         filter_name = ['F1', 'F2']
         filter_center = [0.6]
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         """)
         tmp.flush()
 
@@ -2161,7 +1875,7 @@ def test_parse_input_file_filter_imager_no_resolution():
 
         filter_name = ['F1']
         filter_center = [0.6]
-        filter_bandpass = [0.1]
+        filter_bandwidth = [0.1]
         """)
         tmp.flush()
 
@@ -2200,7 +1914,7 @@ def test_parse_input_file_filter_type_set_from_observing_mode(valid_spectrum_fil
         Fp/Fs = 1e-10
         filter_name = 'F1'
         filter_center = 0.6
-        filter_bandpass = 0.1
+        filter_bandwidth = 0.1
         """)
         tmp.flush()
 
@@ -2229,78 +1943,557 @@ def test_parse_input_file_filter_type_set_from_observing_mode(valid_spectrum_fil
 
 
 # ============================================================================
-# Tests for parse_parameters - Filter handling
+# Tests for parse_filters - Filter handling
 # ============================================================================
 
 
-def test_parse_parameters_filter_list_single_filter():
+def test_parse_filters_single_filter():
     """Test parsing filter_list with a single filter object."""
-    from pyEDITH.components.filters import Filter
+    from pyEDITH.filters import Filter
 
-    filter_obj = Filter("TestFilter", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
+    filter_obj = Filter("TestFilter", center=0.5 * u.um, bandwidth=0.1, type="IMAGER")
 
-    parsed = parse_parameters({"wavelength": 0.5, "filter_list": filter_obj})
+    active_filters = parse_filters(
+        {"wavelength": 0.5, "filter_list": filter_obj, "observing_mode": "IMAGER"}
+    )
 
-    assert "filter_list" in parsed
-    assert isinstance(parsed["filter_list"], list)
-    assert len(parsed["filter_list"]) == 1
-    assert parsed["filter_list"][0].name == "TestFilter"
+    assert isinstance(active_filters, list)
+    assert len(active_filters) == 1
+    assert active_filters[0].name == "TestFilter"
 
 
-def test_parse_parameters_filter_list_multiple_filters():
+def test_parse_filters_list_multiple_filters():
     """Test parsing filter_list with multiple filter objects."""
-    from pyEDITH.components.filters import Filter
+    from pyEDITH.filters import Filter
 
-    filter1 = Filter("F1", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
-    filter2 = Filter("F2", center=0.8 * u.um, bandpass=0.15, type="IMAGER")
+    filter1 = Filter("F1", center=0.6 * u.um, bandwidth=0.1, type="IMAGER")
+    filter2 = Filter("F2", center=0.8 * u.um, bandwidth=0.15, type="IMAGER")
 
-    parsed = parse_parameters({"wavelength": 0.5, "filter_list": [filter1, filter2]})
+    active_filters = parse_filters(
+        {
+            "wavelength": np.linspace(0.4, 1, 100),
+            "filter_list": [filter1, filter2],
+            "observing_mode": "IMAGER",
+        }
+    )
 
-    assert len(parsed["filter_list"]) == 2
-    assert parsed["filter_list"][0].name == "F1"
-    assert parsed["filter_list"][1].name == "F2"
+    assert len(active_filters) == 2
+    assert active_filters[0].name == "F1"
+    assert active_filters[1].name == "F2"
 
 
-def test_parse_parameters_filter_list_invalid_type():
+def test_parse_filters_list_invalid_type():
     """Test that non-Filter object in filter_list raises TypeError."""
 
     with pytest.raises(
         TypeError, match="Filter at index 0: must be a Filter object, but got str"
     ):
-        parse_parameters({"wavelength": 0.5, "filter_list": ["not_a_filter"]})
+        parse_filters(
+            {
+                "wavelength": 0.5,
+                "filter_list": ["not_a_filter"],
+                "observing_mode": "IMAGER",
+            }
+        )
 
 
-def test_parse_parameters_filter_list_mixed_invalid():
+def test_parse_filters_list_mixed_invalid():
     """Test that invalid object in list of filters raises TypeError."""
-    from pyEDITH.components.filters import Filter
+    from pyEDITH.filters import Filter
 
-    filter1 = Filter("F1", center=0.6 * u.um, bandpass=0.1, type="IMAGER")
+    filter1 = Filter("F1", center=0.6 * u.um, bandwidth=0.1, type="IMAGER")
 
     with pytest.raises(
         TypeError, match="Filter at index 1: must be a Filter object, but got int"
     ):
-        parse_parameters({"wavelength": 0.5, "filter_list": [filter1, 42]})
+        parse_filters(
+            {
+                "wavelength": 0.5,
+                "filter_list": [filter1, 42],
+                "observing_mode": "IMAGER",
+            }
+        )
 
 
-def test_parse_parameters_filter_list_empty():
+def test_parse_filteres_list_empty():
     """Test parsing empty filter_list."""
-    parsed = parse_parameters({"wavelength": 0.5, "filter_list": []})
 
-    assert "filter_list" in parsed
-    assert parsed["filter_list"] == []
-
-
-def test_parse_parameters_filter_list_not_provided():
-    """Test that absence of filter_list doesn't create the key."""
-    parsed = parse_parameters({"wavelength": 0.5})
-
-    assert "filter_list" not in parsed
+    with pytest.raises(
+        ValueError,
+        match="No filters can be used. Specify different filters or change spectrum.",
+    ):
+        parse_filters(
+            {"wavelength": 0.5, "filter_list": [], "observing_mode": "IMAGER"}
+        )
 
 
-def test_parse_parameters_filter_list_dict_not_filter():
+def test_parse_filters_list_dict_not_filter():
     """Test that dict (non-Filter object with __dict__) raises TypeError."""
 
     with pytest.raises(
         TypeError, match="Filter at index 0: must be a Filter object, but got dict"
     ):
-        parse_parameters({"wavelength": 0.5, "filter_list": [{"name": "not_a_filter"}]})
+        parse_filters(
+            {
+                "wavelength": 0.5,
+                "filter_list": [{"name": "not_a_filter"}],
+                "observing_mode": "IMAGER",
+            }
+        )
+
+
+# ============================================================================
+# Tests for parse_filters - Legacy Filter Helper (IMAGER mode)
+# ============================================================================
+
+
+def test_parse_filters_legacy_imager_scalar_wavelength():
+    """Test legacy filter creation with scalar wavelength."""
+    parameters = {
+        "wavelength": 0.6,
+        "bandwidth": 0.2,
+        "observing_mode": "IMAGER",
+    }
+
+    filters = parse_filters(parameters)
+
+    assert len(filters) == 1
+    assert filters[0].center == 0.6 * u.um
+    assert filters[0].bandwidth == 0.2
+    assert filters[0].type == "IMAGER"
+    assert "0.6" in filters[0].name
+    assert "0.2" in filters[0].name
+
+
+def test_parse_filters_legacy_imager_array_wavelength_single_element():
+    """Test legacy filter with single-element wavelength array."""
+    parameters = {
+        "wavelength": np.array([0.55]),
+        "bandwidth": 0.15,
+        "observing_mode": "IMAGER",
+    }
+
+    filters = parse_filters(parameters)
+
+    assert len(filters) == 1
+    assert filters[0].center.value == pytest.approx(0.55)
+    assert filters[0].bandwidth == 0.15
+
+
+def test_parse_filters_legacy_imager_missing_bandwidth():
+    """Test error when IMAGER mode lacks bandwidth parameter."""
+    parameters = {
+        "wavelength": 0.6,
+        "observing_mode": "IMAGER",
+    }
+
+    with pytest.raises(KeyError):
+        parse_filters(parameters)
+
+
+# ============================================================================
+# Tests for parse_filters - Legacy Filter Helper (IFS mode)
+# ============================================================================
+
+
+def test_parse_filters_legacy_ifs_creates_multiple_filters(caplog):
+    """Test that multiple filters are created from legacy arrays."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100, 200],
+        "lam_low": [0.6, 1.0],
+        "lam_high": [0.9, 1.5],
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        filters = parse_filters(parameters)
+
+    assert len(filters) == 2
+
+    # Check first filter
+    assert filters[0].low.value == pytest.approx(0.6)
+    assert filters[0].high.value == pytest.approx(0.9)
+    assert filters[0].resolution == 100
+    assert filters[0].type == "IFS"
+
+    # Check second filter
+    assert filters[1].low.value == pytest.approx(1.0)
+    assert filters[1].high.value == pytest.approx(1.5)
+    assert filters[1].resolution == 200
+    assert filters[1].type == "IFS"
+    # Check deprecation warning
+    assert any("DeprecationWarning" in record.message for record in caplog.records)
+
+    assert "0.6" in filters[0].name and "0.9" in filters[0].name
+    assert "1.0" in filters[1].name and "1.5" in filters[1].name
+    assert "IFS" in filters[0].name
+
+
+def test_parse_filters_legacy_ifs_wavelength_boundaries_valid():
+    """Test that input wavelength covers filter ranges."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100, 200],
+        "lam_low": [0.6, 1.0],
+        "lam_high": [0.9, 1.5],
+    }
+
+    filters = parse_filters(parameters)
+    assert len(filters) == 2
+
+
+def test_parse_filters_legacy_ifs_minimum_wavelength_too_high():
+    """Test error when minimum input wavelength is above first filter."""
+    parameters = {
+        "wavelength": np.linspace(0.7, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100, 200],
+        "lam_low": [0.6, 1.0],
+        "lam_high": [0.9, 1.5],
+    }
+
+    with pytest.raises(AssertionError, match="minimum input wavelength is greater"):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_maximum_wavelength_too_low():
+    """Test error when maximum input wavelength is below last filter."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.4, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100, 200],
+        "lam_low": [0.6, 1.0],
+        "lam_high": [0.9, 1.5],
+    }
+
+    with pytest.raises(AssertionError, match="maximum input wavelength is less"):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_mismatched_array_lengths():
+    """Test error when legacy parameter arrays have different lengths."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100, 200, 300],  # 3 elements
+        "lam_low": [0.6, 1.0],  # 2 elements
+        "lam_high": [0.9, 1.5],  # 2 elements
+    }
+
+    with pytest.raises(AssertionError, match="have different lengths"):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_non_array_parameters():
+    """Test error when legacy parameters are not arrays."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": 100,  # Should be array
+        "lam_low": [0.6],
+        "lam_high": [0.9],
+    }
+
+    with pytest.raises(ValueError, match="is not an array"):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_missing_parameters():
+    """Test error when some legacy parameters are missing."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100],
+        "lam_low": [0.6],
+        # Missing lam_high
+    }
+
+    with pytest.raises(ValueError, match="some of the following keys are missing"):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_without_units_adds_units():
+    """Test that legacy IFS adds WAVELENGTH units when missing."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [150],
+        "lam_low": [0.7],  # No units
+        "lam_high": [1.2],  # No units
+    }
+
+    filters = parse_filters(parameters)
+
+    assert filters[0].low.unit == u.um
+    assert filters[0].high.unit == u.um
+
+
+def test_parse_filters_legacy_ifs_empty_arrays_raises_error():
+    """Test error with empty legacy parameter arrays."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [],
+        "lam_low": [],
+        "lam_high": [],
+    }
+
+    with pytest.raises((AssertionError, IndexError, ValueError)):
+        parse_filters(parameters)
+
+
+def test_parse_filters_legacy_ifs_regrid_info_message(caplog):
+    """Test that IFS mode logs wavelength grid calculation message."""
+    parameters = {
+        "wavelength": np.linspace(0.5, 2.0, 1000),
+        "observing_mode": "IFS",
+        "spectral_resolution": [100],
+        "lam_low": [0.6],
+        "lam_high": [0.9],
+    }
+
+    with caplog.at_level(logging.INFO, logger="pyEDITH"):
+        parse_filters(parameters)
+
+    assert any(
+        "Calculating a new wavelength grid" in record.message
+        for record in caplog.records
+    )
+
+
+# ============================================================================
+# Tests for parse_filters - Filter validation (from old tests)
+# ============================================================================
+
+
+def test_parse_filters_filter_outside_lower_bound(caplog):
+    """Test that filter below wavelength range is discarded with warning."""
+    from pyEDITH.filters import Filter
+
+    filter1 = Filter("Filter1", low=0.5 * u.um, high=0.7 * u.um, type="IMAGER")
+    filter2 = Filter("Filter2", low=0.8 * u.um, high=1.0 * u.um, type="IMAGER")
+
+    parameters = {
+        "wavelength": np.linspace(0.75, 1.2, 100),
+        "filter_list": [filter1, filter2],
+        "observing_mode": "IMAGER",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        active_filters = parse_filters(parameters)
+
+    assert any(
+        "Filter Filter1 discarded" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+    assert len(active_filters) == 1
+    assert active_filters[0].name == "Filter2"
+
+
+def test_parse_filters_filter_outside_upper_bound(caplog):
+    """Test that filter above wavelength range is discarded with warning."""
+    from pyEDITH.filters import Filter
+
+    filter1 = Filter("Filter1", low=0.5 * u.um, high=0.7 * u.um, type="IMAGER")
+    filter2 = Filter("Filter2", low=0.8 * u.um, high=1.0 * u.um, type="IMAGER")
+
+    parameters = {
+        "wavelength": np.linspace(0.4, 0.75, 100),
+        "filter_list": [filter1, filter2],
+        "observing_mode": "IMAGER",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        active_filters = parse_filters(parameters)
+
+    assert any(
+        "Filter Filter2 discarded" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+    assert len(active_filters) == 1
+    assert active_filters[0].name == "Filter1"
+
+
+def test_parse_filters_filter_partially_overlapping(caplog):
+    """Test that partially overlapping filter is discarded."""
+    from pyEDITH.filters import Filter
+
+    filter1 = Filter(
+        "Filter1", low=0.5 * u.um, high=0.7 * u.um, type="IFS", resolution=50
+    )
+    filter2 = Filter(
+        "Filter2", low=0.8 * u.um, high=1.0 * u.um, type="IFS", resolution=50
+    )
+
+    parameters = {
+        "wavelength": np.linspace(0.6, 1.2, 100),
+        "filter_list": [filter1, filter2],
+        "observing_mode": "IFS",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        active_filters = parse_filters(parameters)
+
+    print(caplog.records)
+    assert any(
+        "Filter Filter1 discarded" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+    assert len(active_filters) == 1
+    assert active_filters[0].name == "Filter2"
+
+
+def test_parse_filters_filter_exact_boundaries():
+    """Test filters with wavelength range exactly matching filter boundaries."""
+    from pyEDITH.filters import Filter
+
+    filter1 = Filter("Filter1", low=0.5 * u.um, high=0.7 * u.um, type="IMAGER")
+    filter2 = Filter("Filter2", low=0.8 * u.um, high=1.0 * u.um, type="IMAGER")
+
+    parameters = {
+        "wavelength": np.array([0.5, 1.0]),
+        "filter_list": [filter1, filter2],
+        "observing_mode": "IMAGER",
+    }
+
+    active_filters = parse_filters(parameters)
+
+    assert len(active_filters) == 2
+
+
+def test_parse_filters_low_resolution_warning_ifs(caplog):
+    """Test warning when input spectrum resolution is lower than filter resolution in IFS mode."""
+    from pyEDITH.filters import Filter
+
+    high_res_filter = Filter(
+        "HighResFilter", low=0.5 * u.um, high=0.7 * u.um, resolution=600, type="IFS"
+    )
+
+    low_res_wavelength = np.linspace(0.4, 0.8, 20)
+    parameters = {
+        "wavelength": low_res_wavelength,
+        "filter_list": [high_res_filter],
+        "observing_mode": "IFS",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parse_filters(parameters)
+
+    assert any(
+        "Input spectrum resolution" in record.message
+        and "lower than" in record.message
+        and "filter resolution" in record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
+def test_parse_filters_adequate_resolution_no_warning_ifs(caplog):
+    """Test no warning when input spectrum resolution is adequate for filter in IFS mode."""
+    from pyEDITH.filters import Filter
+
+    filter_obj = Filter(
+        "MedResFilter", low=0.5 * u.um, high=0.7 * u.um, resolution=300, type="IFS"
+    )
+
+    high_res_wavelength = np.linspace(0.4, 0.8, 500)
+    parameters = {
+        "wavelength": high_res_wavelength,
+        "filter_list": [filter_obj],
+        "observing_mode": "IFS",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parse_filters(parameters)
+
+    resolution_warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "Input spectrum resolution" in record.message
+        and "lower than" in record.message
+    ]
+    assert len(resolution_warnings) == 0
+
+
+def test_parse_filters_low_resolution_no_warning_imager(caplog):
+    """Test no warning for low resolution in IMAGER mode."""
+    from pyEDITH.filters import Filter
+
+    filter_obj = Filter("ImageFilter", low=0.5 * u.um, high=0.7 * u.um, type="IMAGER")
+
+    low_res_wavelength = np.linspace(0.4, 0.8, 20)
+    parameters = {
+        "wavelength": low_res_wavelength,
+        "filter_list": [filter_obj],
+        "observing_mode": "IMAGER",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parse_filters(parameters)
+
+    resolution_warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "Input spectrum resolution" in record.message
+    ]
+    assert len(resolution_warnings) == 0
+
+
+def test_parse_filters_resolution_warning_multiple_filters(caplog):
+    """Test resolution warnings for multiple filters with different resolutions."""
+    from pyEDITH.filters import Filter
+
+    low_res_filter = Filter(
+        "LowResFilter", low=0.5 * u.um, high=0.6 * u.um, resolution=110, type="IFS"
+    )
+
+    high_res_filter = Filter(
+        "HighResFilter", low=0.7 * u.um, high=0.8 * u.um, resolution=1500, type="IFS"
+    )
+
+    input_wavelength = np.linspace(0.4, 0.9, 150)
+    parameters = {
+        "wavelength": input_wavelength,
+        "filter_list": [low_res_filter, high_res_filter],
+        "observing_mode": "IFS",
+    }
+
+    with caplog.at_level(logging.WARNING, logger="pyEDITH"):
+        parse_filters(parameters)
+
+    resolution_warnings = [
+        record.message
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "Input spectrum resolution" in record.message
+    ]
+    assert len(resolution_warnings) == 1
+    assert "HighResFilter" in resolution_warnings[0]
+    assert "LowResFilter" not in resolution_warnings[0]
+
+
+def test_parse_filters_no_valid_filters_raises_error():
+    """Test that having no valid filters after filtering raises ValueError."""
+    from pyEDITH.filters import Filter
+
+    # Filters completely outside wavelength range
+    filter1 = Filter("Filter1", low=0.3 * u.um, high=0.4 * u.um, type="IMAGER")
+
+    parameters = {
+        "wavelength": np.linspace(0.5, 1.0, 100),
+        "filter_list": [filter1],
+        "observing_mode": "IMAGER",
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="No filters can be used. Specify different filters or change spectrum.",
+    ):
+        parse_filters(parameters)

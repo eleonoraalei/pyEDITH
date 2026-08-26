@@ -26,9 +26,9 @@ from pyEDITH.units import (
     PIXEL,
     ZODI,
 )
-from pyEDITH.components.telescopes import ToyModelTelescope
-from pyEDITH.components.coronagraphs import ToyModelCoronagraph
-from pyEDITH.components.detectors import ToyModelDetector
+from pyEDITH.telescopes import ToyModelTelescope
+from pyEDITH.coronagraphs import ToyModelCoronagraph
+from pyEDITH.detectors import ToyModelDetector
 
 # ============================================================================
 # Fixtures - Mock Objects
@@ -42,6 +42,7 @@ def mock_observation():
     observation.td_limit = 1.0e20 * u.s
     observation.wavelength = u.Quantity([0.5], u.micron)
     observation.delta_wavelength = u.Quantity([0.5 * 0.2], u.micron)
+    observation.filter_bandwidth = 0.2
     observation.SNR = u.Quantity([7], DIMENSIONLESS)
     observation.CRb_multiplier = 2
     observation.nlambda = 1
@@ -126,7 +127,7 @@ def mock_observatory():
     observatory.coronagraph.pixscale = 30.0 * LAMBDA_D
     observatory.coronagraph.contrast = 1.05e-13 * DIMENSIONLESS
     observatory.coronagraph.noisefloor_factor = 0.03 * DIMENSIONLESS
-    observatory.coronagraph.bandwidth = 0.2
+    observatory.coronagraph.coronagraph_bandwidth = 0.2
     observatory.coronagraph.photometric_aperture_radius = 0.85 * LAMBDA_D
     observatory.coronagraph.psf_trunc_ratio = 0.3 * DIMENSIONLESS
     observatory.coronagraph.Tcore = 0.2968371 * DIMENSIONLESS
@@ -569,9 +570,9 @@ def test_calculate_exposure_time_bandwidth_restriction_warning(
     """Test that exceeding coronagraph bandwidth triggers warning."""
     mock_observation.wavelength = [0.5] * u.um
     mock_observation.nlambda = 1
+    mock_observation.filter_bandwidth = 0.5
     mock_observatory.observing_mode = "IMAGER"
-    mock_observatory.coronagraph.bandwidth = 1.0
-    mock_observatory.coronagraph.coronagraph_spectral_resolution = 10
+    mock_observatory.coronagraph.coronagraph_bandwidth = 0.1
 
     with caplog.at_level(logging.WARNING, logger="pyEDITH"):
         calculate_exposure_time_or_snr(mock_observation, mock_scene, mock_observatory)
@@ -581,7 +582,11 @@ def test_calculate_exposure_time_bandwidth_restriction_warning(
         for record in caplog.records
         if record.levelno == logging.WARNING
     )
-    assert np.isclose(mock_observation.validation_variables["deltalambda_nm"].value, 50)
+    assert np.isclose(
+        mock_observation.validation_variables["deltalambda_nm"].value,
+        mock_observatory.coronagraph.coronagraph_bandwidth
+        * mock_observation.wavelength.to(NM).value,
+    )
 
 
 def test_calculate_exposure_time_ifs_mode(
