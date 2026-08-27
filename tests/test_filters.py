@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import astropy.units as u
-from pyEDITH.filters import Filter, FULL_CHANNEL_FILTERS
+from pyEDITH.filters import Filter  # , FULL_CHANNEL_FILTERS
 
 
 def test_filter_from_low_high():
@@ -154,37 +154,37 @@ def test_repr():
     )
 
 
-def test_full_channel_filters_exist():
-    """Test that predefined filters are available."""
-    assert "UV" in FULL_CHANNEL_FILTERS
-    assert "VIS" in FULL_CHANNEL_FILTERS
-    assert "NIR" in FULL_CHANNEL_FILTERS
+# def test_full_channel_filters_exist():
+#     """Test that predefined filters are available."""
+#     assert "UV" in FULL_CHANNEL_FILTERS
+#     assert "VIS" in FULL_CHANNEL_FILTERS
+#     assert "NIR" in FULL_CHANNEL_FILTERS
 
 
-def test_full_channel_filters_coverage():
-    """Test that predefined filters cover expected wavelength ranges."""
-    uv = FULL_CHANNEL_FILTERS["UV"]
-    vis = FULL_CHANNEL_FILTERS["VIS"]
-    nir = FULL_CHANNEL_FILTERS["NIR"]
+# def test_full_channel_filters_coverage():
+#     """Test that predefined filters cover expected wavelength ranges."""
+#     uv = FULL_CHANNEL_FILTERS["UV"]
+#     vis = FULL_CHANNEL_FILTERS["VIS"]
+#     nir = FULL_CHANNEL_FILTERS["NIR"]
 
-    # UV: 0.2-0.4 μm
-    assert uv.low == 0.2 * u.um
-    assert uv.high == 0.4 * u.um
+#     # UV: 0.2-0.4 μm
+#     assert uv.low == 0.2 * u.um
+#     assert uv.high == 0.4 * u.um
 
-    # VIS: 0.4-1.0 μm
-    assert vis.low == 0.4 * u.um
-    assert vis.high == 1.0 * u.um
+#     # VIS: 0.4-1.0 μm
+#     assert vis.low == 0.4 * u.um
+#     assert vis.high == 1.0 * u.um
 
-    # NIR: 1.0-1.8 μm
-    assert nir.low == 1.0 * u.um
-    assert nir.high == 1.8 * u.um
+#     # NIR: 1.0-1.8 μm
+#     assert nir.low == 1.0 * u.um
+#     assert nir.high == 1.8 * u.um
 
 
-def test_full_channel_filters_resolutions():
-    """Test that predefined filters have expected resolutions."""
-    assert FULL_CHANNEL_FILTERS["UV"].resolution == 7
-    assert FULL_CHANNEL_FILTERS["VIS"].resolution == 140
-    assert FULL_CHANNEL_FILTERS["NIR"].resolution == 70
+# def test_full_channel_filters_resolutions():
+#     """Test that predefined filters have expected resolutions."""
+#     assert FULL_CHANNEL_FILTERS["UV"].resolution == 7
+#     assert FULL_CHANNEL_FILTERS["VIS"].resolution == 140
+#     assert FULL_CHANNEL_FILTERS["NIR"].resolution == 70
 
 
 def test_narrow_line_filter():

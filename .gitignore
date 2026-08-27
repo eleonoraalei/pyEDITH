@@ -15,6 +15,12 @@ tests/validation_tests_battery/*.png
 AncillaryMaterial/
 RASTI_material/
 
+# Validation files
+*pyedith_full_info*
+*pyedith_validation*
+*photon_counts*
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

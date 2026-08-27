@@ -60,10 +60,6 @@ class Filter:
         self.type = type
         self.resolution = resolution
 
-        if self.resolution is None:
-            logger.warning(
-                f"Filter {name}: resolution not set, will default to IMAGER type."
-            )
         if low is not None and high is not None:
             self.low = (
                 low.to(WAVELENGTH) if isinstance(low, u.Quantity) else low * WAVELENGTH
@@ -94,6 +90,10 @@ class Filter:
             )
 
         if self.type == "IMAGER" or self.resolution == None:
+            if self.resolution is None:
+                logger.warning(
+                    f"Filter {name}: resolution not set, will default to IMAGER type."
+                )
             ## BROADBAND PHOTOMETRY
             self.wavelength = np.array([self.center.value]) * WAVELENGTH
             self.delta_wavelength = None
@@ -101,7 +101,6 @@ class Filter:
         elif self.type == "IFS":
             ## SPECTROSCOPY
             # Create wavelength array
-            print(self.resolution, self.low.value, self.high.value)
             lam, dlam = utils.generate_wavelength_grid(
                 res=self.resolution,
                 lam_low=self.low.value,
@@ -136,12 +135,12 @@ class Filter:
             )
 
 
-# # Predefined FULL_CHANNEL_FILTERS (to reproduce legacy behavior)
-FULL_CHANNEL_FILTERS = {
-    "UV": Filter("UV", low=0.2 * u.um, high=0.4 * u.um, resolution=7),
-    "VIS": Filter("VIS", low=0.4 * u.um, high=1.0 * u.um, resolution=140),
-    "NIR": Filter("NIR", low=1.0 * u.um, high=1.8 * u.um, resolution=70),
-}
+# # # Predefined FULL_CHANNEL_FILTERS (to reproduce legacy behavior)
+# FULL_CHANNEL_FILTERS = {
+#     "UV": Filter("UV", low=0.2 * u.um, high=0.4 * u.um, resolution=7),
+#     "VIS": Filter("VIS", low=0.4 * u.um, high=1.0 * u.um, resolution=140),
+#     "NIR": Filter("NIR", low=1.0 * u.um, high=1.8 * u.um, resolution=70),
+# }
 
 
 # def get_hwome_channels(channel_names: list = None) -> list:

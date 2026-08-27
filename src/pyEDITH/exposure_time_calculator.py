@@ -746,7 +746,7 @@ def calculate_exposure_time_or_snr(
             observatory.coronagraph.ycenter,
             oneopixscale_arcsec_arr[ilambd],
         )
-        for ilambd in range(observation.nlambda)
+        for ilambd in range(len(observation.wavelength))
     ]
 
     # Convert to Quantity arrays
@@ -1097,7 +1097,7 @@ def calculate_exposure_time_or_snr(
     below_noise_floor = np.atleast_1d(
         (pixel_valid_mask & phot_aperture_valid_mask & (CRp_arr <= CRnf_arr))
         if mode == "exposure_time"
-        else np.zeros(observation.nlambda, dtype=bool)
+        else np.zeros(len(observation.wavelength), dtype=bool)
     )
     if np.any(below_noise_floor):
         logger.error(
@@ -1127,7 +1127,7 @@ def calculate_exposure_time_or_snr(
     sciencetime_arr = (
         observation.SNR**2 * cp_arr
         if mode == "exposure_time"
-        else u.Quantity(np.zeros(observation.nlambda), u.s)
+        else u.Quantity(np.zeros(len(observation.wavelength)), u.s)
     )
 
     observation.validation_variables = {

@@ -260,7 +260,6 @@ def test_parse_input_file_ifs_valid(ifs_input_file_valid):
     assert np.all(variables["wavelength"] == [0.5, 0.6, 0.7])
     assert np.all(variables["Fstar_10pc"] == [1e-8, 1e-8, 1e-8])
     assert np.all(variables["Fp/Fs"] == [1e-10, 1e-10, 1e-10])
-    assert variables["nlambda"] == 3
 
 
 # ============================================================================
@@ -399,7 +398,6 @@ def test_parse_input_file_with_valid_spectrum_file(valid_spectrum_file):
         assert "Fstar_10pc" in variables
         assert "Fp/Fs" in variables
         assert len(variables["wavelength"]) == 3
-        assert variables["nlambda"] == 3  # Should be set by parse_input_file
         np.testing.assert_almost_equal(variables["wavelength"], [0.5, 0.6, 0.7])
         np.testing.assert_almost_equal(variables["Fstar_10pc"], [1e-9, 1e-9, 1e-8])
         np.testing.assert_almost_equal(variables["Fp/Fs"], [1e-11, 1e-11, 1e-10])
@@ -619,7 +617,6 @@ def test_parse_parameters_wavelength_scalar():
     """Test parsing wavelength as a scalar."""
     parsed = parse_parameters({"wavelength": 0.5})
 
-    assert parsed["nlambda"] == 1
     assert isinstance(parsed["wavelength"], np.ndarray)
     assert len(parsed["wavelength"]) == 1
     assert parsed["wavelength"][0] == 0.5
@@ -629,7 +626,6 @@ def test_parse_parameters_wavelength_list():
     """Test parsing wavelength as a list."""
     parsed = parse_parameters({"wavelength": [0.5, 0.6, 0.7]})
 
-    assert parsed["nlambda"] == 3
     assert isinstance(parsed["wavelength"], np.ndarray)
     assert len(parsed["wavelength"]) == 3
     assert np.allclose(parsed["wavelength"], [0.5, 0.6, 0.7])
@@ -639,7 +635,6 @@ def test_parse_parameters_wavelength_scalar_quantity():
     """Test parsing wavelength as a scalar Quantity."""
     parsed = parse_parameters({"wavelength": 0.5 * u.um})
 
-    assert parsed["nlambda"] == 1
     assert isinstance(parsed["wavelength"], (np.ndarray, u.Quantity))
     assert len(parsed["wavelength"]) == 1
     # Check value regardless of whether it's a Quantity or array
@@ -658,7 +653,7 @@ def test_parse_parameters_wavelength_list_quantity():
             "wavelength": [0.5, 0.6, 0.7] * u.um,
         }
     )
-    assert parsed["nlambda"] == 3
+
     assert isinstance(parsed["wavelength"], (np.ndarray, u.Quantity))
     assert len(parsed["wavelength"]) == 3
     # Check values
@@ -676,7 +671,7 @@ def test_parse_parameters_wavelength_array():
             "wavelength": np.array([0.5, 0.6, 0.7]),
         }
     )
-    assert parsed["nlambda"] == 3
+
     assert isinstance(parsed["wavelength"], np.ndarray)
     assert np.allclose(parsed["wavelength"], [0.5, 0.6, 0.7])
 
@@ -820,7 +815,7 @@ def test_parse_parameters_wavelength_dependent_with_quantity():
 
 
 def test_parse_parameters_wavelength_not_provided():
-    """Test that missing both wavelength and nlambda raises ValueError."""
+    """Test that missing wavelength raises ValueError."""
     with pytest.raises(
         ValueError, match="pyEDITH does not have access to wavelength here"
     ):
@@ -1230,7 +1225,6 @@ def test_parse_parameters_complete():
     assert parsed["magV"] == 5.0
     assert parsed["nzodis"] == 3.0
     assert parsed["observing_mode"] == "IFS"
-    assert parsed["nlambda"] == 3
     assert np.all(parsed["snr"] == np.array([10, 20, 30]))
     assert np.all(parsed["T_optical"] == np.array([0.8, 0.8, 0.8]))
     assert parsed["diameter"] == 2.4
@@ -1376,7 +1370,6 @@ def test_parsed_flag_prevents_reprocessing():
     assert parsed_twice is parsed_once
 
     # Verify all original parsed values are unchanged
-    assert parsed_twice["nlambda"] == 3
     assert "_parsed" in parsed_twice
 
 

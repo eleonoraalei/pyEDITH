@@ -389,7 +389,7 @@ def normalize_list_shapes(parameters, key, default_len=1):
             return to_float_array([value])
 
 
-def parse_parameters(parameters: dict, nlambda: int = None) -> dict:
+def parse_parameters(parameters: dict) -> dict:
     """
     Parse and process input parameters for simulation.
 
