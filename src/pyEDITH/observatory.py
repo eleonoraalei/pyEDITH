@@ -133,7 +133,7 @@ class Observatory(ABC):  # abstract class
             telescope = Observatory._create_telescope(preset["telescope"])
             coronagraph = Observatory._create_coronagraph(preset["coronagraph"])
             detector = Observatory._create_detector(preset["detector"])
-
+            keyword = preset["telescope"]
         # Else, the user provided details in a config dictionary
         elif isinstance(config, dict):
             # Custom config mode
@@ -145,7 +145,7 @@ class Observatory(ABC):  # abstract class
             telescope = Observatory._create_telescope(config["telescope"])
             coronagraph = Observatory._create_coronagraph(config["coronagraph"])
             detector = Observatory._create_detector(config["detector"])
-
+            keyword = config["telescope"]
         else:
             raise ValueError("Invalid configuration.")
 
@@ -153,6 +153,13 @@ class Observatory(ABC):  # abstract class
         self.coronagraph = coronagraph
         self.detector = detector
 
+        # if EAC-type, load configuration from HWOME
+        if keyword.startswith("EAC5"):  # TODO for now only implemented with EAC5
+            self.configuration = Observatory._ingest_from_hwome(
+                eac_name=keyword.lower()
+            )
+        else:
+            self.configuration = None
         return
 
     @staticmethod
@@ -291,6 +298,120 @@ class Observatory(ABC):  # abstract class
             raise ValueError(
                 f"Unknown detector type: {keyword}. " f"Expected 'ToyModel' or 'EAC*'"
             )
+
+    @staticmethod
+    def _ingest_from_hwome(eac_name="eac5"):
+        """necessary to install hwome_data, hwome-roam, hwome_core and to establish environment variable
+        os.environ["HWOME_DATA_PATH"] = "/Users/ealei/Coding/hwome_data"
+        """
+        from hwome.roam.analyzer import Analyzer
+        from hwome.core.navigator import search_configuration
+
+        system = Analyzer()
+        system.load_configuration(f"{eac_name}.yaml")
+
+        nav = (
+            system.system.Mask
+        )  # generic -we could iterate all the masks, but we only need one since they don't have real values (throughput 0.99)
+        mask_name = next(iter(nav.name.values())).value
+
+        hwo_configuration = {}
+
+        # Physical parameters
+        hwo_configuration["diameter"] = float(
+            system.system.Telescope.circumscribing_diameter.q.to("m").value
+        )
+        optical_path = system.system.OpticalPath.select(
+            Instrument="CI",
+            Channel="CI_VIS_IFS",
+            Filter="CI_4F874",
+            Mask=mask_name,
+        )
+        hwo_configuration["temperature"] = float(np.median(optical_path.temperature.v))
+
+        # does having the mask defined impact the coronagraph behavior in pyedith?
+
+        for observation_type in ["IMAGER", "IFS"]:
+            configuration_by_obs = {}
+            obs_type = "di" if observation_type == "IMAGER" else "ifs"
+
+            # throughput
+            options = search_configuration(
+                channel_type="cg_" + obs_type,
+                wavelength_range_nm=[400, 1800],
+                center_nm=None,
+            )
+
+            configuration_by_obs["optics_throughput"] = {}
+            configuration_by_obs["pixscale_mas"] = {}
+            configuration_by_obs["dc"] = {}
+            configuration_by_obs["rn"] = {}
+            configuration_by_obs["cic"] = {}
+            configuration_by_obs["qe"] = {}
+            for chan_name, cdict in options.items():
+
+                # arrays
+                channel_throughput = []
+                channel_wavelength = []
+                channel_qe = []
+                for filt_name, fdict in cdict.items():
+                    parts = fdict["path"].split(".")
+
+                    optical_path = system.system.OpticalPath.select(
+                        Instrument=parts[0],
+                        Channel=parts[1],
+                        Filter=parts[-1],
+                        Mask=mask_name,
+                    )
+                    tp = optical_path.throughput(include_detector=True)
+                    optical_throughput = np.prod(
+                        tp.v[:-1], axis=0
+                    )  # Use [:-1] to not include the detector QE which is always last
+                    qe = tp.v[-1]
+                    mask = (tp.w > (fdict["center"] - fdict["width"] / 2)) & (
+                        tp.w < (fdict["center"] + fdict["width"] / 2)
+                    )
+
+                    channel_throughput.extend(list(optical_throughput[mask]))
+                    channel_wavelength.extend(list(tp.w.value[mask]))
+                    channel_qe.extend(list(qe[mask]))
+
+                # Sort by wavelength and apply same sorting to throughput
+                sorted_indices = np.argsort(channel_wavelength)
+                channel_wavelength = [channel_wavelength[i] for i in sorted_indices]
+                channel_throughput = [channel_throughput[i] for i in sorted_indices]
+                channel_qe = [channel_qe[i] for i in sorted_indices]
+                configuration_by_obs["optics_throughput"][chan_name] = {
+                    "wavelength": channel_wavelength,
+                    "throughput": channel_throughput,
+                }
+                configuration_by_obs["qe"][chan_name] = {
+                    "wavelength": channel_wavelength,
+                    "qe": channel_qe,
+                }
+
+                # scalars
+                nav_chan = system.resolve("CI." + chan_name)
+
+                configuration_by_obs["pixscale_mas"][chan_name] = float(
+                    (
+                        nav_chan.Detector.pixel_pitch.v
+                        / nav_chan.focal_length.v
+                        * u.radian
+                    )
+                    .to(u.mas)
+                    .value
+                )
+                configuration_by_obs["dc"][chan_name] = (
+                    float(nav_chan.Detector.dark_current.v),
+                )  # ct/px/s
+                configuration_by_obs["rn"][chan_name] = (
+                    float(nav_chan.Detector.read_noise.v),
+                )  # ct/px
+                configuration_by_obs["cic"][chan_name] = (
+                    float(nav_chan.Detector.cic.v),
+                )  # ct/px
+            hwo_configuration[observation_type] = configuration_by_obs
 
     def load_configuration(
         self, parameters: dict, observation: object, scene: object
