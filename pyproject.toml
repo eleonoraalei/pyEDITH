@@ -40,7 +40,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-packages = ["pyEDITH", "pyEDITH.components"]
+packages = ["pyEDITH"]
 include-package-data = true
 
 
