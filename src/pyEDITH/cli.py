@@ -149,7 +149,7 @@ def main():
         parser.print_help()
 
 
-def calculate_texp(parameters: dict, ETC_validation: bool = False) -> np.array:
+def calculate_texp(parameters: dict, ETC_validation: bool = False) -> tuple[dict, dict]:
     """
     Calculate exposure time for a planet observation with specified parameters.
 
@@ -167,14 +167,17 @@ def calculate_texp(parameters: dict, ETC_validation: bool = False) -> np.array:
 
     Returns
     -------
-    tuple
+    tuple[dict, dict]
         A tuple containing:
 
-        observation.exptime : numpy.ndarray
-            Exposure time in hours for each wavelength
+        results : dict
+            Dictionary with filter names as keys, each containing:
+            - 'wavelength': wavelength array
+            - 'exposure_time': exposure time array for each wavelength
 
-        observation.validation_variables : dict
-            Validation variables containing intermediate calculation results
+        validation_variables : dict
+            Dictionary with filter names as keys, containing validation variables
+            with intermediate calculation results
 
     """
 
@@ -226,7 +229,7 @@ def calculate_texp(parameters: dict, ETC_validation: bool = False) -> np.array:
     return results, validation_variables
 
 
-def calculate_snr(parameters: dict, reference_texp: float):
+def calculate_snr(parameters: dict, reference_texp: float) -> tuple[dict, dict]:
     """
     Calculate signal-to-noise ratio for a given exposure time.
 
@@ -243,14 +246,17 @@ def calculate_snr(parameters: dict, reference_texp: float):
 
     Returns
     -------
-    tuple
+    tuple[dict, dict]
         A tuple containing:
 
-        observation.fullsnr : numpy.ndarray
-            Signal-to-noise ratio for each wavelength
+        results : dict
+            Dictionary with filter names as keys, each containing:
+            - 'wavelength': wavelength array
+            - 'snr': signal-to-noise ratio array for each wavelength
 
-        observation.validation_variables : dict
-            Validation variables containing intermediate calculation results
+        validation_variables : dict
+            Dictionary with filter names as keys, containing validation variables
+            with intermediate calculation results
 
     """
 

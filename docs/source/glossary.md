@@ -1,6 +1,29 @@
 
 # Glossary
 
+
+## Within `filters.py`
+| Variable Name      | Length    | Unit          | Meaning                                           | User Editable |
+| ------------------ | --------- | ------------- | ------------------------------------------------- | ------------- |
+| name               | Scalar    | String        | Filter identifier (e.g., "UV", "500nm")           | Yes           |
+| type               | Scalar    | String        | Type of filter ("IFS" or "IMAGER")                | Yes           |
+| low                | Scalar    | μm            | Lower wavelength bound of the filter              | Yes           |
+| high               | Scalar    | μm            | Upper wavelength bound of the filter              | Yes           |
+| center             | Scalar    | μm            | Center wavelength of the filter                   | Yes           |
+| bandwidth          | Scalar    | Dimensionless | Fractional bandwidth (e.g., 0.2 for 20%)          | Yes           |
+| width              | Scalar    | μm            | Wavelength width of the filter (high - low)       | No            |
+| resolution         | Scalar    | Dimensionless | Spectral resolution R = λ/Δλ                      | Yes           |
+| wavelength         | [nlambda] | μm            | Array of wavelengths in the filter                | No            |
+| delta_wavelength   | [nlambda] | μm            | Wavelength bin widths (None for IMAGER type)      | No            |
+
+### Notes:
+
+- For IMAGER type filters, wavelength contains a single element (the center wavelength) and `delta_wavelength` is None
+- For IFS type filters, `wavelength` is an array generated based on the spectral resolution, and `delta_wavelength` contains the - corresponding bin widths
+- The filter can be initialized using either (`low`, `high`) or (`center`, `bandwidth`) - both define the same wavelength bounds
+If `name` is not provided, an auto-generated numeric identifier is assigned.
+
+
 ## Within `coronagraphs.py`
 | Variable Name                   | Length                   | Unit          | Meaning                                                      | User Editable |
 | ------------------------------- | ------------------------ | ------------- | ------------------------------------------------------------ | ------------- |
